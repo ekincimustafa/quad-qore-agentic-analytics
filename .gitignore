@@ -216,3 +216,32 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.key
+
+# Project data
+data/bronze/*
+!data/bronze/.gitkeep
+
+data/silver/*
+!data/silver/.gitkeep
+
+data/gold/*
+!data/gold/.gitkeep
+
+# Generated databases and datasets
+*.duckdb
+*.db
+*.parquet
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
