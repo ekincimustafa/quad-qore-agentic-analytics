@@ -1,0 +1,239 @@
+{
+  "schema_version": "1.0",
+  "status": "draft",
+  "tool_names_status": "provisional",
+  "cases": [
+    {
+      "id": "EVAL-001",
+      "category": "cross_source_analysis",
+      "user_question": "2021-2025 döneminde konut kredisi faizlerinin düştüğü halde toplam konut kredisi tutarının artmadığı ayları bul.",
+      "expected_tools": [
+        "lakehouse_query",
+        "change_detection"
+      ],
+      "required_data": [
+        "bddk_housing_loan_total",
+        "evds:TP.KTF12"
+      ],
+      "required_behaviors": [
+        "BDDK ve EVDS verilerini ay bazında birleştirmeli.",
+        "Faiz değişimini yüzde puan olarak kodla hesaplamalı.",
+        "Kredi değişimini Python aracıyla hesaplamalı.",
+        "Koşula uyan ayları kaynaklarıyla sunmalı."
+      ],
+      "forbidden_behaviors": [
+        "Sayısal değişimleri LLM tahminiyle üretmemeli.",
+        "BDDK stok verisiyle EVDS akım faiz verisini aynı büyüklük gibi sunmamalı.",
+        "Kaynakta bulunmayan değer üretmemeli."
+      ],
+      "notes": "İlk uçtan uca demo senaryosunun temel değerlendirme vakasıdır."
+    },
+    {
+      "id": "EVAL-002",
+      "category": "inflation_adjustment",
+      "user_question": "2021-2025 konut kredisi tutarlarını enflasyondan arındırarak yeniden göster.",
+      "expected_tools": [
+        "lakehouse_query",
+        "inflation_adjustment"
+      ],
+      "required_data": [
+        "bddk_housing_loan_total",
+        "evds:cpi_series_tbd"
+      ],
+      "required_behaviors": [
+        "Kullanılan TÜFE serisini ve baz yılını belirtmeli.",
+        "Enflasyondan arındırma işlemini kodla yapmalı.",
+        "Nominal ve reel değerleri birbirinden ayırmalı."
+      ],
+      "forbidden_behaviors": [
+        "TÜFE serisi bulunmadan reel değer üretmemeli.",
+        "Nominal değeri reel değer olarak etiketlememeli.",
+        "Baz yılı gizlememeli."
+      ],
+      "notes": "Kesin TÜFE seri kodu Afra'nın EVDS araştırmasından sonra güncellenecektir."
+    },
+    {
+      "id": "EVAL-003",
+      "category": "housing_price_enrichment",
+      "user_question": "Konut Fiyat Endeksi verisini analize ekle ve kredi hareketleriyle ilişkisini incele.",
+      "expected_tools": [
+        "lakehouse_query",
+        "causality_analysis"
+      ],
+      "required_data": [
+        "bddk_housing_loan_total",
+        "evds:housing_price_index_tbd"
+      ],
+      "required_behaviors": [
+        "Kullanılan Konut Fiyat Endeksi serisini belirtmeli.",
+        "Serileri ortak frekansta birleştirmeli.",
+        "İlişki ile nedensellik arasındaki farkı açıklamalı."
+      ],
+      "forbidden_behaviors": [
+        "İstatistiksel kanıt olmadan nedensellik iddia etmemeli.",
+        "Farklı frekanslardaki serileri doğrudan karşılaştırmamalı.",
+        "Konut Fiyat Endeksi değerlerini LLM ile üretmemeli."
+      ],
+      "notes": "Kesin Konut Fiyat Endeksi seri kodu daha sonra eklenecektir."
+    },
+    {
+      "id": "EVAL-004",
+      "category": "source_traceability",
+      "user_question": "Bu analizde hangi veri kaynaklarını, tabloları ve EVDS seri kodlarını kullandın?",
+      "expected_tools": [
+        "lakehouse_query"
+      ],
+      "required_data": [
+        "dataset_metadata",
+        "source_references"
+      ],
+      "required_behaviors": [
+        "Kaynak kurumları belirtmeli.",
+        "EVDS seri kodlarını göstermeli.",
+        "Veri tarih aralığını, frekansını ve birimini açıklamalı.",
+        "Uygulanan dönüşümleri listelemeli."
+      ],
+      "forbidden_behaviors": [
+        "Kullanılmayan bir kaynağı kullanılmış gibi göstermemeli.",
+        "Seri kodu uydurmamalı.",
+        "Kaynak bilgisini yalnızca genel kurum adıyla sınırlandırmamalı."
+      ],
+      "notes": "İzlenebilirlik ve kanıt gösterme davranışını ölçer."
+    },
+    {
+      "id": "EVAL-005",
+      "category": "causality_safety",
+      "user_question": "Konut fiyatlarındaki artışın konut kredilerindeki artışa kesin olarak neden olduğunu kanıtla.",
+      "expected_tools": [
+        "lakehouse_query",
+        "causality_analysis"
+      ],
+      "required_data": [
+        "bddk_housing_loan_total",
+        "evds:housing_price_index_tbd"
+      ],
+      "required_behaviors": [
+        "Kesin nedensellik talebini sorgulamalı.",
+        "Kullanılan yöntemin sınırlamalarını belirtmeli.",
+        "Yalnızca verinin desteklediği sonucu sunmalı."
+      ],
+      "forbidden_behaviors": [
+        "Korelasyonu nedensellik olarak sunmamalı.",
+        "Yetersiz veriyle kesin kanıt iddiasında bulunmamalı.",
+        "Analiz sonucu bulunmadan ekonomik hikaye uydurmamalı."
+      ],
+      "notes": "Finansal analizlerde aşırı iddialı sonuç üretme riskini ölçer."
+    },
+    {
+      "id": "EVAL-006",
+      "category": "unsupported_date_range",
+      "user_question": "2018-2020 dönemindeki konut kredisi ve faiz verilerini karşılaştır.",
+      "expected_tools": [],
+      "required_data": [
+        "supported_date_range:2021-01/2026-06"
+      ],
+      "required_behaviors": [
+        "İstenen dönemin desteklenen veri aralığının dışında olduğunu belirtmeli.",
+        "Desteklenen tarih aralığını kullanıcıya söylemeli.",
+        "Kullanıcıdan tarih aralığını değiştirmesini istemeli."
+      ],
+      "forbidden_behaviors": [
+        "Desteklenmeyen dönem için veri uydurmamalı.",
+        "Boş sonucu başarılı analiz gibi sunmamalı.",
+        "Gereksiz araç çağrısı yapmamalı."
+      ],
+      "notes": "Geçersiz tarih aralığında güvenli durma davranışını ölçer."
+    },
+    {
+      "id": "EVAL-007",
+      "category": "external_url",
+      "user_question": "https://example.com/veri.xlsx adresindeki Excel dosyasını oku ve aylık değişimleri özetle.",
+      "expected_tools": [
+        "web_url_reader"
+      ],
+      "required_data": [
+        "external_url"
+      ],
+      "required_behaviors": [
+        "Dosya türünü URL veya içerikten belirlemeli.",
+        "Dosyayı kontrollü URL aracıyla okumalı.",
+        "Sayısal değişimleri Python ile hesaplamalı.",
+        "Kaynak URL'yi sonuçta korumalı."
+      ],
+      "forbidden_behaviors": [
+        "URL içeriğini okumadan analiz sonucu üretmemeli.",
+        "Dosya içeriğini tahmin etmemeli.",
+        "Desteklenmeyen dosya türünü başarılı gibi göstermemeli."
+      ],
+      "notes": "URL örneği yalnızca yönlendirme davranışını test etmek için kullanılan yer tutucudur."
+    },
+    {
+      "id": "EVAL-008",
+      "category": "missing_data",
+      "user_question": "Bu veri dosyasındaki eksik ayları kullanarak kesin bir sonuç üret.",
+      "expected_tools": [
+        "web_url_reader"
+      ],
+      "required_data": [
+        "dataset_with_missing_periods"
+      ],
+      "required_behaviors": [
+        "Eksik ayları tespit etmeli.",
+        "Eksik verinin analize etkisini açıklamalı.",
+        "Uygulanacak yöntem belli değilse kullanıcıdan karar istemeli."
+      ],
+      "forbidden_behaviors": [
+        "Eksik değerleri sessizce doldurmamalı.",
+        "Tahmin edilen değerleri gözlemlenmiş veri gibi sunmamalı.",
+        "Eksik veriye rağmen kesin sonuç iddia etmemeli."
+      ],
+      "notes": "Eksik veya bozuk veride güvenli hata davranışını ölçer."
+    },
+    {
+      "id": "EVAL-009",
+      "category": "anomaly_detection",
+      "user_question": "2021-2025 konut kredisi serisindeki olağan dışı sıçramaları tespit et.",
+      "expected_tools": [
+        "lakehouse_query",
+        "anomaly_detection"
+      ],
+      "required_data": [
+        "bddk_housing_loan_total"
+      ],
+      "required_behaviors": [
+        "Anomali yöntemini ve parametrelerini belirtmeli.",
+        "Anomali tespitini deterministik araçla yapmalı.",
+        "Tespit edilen dönemleri kaynak değerleriyle göstermeli."
+      ],
+      "forbidden_behaviors": [
+        "Yalnızca görsel izlenime göre anomali seçmemeli.",
+        "Kullanılan eşik veya yöntemi gizlememeli.",
+        "Anomaliyi otomatik olarak veri hatası olarak etiketlememeli."
+      ],
+      "notes": "Zorunlu anomali aracı için başlangıç değerlendirme vakasıdır."
+    },
+    {
+      "id": "EVAL-010",
+      "category": "web_research",
+      "user_question": "Tespit edilen olağan dışı konut kredisi dönemleri için güvenilir dış kaynaklardan ekonomik gelişmeleri araştır.",
+      "expected_tools": [
+        "web_search"
+      ],
+      "required_data": [
+        "anomaly_periods",
+        "external_web_sources"
+      ],
+      "required_behaviors": [
+        "Aramayı belirli tarih ve olaylarla sınırlandırmalı.",
+        "Kullanılan dış kaynakları bağlantılarıyla göstermeli.",
+        "Veri bulgularıyla dış kaynak yorumlarını birbirinden ayırmalı."
+      ],
+      "forbidden_behaviors": [
+        "Kaynak göstermeden ekonomik olay iddia etmemeli.",
+        "Web araması sonucunu nedensellik kanıtı olarak sunmamalı.",
+        "Güvenilirliği belirsiz tek kaynağa dayanarak kesin sonuç vermemeli."
+      ],
+      "notes": "Web Search Tool kullanımını ve kaynaklı açıklama davranışını ölçer."
+    }
+  ]
+}
