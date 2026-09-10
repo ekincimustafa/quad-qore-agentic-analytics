@@ -46,6 +46,7 @@ The scenario aims to:
 * A manual MIA connection smoke test has been added.
 * Automated tests for the MIA client are passing.
 * BDDK and TCMB EVDS data source investigations are in progress.
+* A draft golden evaluation dataset with ten behavioral test cases has been added.
 
 ## Kloudeks MIA Connection
 
