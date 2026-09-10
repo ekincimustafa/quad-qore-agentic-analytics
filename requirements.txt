@@ -6,6 +6,7 @@ pandas
 duckdb
 pyarrow
 httpx
+openai
 plotly
 python-dotenv
 openpyxl
