@@ -1,14 +1,23 @@
-fastapi
-uvicorn[standard]
-pydantic
-pydantic-settings
-pandas
-duckdb
-pyarrow
-httpx
-openai
-plotly
-python-dotenv
-openpyxl
-pypdf
-pytest
+# API
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+pydantic==2.13.5
+pydantic-settings==2.15.0
+
+# Data processing
+pandas==3.0.5
+duckdb==1.5.5
+pyarrow==25.0.1
+openpyxl==3.1.5
+pypdf==6.18.0
+
+# Model integration
+httpx==0.28.1
+openai==3.11.0
+python-dotenv==1.2.3
+
+# Visualization
+plotly==7.0.0
+
+# Testing
+pytest==9.1.1
