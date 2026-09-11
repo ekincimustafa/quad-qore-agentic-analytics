@@ -7,13 +7,11 @@ BronzeStore ve BronzeAsset testleri.
   - test_rejects_different_content_at_existing_path
   - test_rejects_missing_source_file
 
-SONRA — yeni özellikler (6 yeni test):
+SONRA — yeni özellikler (4 yeni test):
   - test_bronze_asset_provenance_fields_default_to_none
   - test_bronze_asset_has_provenance_true_when_all_fields_filled
   - test_bronze_asset_has_provenance_false_when_partial
   - test_store_file_passes_provenance_to_asset
-  - test_register_existing_asset_returns_correct_asset
-  - test_register_existing_asset_raises_for_missing_file
 """
 from hashlib import sha256
 from pathlib import Path
@@ -100,7 +98,7 @@ def test_rejects_missing_source_file(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# YENI TESTLER — provenance ve register_existing_asset
+# YENI TESTLER — provenance
 # ---------------------------------------------------------------------------
 
 def test_bronze_asset_provenance_fields_default_to_none(tmp_path: Path) -> None:
@@ -178,42 +176,3 @@ def test_store_file_passes_provenance_to_asset(tmp_path: Path) -> None:
     assert summary["source_url"].startswith("https://www.bddk.org.tr")
     assert summary["data_period"] == "2021-01"
     assert summary["content_type"] == "text/html"
-
-
-def test_register_existing_asset_returns_correct_asset(tmp_path: Path) -> None:
-    """register_existing_asset mevcut dosyayı kopyalamadan kayıt eder."""
-    # Dosyayı "connector tarafından indirilmiş" gibi simüle et
-    existing_file = tmp_path / "e53f6e3a-hash.json"
-    content = b'{"Json": {"caption": "Tuketici Kredileri"}}'
-    existing_file.write_bytes(content)
-
-    store = BronzeStore(LakehouseLayout(tmp_path / "data"))
-
-    asset = store.register_existing_asset(
-        existing_path=existing_file,
-        source_url="https://www.bddk.org.tr/BultenAylik/tr/Home/BasitRaporGetir",
-        downloaded_at="2026-09-10T20:32:06+00:00",
-        data_period="2021-01",
-        content_type="application/json; charset=utf-8",
-    )
-
-    # Dosya yerinden oynamadı mı?
-    assert asset.path == existing_file
-    assert existing_file.exists()
-    assert existing_file.read_bytes() == content
-
-    # Hash doğru mu?
-    assert asset.sha256 == sha256(content).hexdigest()
-    assert asset.size_bytes == len(content)
-
-    # Provenance doldu mu?
-    assert asset.has_provenance() is True
-    assert asset.data_period == "2021-01"
-
-
-def test_register_existing_asset_raises_for_missing_file(tmp_path: Path) -> None:
-    """register_existing_asset olmayan dosya için FileNotFoundError fırlatır."""
-    store = BronzeStore(LakehouseLayout(tmp_path / "data"))
-
-    with pytest.raises(FileNotFoundError):
-        store.register_existing_asset(tmp_path / "olmayan.json")

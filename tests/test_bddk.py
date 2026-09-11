@@ -7,9 +7,11 @@ from pathlib import Path
 from unittest.mock import patch
 from urllib.error import HTTPError
 
+import ssl
 from app.connectors.bddk import (
     Archive, Downloader, Page, Response, Transport, month_ranges,
-    exclusive_archive, monthly_validation, select_ids, weekly_validation,
+    create_secure_ssl_context, exclusive_archive, extract_housing_loan_data,
+    monthly_validation, select_ids, weekly_validation,
 )
 
 
@@ -141,6 +143,85 @@ class BddkTests(unittest.TestCase):
             with self.assertRaises(HTTPError):
                 transport.request("https://www.bddk.org.tr")
             self.assertEqual(opened.call_count, 1)
+
+    def test_transport_enforces_secure_tls_settings(self):
+        """Transport must strictly enforce certificate verification and hostname checking."""
+        transport = Transport()
+        self.assertEqual(transport.ssl_context.verify_mode, ssl.CERT_REQUIRED)
+        self.assertTrue(transport.ssl_context.check_hostname)
+
+    def test_extract_housing_loan_data_scrambled_schema(self):
+        """Dynamic parser must locate indicators and columns regardless of row or column order."""
+        # Scrambled columns: Toplam, Ad, BasitSira, Yp, Tp (different from standard 0..6)
+        scrambled_payload = {
+            "success": True,
+            "Json": {
+                "caption": "Tüketici Kredileri (milyon TL), Dönem:2021/1",
+                "colModels": [
+                    {"name": "Toplam"},
+                    {"name": "Ad"},
+                    {"name": "BasitSira"},
+                    {"name": "Yp"},
+                    {"name": "Tp"},
+                ],
+                "data": {
+                    "rows": [
+                        # Row 0: Other indicator
+                        {"cell": [1000, "İhtiyaç Kredileri", 3, 10, 990]},
+                        # Row 1: Target indicator with scrambled columns
+                        {"cell": [276785.0, "Tüketici Kredileri - Konut", 2, 45.0, 276740.0]},
+                        # Row 2: Another indicator
+                        {"cell": [5000, "Taşıt Kredileri", 4, 50, 4950]},
+                    ]
+                },
+            },
+        }
+        res = extract_housing_loan_data(scrambled_payload)
+        self.assertEqual(res["label"], "Tüketici Kredileri - Konut")
+        self.assertEqual(res["tp"], 276740.0)
+        self.assertEqual(res["yp"], 45.0)
+        self.assertEqual(res["toplam"], 276785.0)
+
+    def test_extract_housing_loan_data_missing_column_raises(self):
+        """Missing required column in colModels must raise ValueError."""
+        incomplete_payload = {
+            "Json": {
+                "colModels": [{"name": "Ad"}, {"name": "Tp"}],  # missing Yp, Toplam
+                "data": {"rows": [{"cell": ["Tüketici Kredileri - Konut", 100]}]},
+            }
+        }
+        with self.assertRaises(ValueError) as ctx:
+            extract_housing_loan_data(incomplete_payload)
+        self.assertIn("gerekli sütunlar", str(ctx.exception))
+
+    def test_extract_housing_loan_data_missing_row_raises(self):
+        """Missing indicator row must raise explicit ValueError."""
+        payload = {
+            "Json": {
+                "colModels": [{"name": "Ad"}, {"name": "Tp"}, {"name": "Yp"}, {"name": "Toplam"}],
+                "data": {"rows": [{"cell": ["Diğer Kredi", 10, 20, 30]}]},
+            }
+        }
+        with self.assertRaises(ValueError) as ctx:
+            extract_housing_loan_data(payload)
+        self.assertIn("bulunamadı", str(ctx.exception))
+
+    def test_extract_housing_loan_data_duplicate_row_raises(self):
+        """Duplicate indicator rows must raise explicit ValueError."""
+        payload = {
+            "Json": {
+                "colModels": [{"name": "Ad"}, {"name": "Tp"}, {"name": "Yp"}, {"name": "Toplam"}],
+                "data": {
+                    "rows": [
+                        {"cell": ["Tüketici Kredileri - Konut", 10, 20, 30]},
+                        {"cell": ["Tüketici Kredileri - Konut", 40, 50, 90]},
+                    ]
+                },
+            }
+        }
+        with self.assertRaises(ValueError) as ctx:
+            extract_housing_loan_data(payload)
+        self.assertIn("birden fazla eşleşme", str(ctx.exception))
 
 
 if __name__ == "__main__":

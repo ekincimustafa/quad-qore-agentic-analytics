@@ -69,7 +69,6 @@ class BronzeStore:
 
     Sorumluluklar:
         - Kaynak dosyayı doğru lakehouse yoluna kopyalamak (store_file)
-        - Dışarıdan indirilen dosyayı tanıyıp kayıt altına almak (register_existing_asset)
         - SHA-256 ile bütünlük garantisi vermek
         - İmmutability: aynı yola farklı içerik yazılmasını engellemek
 
@@ -147,50 +146,6 @@ class BronzeStore:
             path=destination,
             sha256=source_checksum,
             size_bytes=destination.stat().st_size,
-            source_url=source_url,
-            downloaded_at=downloaded_at,
-            data_period=data_period,
-            content_type=content_type,
-        )
-
-    def register_existing_asset(
-        self,
-        existing_path: str | Path,
-        source_url: str | None = None,
-        downloaded_at: str | None = None,
-        data_period: str | None = None,
-        content_type: str | None = None,
-    ) -> BronzeAsset:
-        """Dışarıdan indirilmiş bir dosyayı kopyalamadan Bronze kataloğuna kayıt eder.
-
-        bddk.py gibi kendi Archive sistemine sahip connector'ların indirdiği dosyalar
-        zaten diskte doğru yerde durur. Bu metod o dosyaları BronzeStore'a tanıtır:
-        SHA-256 hesaplar, provenance metadata'sını alır, BronzeAsset döner.
-
-        Dosya taşınmaz, kopyalanmaz, değiştirilmez.
-
-        Args:
-            existing_path : Zaten diskte olan dosyanın tam yolu.
-            source_url    : Verinin çekildiği URL (provenance).
-            downloaded_at : İndirme zamanı ISO 8601 (provenance).
-            data_period   : Verinin temsil ettiği dönem (provenance).
-            content_type  : MIME türü (provenance).
-
-        Raises:
-            FileNotFoundError: Dosya diskte bulunamazsa.
-        """
-        path = Path(existing_path)
-        if not path.is_file():
-            raise FileNotFoundError(
-                f"Kayıt edilmek istenen dosya bulunamadı: {path}"
-            )
-
-        checksum = calculate_sha256(path)
-
-        return BronzeAsset(
-            path=path,
-            sha256=checksum,
-            size_bytes=path.stat().st_size,
             source_url=source_url,
             downloaded_at=downloaded_at,
             data_period=data_period,

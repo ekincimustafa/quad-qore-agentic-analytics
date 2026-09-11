@@ -23,16 +23,46 @@ from urllib.parse import urlencode
 from urllib.request import HTTPCookieProcessor, HTTPSHandler, Request, build_opener
 from uuid import uuid4
 
-# BDDK uses a Turkish national CA certificate that is not present in Python's
-# default CA bundle or in certifi. We use CERT_NONE for this public, read-only,
-# unauthenticated government data endpoint. No secrets transit this connection.
-_SSL_CTX = ssl.create_default_context()
-_SSL_CTX.check_hostname = False
-_SSL_CTX.verify_mode = ssl.CERT_NONE
+# Official GlobalSign intermediate certificate SHA-256 fingerprint
+# BDDK's web servers omit this intermediate certificate ('GlobalSign RSA OV SSL CA 2018')
+# in their TLS handshakes. Supplying and verifying it allows standard OpenSSL/urllib
+# to establish full cryptographic verification against the system Root CA.
+GLOBALSIGN_INTERMEDIATE_SHA256 = (
+    "b676ffa3179e8812093a1b5eafee876ae7a6aaf231078dad1bfb21cd2893764a"
+)
+
+
+def create_secure_ssl_context(cafile: str | Path | None = None) -> ssl.SSLContext:
+    """Create an SSL context strictly enforcing certificate and hostname verification.
+
+    Never disables CERT_REQUIRED or check_hostname. Loads the fingerprint-verified
+    intermediate CA certificate if present.
+    """
+    ctx = ssl.create_default_context()
+    ctx.verify_mode = ssl.CERT_REQUIRED
+    ctx.check_hostname = True
+
+    cert_path = Path(cafile) if cafile else Path(__file__).parent / "certs" / "globalsign_intermediate.pem"
+    if cert_path.is_file():
+        # Verify certificate content integrity before loading
+        raw_pem = cert_path.read_text(encoding="utf-8")
+        lines = [line.strip() for line in raw_pem.splitlines() if line and not line.startswith("---")]
+        import base64
+        der_bytes = base64.b64decode("".join(lines))
+        actual_fp = hashlib.sha256(der_bytes).hexdigest()
+        if actual_fp != GLOBALSIGN_INTERMEDIATE_SHA256:
+            raise ValueError(
+                f"CA sertifika parmak izi eşleşmiyor! Beklenen: {GLOBALSIGN_INTERMEDIATE_SHA256}, Alınan: {actual_fp}"
+            )
+        ctx.load_verify_locations(cafile=str(cert_path))
+
+    return ctx
+
 
 MONTHLY = "https://www.bddk.org.tr/BultenAylik"
 WEEKLY = "https://www.bddk.org.tr/BultenHaftalik"
 DAILY = "https://www.bddk.gov.tr/BultenGunluk"
+
 
 
 @contextmanager
@@ -155,12 +185,13 @@ class Response:
 
 
 class Transport:
-    def __init__(self, delay=0.75, retries=3, timeout=60):
+    def __init__(self, delay=0.75, retries=3, timeout=60, ssl_context=None):
         if delay < 0 or retries < 1 or timeout <= 0:
             raise ValueError("Geçersiz ağ ayarları.")
         self.delay, self.retries, self.timeout = delay, retries, timeout
+        self.ssl_context = ssl_context or create_secure_ssl_context()
         self.opener = build_opener(
-            HTTPSHandler(context=_SSL_CTX),
+            HTTPSHandler(context=self.ssl_context),
             HTTPCookieProcessor(CookieJar()),
         )
         self.last_request = 0.0
@@ -275,6 +306,77 @@ def monthly_validation(response, year, month, expected_groups=None, table=None):
     return {"period": f"{year}-{month:02d}", "period_confirmation": "response_caption" if period_in_caption else "request_only",
             "rows": len(rows), "caption": caption,
             "semantic_review": "pending"}
+
+
+def extract_housing_loan_data(payload: dict) -> dict:
+    """Extract housing loan figures from BDDK Table 4 JSON payload.
+
+    Uses schema-aware column resolution via `colModels` and indicator label lookup,
+    never positional indexing.
+
+    Returns:
+        dict with keys: 'label', 'tp', 'yp', 'toplam', 'caption'
+
+    Raises:
+        ValueError: If colModels is missing, required columns cannot be resolved uniquely,
+                    or the indicator row cannot be uniquely identified.
+    """
+    if not isinstance(payload, dict):
+        raise ValueError("BDDK yanıtı bir JSON sözlüğü (dict) olmalıdır.")
+    report = payload.get("Json", {}) if "Json" in payload else payload
+    if not isinstance(report, dict):
+        raise ValueError("BDDK yanıtında 'Json' alanı bir sözlük olmalıdır.")
+    col_models = report.get("colModels", [])
+    if not col_models:
+        raise ValueError("BDDK yanıtında 'colModels' sütun şeması bulunamadı.")
+
+    col_map = {}
+    for idx, col in enumerate(col_models):
+        name = col.get("name", "").strip().lower()
+        if name in col_map:
+            raise ValueError(f"colModels içinde mükerrer sütun adı: {name}")
+        col_map[name] = idx
+
+    required_cols = {"ad", "tp", "yp", "toplam"}
+    missing = required_cols - set(col_map.keys())
+    if missing:
+        raise ValueError(f"BDDK şemasında gerekli sütunlar bulunamadı: {missing}")
+
+    ad_idx = col_map["ad"]
+    tp_idx = col_map["tp"]
+    yp_idx = col_map["yp"]
+    toplam_idx = col_map["toplam"]
+
+    rows = report.get("data", {}).get("rows", [])
+    if not rows:
+        raise ValueError("BDDK yanıtında veri satırı bulunamadı.")
+
+    target_label = "Tüketici Kredileri - Konut"
+    matched = []
+    for r in rows:
+        cell = r.get("cell", [])
+        if len(cell) <= max(ad_idx, tp_idx, yp_idx, toplam_idx):
+            continue
+        cell_label = " ".join(str(cell[ad_idx]).split())
+        if cell_label == target_label:
+            matched.append(cell)
+
+    if len(matched) == 0:
+        raise ValueError(f"'{target_label}' gösterge satırı BDDK tablosunda bulunamadı.")
+    if len(matched) > 1:
+        raise ValueError(
+            f"'{target_label}' gösterge satırı için birden fazla eşleşme bulundu: {len(matched)}"
+        )
+
+    row_cell = matched[0]
+    return {
+        "label": target_label,
+        "tp": float(row_cell[tp_idx]),
+        "yp": float(row_cell[yp_idx]),
+        "toplam": float(row_cell[toplam_idx]),
+        "caption": report.get("caption", ""),
+    }
+
 
 
 def weekly_validation(response, expected_dates, expected_groups=None, expected_values=None, currency=None):
