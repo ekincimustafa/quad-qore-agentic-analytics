@@ -245,3 +245,6 @@ logs/
 # IDE
 .vscode/
 .idea/
+
+# Local notes & research
+0_MyNotes/
