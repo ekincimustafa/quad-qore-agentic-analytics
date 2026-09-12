@@ -62,6 +62,8 @@ The API key is loaded from a local `.env` file and must never be included in the
 
 ## Local Setup
 
+BDDK bulletin acquisition: see [BDDK ingestion guide](docs/bddk-ingestion.md) for monthly/weekly downloads, raw data storage, validation, and the daily history limitation.
+
 ### 1. Create a virtual environment
 
 ```powershell
