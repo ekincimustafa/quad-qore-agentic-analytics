@@ -8,6 +8,8 @@ Exit Code:
   0: Tum kontroller basarili, beklenen aylar eksiksiz ve semaya uygun.
   1: Eksik ay, sema degisimi, dosya okuma hatasi veya dogrulama basarisizligi.
 """
+from __future__ import annotations
+
 import json
 import sys
 from pathlib import Path
@@ -27,69 +29,92 @@ def generate_expected_months(start_year: int, start_month: int, end_year: int, e
     return months
 
 
-def main() -> int:
+def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         try:
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
 
-    receipts_dir = Path("data/bronze/bddk/aylik/receipts")
-    raw_dir = Path("data/bronze/bddk/aylik/raw")
+    base_receipts = Path(receipts_dir) if receipts_dir else Path("data/bronze/bddk/aylik/receipts")
+    base_raw = Path(raw_dir) if raw_dir else Path("data/bronze/bddk/aylik/raw")
 
     print("=" * 65)
     print("BDDK BRONZE AYLIK VERI KALITE DENETIMI")
     print("=" * 65)
 
-    if not receipts_dir.is_dir():
-        print(f"[HATA] Makbuz klasoru bulunamadi: {receipts_dir}")
+    if not base_receipts.is_dir():
+        print(f"[HATA] Makbuz klasoru bulunamadi: {base_receipts}")
         return 1
 
-    receipt_files = sorted(receipts_dir.glob("*.json"))
+    receipt_files = sorted(base_receipts.glob("*.json"))
     if not receipt_files:
-        print(f"[HATA] {receipts_dir} altinda makbuz (.json) dosyasi yok.")
+        print(f"[HATA] {base_receipts} altinda makbuz (.json) dosyasi yok.")
         return 1
 
-    all_receipts = []
+    all_raw_receipts = []
     okuma_hatalari = []
     for r in receipt_files:
         try:
             data = json.loads(r.read_text("utf-8"))
-            all_receipts.append(data)
+            all_raw_receipts.append(data)
         except Exception as exc:
             okuma_hatalari.append((r.name, str(exc)))
 
+    is_valid = True
+
     if okuma_hatalari:
-        print(f"[UYARI] {len(okuma_hatalari)} makbuz okunamadi!")
+        print(f"[HATA] {len(okuma_hatalari)} makbuz okunamadi veya bozuk JSON iceriyor:")
         for name, err in okuma_hatalari:
             print(f"  {name}: {err}")
+        is_valid = False
 
-    # Tablo bazli makbuz dagilimi
+    # -----------------------------------------------------------------------
+    # Idempotent Deduplication: Ayni request_key icin en son makbuzu sec
+    # -----------------------------------------------------------------------
+    deduped_by_key: dict[str, dict] = {}
+    for r in all_raw_receipts:
+        key = r.get("request_key")
+        if not key:
+            continue
+        ts = r.get("downloaded_at", "")
+        if key not in deduped_by_key or ts > deduped_by_key[key].get("downloaded_at", ""):
+            deduped_by_key[key] = r
+
+    unique_receipts = list(deduped_by_key.values())
+    duplicate_count = len(all_raw_receipts) - len(unique_receipts)
+
+    # Tablo bazli makbuz dagilimi (tekillestirilmis)
     tablo_sayac: dict[str, int] = {}
-    for r in all_receipts:
+    for r in unique_receipts:
         params = r.get("parameters") or {}
         tablo_no = str(params.get("tabloNo", "(katalog/GET)")) if params else "(katalog/GET)"
         tablo_sayac[tablo_no] = tablo_sayac.get(tablo_no, 0) + 1
 
-    print(f"Toplam Makbuz Sayisi : {len(all_receipts)}")
-    print("Tablo Dagilimi       :")
+    print(f"Toplam Makbuz Dosyasi : {len(all_raw_receipts)}")
+    print(f"Tekil Istek Sayisi    : {len(unique_receipts)} ({duplicate_count} eski/refresh makbuz elendi)")
+    print("Tablo Dagilimi (Tekil):")
     for k, v in sorted(tablo_sayac.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 999):
-        print(f"  Tablo {k:>15}: {v:>4} makbuz")
+        print(f"  Tablo {k:>15}: {v:>4} istek")
 
     # -----------------------------------------------------------------------
     # Demo Serisi: Tablo 4, Sektor (10001), TL
+    # Donem (yil, ay) bazinda tekillestir
     # -----------------------------------------------------------------------
-    tablo4_sektor_tl = []
-    for r in all_receipts:
+    by_period: dict[tuple[int, int], dict] = {}
+    for r in unique_receipts:
         p = r.get("parameters") or {}
         if not p:
             continue
         if (str(p.get("tabloNo")) == "4"
                 and p.get("taraf") == ["10001"]
                 and p.get("paraBirimi") == "TL"):
-            tablo4_sektor_tl.append(r)
+            period = (int(p["yil"]), int(p["ay"]))
+            ts = r.get("downloaded_at", "")
+            if period not in by_period or ts > by_period[period].get("downloaded_at", ""):
+                by_period[period] = r
 
-    tablo4_sektor_tl.sort(key=lambda x: (x["parameters"]["yil"], x["parameters"]["ay"]))
+    tablo4_sektor_tl = sorted(by_period.values(), key=lambda x: (x["parameters"]["yil"], x["parameters"]["ay"]))
 
     beklenen_aylar = generate_expected_months(2021, 1, 2026, 7)
     mevcut_aylar = {(r["parameters"]["yil"], r["parameters"]["ay"]) for r in tablo4_sektor_tl}
@@ -100,9 +125,7 @@ def main() -> int:
     print("DEMO SERISI: Tablo 4 / Sektor(10001) / TL")
     print("=" * 65)
     print(f"Beklenen Donem Sayisi (2021-01 .. 2026-07) : {len(beklenen_aylar)}")
-    print(f"Mevcut Donem Sayisi                        : {len(tablo4_sektor_tl)}")
-
-    is_valid = True
+    print(f"Mevcut Tekil Donem Sayisi                  : {len(tablo4_sektor_tl)}")
 
     if eksik_aylar:
         print(f"[HATA] EKSIK DONEMLER ({len(eksik_aylar)} adet): {eksik_aylar}")
@@ -137,7 +160,7 @@ def main() -> int:
         print(f"  {k}: {v} ay -> {guvence}")
 
     # -----------------------------------------------------------------------
-    # Dinamik Sema-Duyarli Veri Ayristirma (extract_housing_loan_data)
+    # Dinamik Sema-Duyarli Veri Ayristirma ve Fiziksel Dosya Dogrulamasi
     # -----------------------------------------------------------------------
     from app.connectors.bddk import extract_housing_loan_data
 
@@ -156,12 +179,24 @@ def main() -> int:
         p = r["parameters"]
         donem_str = f"{p['yil']}-{p['ay']:02d}"
         rel_path = r.get("path", "")
-        raw_file = Path("data/bronze/bddk") / rel_path
+        # Raw file path resolution
+        if raw_dir:
+            raw_file = base_raw / Path(rel_path).name
+        else:
+            raw_file = Path("data/bronze/bddk") / rel_path
 
         if not raw_file.is_file():
-            parse_hatalari.append((donem_str, f"Ham dosya bulunamadi: {raw_file}"))
+            parse_hatalari.append((donem_str, f"Fiziksel ham dosya bulunamadi: {raw_file}"))
             is_valid = False
             continue
+
+        actual_size = raw_file.stat().st_size
+        expected_size = r.get("size_bytes")
+        if expected_size is not None and actual_size != expected_size:
+            parse_hatalari.append(
+                (donem_str, f"Boyut uyusmazligi: diskte {actual_size} bayt, makbuzda {expected_size} bayt")
+            )
+            is_valid = False
 
         try:
             raw_payload = json.loads(raw_file.read_text("utf-8"))
@@ -186,7 +221,7 @@ def main() -> int:
 
     if parse_hatalari:
         print()
-        print(f"[HATA] PARSE HATALARI ({len(parse_hatalari)} adet):")
+        print(f"[HATA] PARSE / DOSYA HATALARI ({len(parse_hatalari)} adet):")
         for donem, err in parse_hatalari:
             print(f"  {donem}: {err}")
 
@@ -201,10 +236,10 @@ def main() -> int:
     print("SONUC RAPORU")
     print("=" * 65)
     if is_valid and not okuma_hatalari and not parse_hatalari and len(tablo4_sektor_tl) == len(beklenen_aylar):
-        print(f"[BASARILI] Tum {len(tablo4_sektor_tl)} donem eksiksiz, dinamik sema ile dogrulandi.")
+        print(f"[BASARILI] Tum {len(tablo4_sektor_tl)} donem eksiksiz, tekillestirilmis ve dinamik sema ile dogrulandi.")
         return 0
     else:
-        print("[HATA] DENETIM BASARISIZ: Veri setinde eksiklik veya tutarsizlik saptandi.")
+        print("[HATA] DENETIM BASARISIZ: Veri setinde eksiklik, bozuk makbuz veya dosya tutarsizligi saptandi.")
         return 1
 
 

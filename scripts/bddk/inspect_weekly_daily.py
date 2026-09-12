@@ -5,9 +5,11 @@ Calistir: python -m scripts.bddk.inspect_weekly_daily
 Gereksinimler: Yalnizca Python standart kutuphanesi.
 
 Exit Code:
-  0: Haftalik veri seti (2021-01 .. 2026-07) tam kapsamli ve Kalem 5690 dogrulanmis.
-  1: Eksik klasor, eksik donem, eksik kalem veya okuma hatasi.
+  0: Haftalik veri seti (2021-01 .. 2026-07) Kalem 5690 ozelinde eksiksiz ve fiziksel dosyalari tam.
+  1: Eksik klasor, eksik donem, Kalem 5690 eksigi, okuma hatasi veya fiziksel dosya uyusmazligi.
 """
+from __future__ import annotations
+
 import json
 import sys
 from pathlib import Path
@@ -27,18 +29,18 @@ def generate_expected_months(start_year: int, start_month: int, end_year: int, e
     return months
 
 
-def inspect_gunluk() -> dict:
-    receipts_dir = Path("data/bronze/bddk/gunluk/receipts")
+def inspect_gunluk(receipts_dir: Path | None = None) -> dict:
+    base_receipts = Path(receipts_dir) if receipts_dir else Path("data/bronze/bddk/gunluk/receipts")
 
     print("=" * 65)
     print("GUNLUK BDDK VERISI DURUM ANALIZI")
     print("=" * 65)
 
-    if not receipts_dir.is_dir():
-        print(f"[HATA] Gunluk makbuz klasoru bulunamadi: {receipts_dir}")
+    if not base_receipts.is_dir():
+        print(f"[HATA] Gunluk makbuz klasoru bulunamadi: {base_receipts}")
         return {"receipt_count": 0, "is_valid": False, "historical_accessible": False}
 
-    receipt_files = sorted(receipts_dir.glob("*.json"))
+    receipt_files = sorted(base_receipts.glob("*.json"))
     receipt_count = len(receipt_files)
     print(f"Toplam gunluk makbuz sayisi: {receipt_count}")
     print()
@@ -78,7 +80,7 @@ def inspect_gunluk() -> dict:
     print(f"  - Bildirilen gecmis kapsami: {sorted(historical_coverages)}")
     print("  - TESPIT: Farkli tarih araligi parametrelerine ragmen sayfa yalnizca")
     print(f"    mevcut tekil gunun snapshot verisini dondurmektedir ({sorted(unique_dates)}).")
-    print("  - Gecmis gunluk seri arsiv erisimi BDDK BultenGunluk sayfasindan saglanamamaktadir.")
+    print("  - Mevcut denemelerde gecmis gunluk seri erisimi dogrulanamadi.")
 
     return {
         "receipt_count": len(receipts),
@@ -88,20 +90,20 @@ def inspect_gunluk() -> dict:
     }
 
 
-def inspect_haftalik() -> dict:
-    receipts_dir = Path("data/bronze/bddk/haftalik/receipts")
-    raw_dir = Path("data/bronze/bddk/haftalik/raw")
+def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> dict:
+    base_receipts = Path(receipts_dir) if receipts_dir else Path("data/bronze/bddk/haftalik/receipts")
+    base_raw = Path(raw_dir) if raw_dir else Path("data/bronze/bddk/haftalik/raw")
 
     print()
     print("=" * 65)
     print("HAFTALIK BDDK VERISI DURUM ANALIZI")
     print("=" * 65)
 
-    if not receipts_dir.is_dir():
-        print(f"[HATA] Haftalik makbuz klasoru bulunamadi: {receipts_dir}")
+    if not base_receipts.is_dir():
+        print(f"[HATA] Haftalik makbuz klasoru bulunamadi: {base_receipts}")
         return {"is_valid": False, "error": "receipts_dir_missing"}
 
-    receipt_files = sorted(receipts_dir.glob("*.json"))
+    receipt_files = sorted(base_receipts.glob("*.json"))
     total_receipts = len(receipt_files)
     print(f"Toplam haftalik makbuz sayisi: {total_receipts}")
 
@@ -124,33 +126,45 @@ def inspect_haftalik() -> dict:
         except Exception as e:
             okuma_hatalari.append((r.name, str(e)))
 
+    is_valid = True
+
+    if okuma_hatalari:
+        print(f"[HATA] {len(okuma_hatalari)} makbuz okunamadi veya bozuk:")
+        for name, err in okuma_hatalari:
+            print(f"  {name}: {err}")
+        is_valid = False
+
     print(f"  Katalog/kesif makbuzu : {len(katalog_istekleri)}")
     print(f"  Gercek veri makbuzu   : {len(veri_istekleri)}")
 
-    ay_seti = set()
-    kalem_sayilari = set()
+    # -----------------------------------------------------------------------
+    # Kalem 5690 (Konut Kredisi) Ozelinde Ay Kapsami
+    # -----------------------------------------------------------------------
+    ay_seti_genel = set()
+    ay_seti_5690 = set()
     para_birimleri = set()
     taraf_gruplari = set()
     row_counts = {}
-    konut_5690_sayisi = 0
+    missing_files = []
+    size_mismatches = []
 
     for d in veri_istekleri:
-        p = d["parameters"]
+        p = d.get("parameters") or {}
         v = d.get("validation", {})
+        kalemler = p.get("Kalemler", [])
 
         bas = p.get("BaslangicTarihi", "")[:10]  # "01.01.2021"
+        ay_key = None
         try:
             parts = bas.split(".")
             if len(parts) == 3:
                 ay_key = f"{parts[2]}-{parts[1]}"
-                ay_seti.add(ay_key)
+                ay_seti_genel.add(ay_key)
         except Exception:
             pass
 
-        kalemler = p.get("Kalemler", [])
-        kalem_sayilari.add(len(kalemler))
-        if "5690" in kalemler:
-            konut_5690_sayisi += 1
+        if "5690" in kalemler and ay_key:
+            ay_seti_5690.add(ay_key)
 
         para_birimleri.add(p.get("SeciliParalar", "?"))
         taraf_gruplari.add(len(p.get("Taraflar", [])))
@@ -158,61 +172,77 @@ def inspect_haftalik() -> dict:
         rows = v.get("data_rows", 0)
         row_counts[rows] = row_counts.get(rows, 0) + 1
 
+        # Fiziksel dosya ve boyut dogrulamasi
+        rel_path = d.get("path", "")
+        if raw_dir:
+            raw_file = base_raw / Path(rel_path).name
+        else:
+            raw_file = Path("data/bronze/bddk") / rel_path
+
+        if not raw_file.is_file():
+            missing_files.append((d.get("request_key", rel_path), str(raw_file)))
+            is_valid = False
+        else:
+            actual_size = raw_file.stat().st_size
+            expected_size = d.get("size_bytes")
+            if expected_size is not None and actual_size != expected_size:
+                size_mismatches.append((rel_path, actual_size, expected_size))
+                is_valid = False
+
     beklenen_aylar = generate_expected_months(2021, 1, 2026, 7)
-    eksik_aylar = [a for a in beklenen_aylar if a not in ay_seti]
+    eksik_5690_aylar = [a for a in beklenen_aylar if a not in ay_seti_5690]
 
     print()
-    print(f"Kapsanan benzersiz ay sayisi: {len(ay_seti)} (Beklenen: {len(beklenen_aylar)})")
-    if ay_seti:
-        sorted_aylar = sorted(ay_seti)
-        print(f"  Ilk ay: {sorted_aylar[0]}, Son ay: {sorted_aylar[-1]}")
+    print("--- Kalem 5690 (Konut Kredisi) Ay Kapsami ---")
+    print(f"Beklenen Donem Sayisi (2021-01 .. 2026-07) : {len(beklenen_aylar)}")
+    print(f"Kalem 5690 Iceren Benzersiz Ay Sayisi     : {len(ay_seti_5690)}")
 
-    is_valid = True
-    if eksik_aylar:
-        print(f"[HATA] Eksik aylar ({len(eksik_aylar)} adet): {eksik_aylar[:10]}...")
+    if eksik_5690_aylar:
+        print(f"[HATA] Kalem 5690 icin eksik aylar ({len(eksik_5690_aylar)} adet): {eksik_5690_aylar[:10]}...")
         is_valid = False
     else:
-        print("[OK] Eksik ay yok: 2021-01 / 2026-07 tum 67 ay mevcut.")
+        print(f"[OK] Kalem 5690 (Konut Kredisi) tum {len(beklenen_aylar)} ay icin kesintisiz mevcut.")
 
+    if missing_files:
+        print(f"[HATA] Diskte fiziksel dosyasi bulunamayan {len(missing_files)} makbuz var!")
+        is_valid = False
+
+    if size_mismatches:
+        print(f"[HATA] Boyut uyusmazligi olan {len(size_mismatches)} dosya var!")
+        is_valid = False
+
+    print()
     print(f"Para birimleri: {sorted(para_birimleri)}")
     print(f"Satir dagilimlari: {sorted(row_counts.items())}")
 
-    print()
-    print("--- Kalem 5690 (Konut Kredisi) Varligi ---")
-    if konut_5690_sayisi > 0:
-        print(f"[OK] Kalem 5690 (Konut Kredisi) {konut_5690_sayisi} veri makbuzunda MEVCUT.")
-    else:
-        print("[HATA] Kalem 5690 veri makbuzlarinda bulunamadi!")
-        is_valid = False
-
     # Raw HTML dosyalari boyut istatistigi
-    if raw_dir.is_dir():
-        raw_files = list(raw_dir.glob("*.html"))
+    if base_raw.is_dir():
+        raw_files = list(base_raw.glob("*.html"))
         if raw_files:
             sizes = [f.stat().st_size for f in raw_files]
             total_mb = sum(sizes) / 1024 / 1024
-            print()
             print(f"Ham HTML Dosyalari: {len(raw_files)} adet, Toplam: {total_mb:.1f} MB")
 
     return {
-        "is_valid": is_valid and (len(eksik_aylar) == 0) and (konut_5690_sayisi > 0),
+        "is_valid": is_valid and (len(eksik_5690_aylar) == 0) and (len(okuma_hatalari) == 0),
         "total_receipts": total_receipts,
-        "covered_months": len(ay_seti),
+        "covered_months_5690": len(ay_seti_5690),
         "expected_months": len(beklenen_aylar),
-        "eksik_aylar": eksik_aylar,
-        "konut_5690_count": konut_5690_sayisi,
+        "eksik_5690_aylar": eksik_5690_aylar,
+        "missing_files_count": len(missing_files),
+        "size_mismatches_count": len(size_mismatches),
     }
 
 
-def main() -> int:
+def main(gunluk_receipts_dir: Path | None = None, haftalik_receipts_dir: Path | None = None, haftalik_raw_dir: Path | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         try:
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
 
-    gunluk_res = inspect_gunluk()
-    haftalik_res = inspect_haftalik()
+    gunluk_res = inspect_gunluk(receipts_dir=gunluk_receipts_dir)
+    haftalik_res = inspect_haftalik(receipts_dir=haftalik_receipts_dir, raw_dir=haftalik_raw_dir)
 
     print()
     print("=" * 65)
@@ -222,7 +252,7 @@ def main() -> int:
     print(f"Gunluk Seri Durumu   : {'[BILGI] Gecmis arsiv yok (tek gun anlik snapshot)' if gunluk_res.get('is_valid') else '[HATA] Dosya yok'}")
 
     if haftalik_res.get("is_valid"):
-        print("\n[BASARILI] Haftalik veri seti 67 ay eksiksiz ve Kalem 5690 ile dogrulandi.")
+        print("\n[BASARILI] Haftalik veri seti 67 ay boyunca Kalem 5690 ozelinde eksiksiz ve dosyalari tam.")
         return 0
     else:
         print("\n[HATA] Haftalik veri denetimi basarisiz oldu.")
