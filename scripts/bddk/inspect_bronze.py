@@ -10,9 +10,12 @@ Exit Code:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
+
+from app.connectors.bddk import extract_housing_loan_data
 
 
 def generate_expected_months(start_year: int, start_month: int, end_year: int, end_month: int) -> list[tuple[int, int]]:
@@ -162,8 +165,6 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
     # -----------------------------------------------------------------------
     # Dinamik Sema-Duyarli Veri Ayristirma ve Fiziksel Dosya Dogrulamasi
     # -----------------------------------------------------------------------
-    from app.connectors.bddk import extract_housing_loan_data
-
     print()
     print("=" * 65)
     print("SERI ANALIZI (Dinamik colModels & Gosterge Etiketiyle)")
@@ -197,9 +198,22 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
                 (donem_str, f"Boyut uyusmazligi: diskte {actual_size} bayt, makbuzda {expected_size} bayt")
             )
             is_valid = False
+            continue
+
+        raw_bytes = raw_file.read_bytes()
+        expected_sha = r.get("sha256")
+        if expected_sha:
+            actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+            if actual_sha != expected_sha:
+                parse_hatalari.append(
+                    (donem_str,
+                     f"SHA-256 uyusmazligi: diskte {actual_sha[:16]}..., makbuzda {expected_sha[:16]}...")
+                )
+                is_valid = False
+                continue
 
         try:
-            raw_payload = json.loads(raw_file.read_text("utf-8"))
+            raw_payload = json.loads(raw_bytes.decode("utf-8"))
             parsed = extract_housing_loan_data(raw_payload)
             tp = parsed["tp"]
             yp = parsed["yp"]

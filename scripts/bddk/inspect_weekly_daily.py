@@ -10,9 +10,13 @@ Exit Code:
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 import sys
 from pathlib import Path
+
+from app.connectors.bddk import Page
 
 
 def generate_expected_months(start_year: int, start_month: int, end_year: int, end_month: int) -> list[str]:
@@ -138,15 +142,22 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
     print(f"  Gercek veri makbuzu   : {len(veri_istekleri)}")
 
     # -----------------------------------------------------------------------
-    # Kalem 5690 (Konut Kredisi) Ozelinde Ay Kapsami
+    # Kalem 5690 (Konut Kredisi) — Istek ve HTML Icerigi AYRI Dogrulama
     # -----------------------------------------------------------------------
-    ay_seti_genel = set()
-    ay_seti_5690 = set()
-    para_birimleri = set()
-    taraf_gruplari = set()
-    row_counts = {}
-    missing_files = []
-    size_mismatches = []
+    # ay_seti_5690_istekte : 5690, istekte (Kalemler parametresinde) mevcut
+    # ay_seti_5690_html    : 5690 HTML tablosunda kullanilabilir veri iceriyor
+    #                        (TabloExcelGelismis header Row1'de 'Konut' sutunu
+    #                        + en az bir sayisal deger)
+    ay_seti_genel: set = set()
+    ay_seti_5690_istekte: set = set()
+    ay_seti_5690_html: set = set()
+    para_birimleri: set = set()
+    taraf_gruplari: set = set()
+    row_counts: dict = {}
+    missing_files: list = []
+    size_mismatches: list = []
+    hash_mismatches: list = []
+    html_parse_hatalari: list = []
 
     for d in veri_istekleri:
         p = d.get("parameters") or {}
@@ -163,8 +174,9 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
         except Exception:
             pass
 
+        # Set 1: 5690 istekte mevcut mu?
         if "5690" in kalemler and ay_key:
-            ay_seti_5690.add(ay_key)
+            ay_seti_5690_istekte.add(ay_key)
 
         para_birimleri.add(p.get("SeciliParalar", "?"))
         taraf_gruplari.add(len(p.get("Taraflar", [])))
@@ -172,7 +184,7 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
         rows = v.get("data_rows", 0)
         row_counts[rows] = row_counts.get(rows, 0) + 1
 
-        # Fiziksel dosya ve boyut dogrulamasi
+        # Fiziksel dosya ve boyut/hash dogrulamasi
         rel_path = d.get("path", "")
         if raw_dir:
             raw_file = base_raw / Path(rel_path).name
@@ -182,26 +194,95 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
         if not raw_file.is_file():
             missing_files.append((d.get("request_key", rel_path), str(raw_file)))
             is_valid = False
-        else:
-            actual_size = raw_file.stat().st_size
-            expected_size = d.get("size_bytes")
-            if expected_size is not None and actual_size != expected_size:
-                size_mismatches.append((rel_path, actual_size, expected_size))
+            continue
+
+        actual_size = raw_file.stat().st_size
+        expected_size = d.get("size_bytes")
+        if expected_size is not None and actual_size != expected_size:
+            size_mismatches.append((rel_path, actual_size, expected_size))
+            is_valid = False
+            continue
+
+        raw_bytes = raw_file.read_bytes()
+        expected_sha = d.get("sha256")
+        if expected_sha:
+            actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+            if actual_sha != expected_sha:
+                hash_mismatches.append(
+                    (rel_path,
+                     f"diskte {actual_sha[:16]}..., makbuzda {expected_sha[:16]}...")
+                )
                 is_valid = False
+                continue
+
+        # Set 2: 5690 HTML icin kullanilabilir veri dogrulamasi
+        # (Yalnizca fiziksel dosya, boyut ve SHA-256 dogrulandiysa parse et)
+        if "5690" in kalemler and ay_key:
+            try:
+                html_text = raw_bytes.decode("utf-8", errors="replace")
+                page_obj = Page(html_text)
+                table_rows = page_obj.tables.get("TabloExcelGelismis", [])
+                # Header Row1: kalem etiketleri ("Krediler / a) Konut" = 5690)
+                # En az 2 satir olmali (header + veri)
+                header_row = table_rows[1] if len(table_rows) > 1 else []
+                konut_cols = [
+                    i for i, cell in enumerate(header_row)
+                    if "konut" in cell.lower()
+                ]
+                if konut_cols:
+                    # Veri satirlarinda bu sutunlarda sayisal deger var mi?
+                    date_rows = [
+                        row for row in table_rows
+                        if row and re.fullmatch(r"\d{1,2}\.\d{1,2}\.\d{4}", row[0].strip() if row else "")
+                    ]
+                    has_numeric = False
+                    for row in date_rows:
+                        for col_idx in konut_cols:
+                            if col_idx < len(row):
+                                cell_val = row[col_idx].replace(",", ".").replace(" ", "").replace("\xa0", "")
+                                try:
+                                    float(cell_val)
+                                    has_numeric = True
+                                    break
+                                except ValueError:
+                                    pass
+                        if has_numeric:
+                            break
+                    if has_numeric:
+                        ay_seti_5690_html.add(ay_key)
+            except Exception as exc:
+                html_parse_hatalari.append((rel_path, str(exc)))
 
     beklenen_aylar = generate_expected_months(2021, 1, 2026, 7)
-    eksik_5690_aylar = [a for a in beklenen_aylar if a not in ay_seti_5690]
+    eksik_5690_istekte = [a for a in beklenen_aylar if a not in ay_seti_5690_istekte]
+    eksik_5690_html = [a for a in beklenen_aylar if a not in ay_seti_5690_html]
 
     print()
     print("--- Kalem 5690 (Konut Kredisi) Ay Kapsami ---")
     print(f"Beklenen Donem Sayisi (2021-01 .. 2026-07) : {len(beklenen_aylar)}")
-    print(f"Kalem 5690 Iceren Benzersiz Ay Sayisi     : {len(ay_seti_5690)}")
+    print(f"  [1] Istekte Mevcut Ay Sayisi             : {len(ay_seti_5690_istekte)}")
+    print(f"  [2] HTML'de Kullanilabilir Veri Olan Ay  : {len(ay_seti_5690_html)}")
 
-    if eksik_5690_aylar:
-        print(f"[HATA] Kalem 5690 icin eksik aylar ({len(eksik_5690_aylar)} adet): {eksik_5690_aylar[:10]}...")
+    if eksik_5690_istekte:
+        print(f"[HATA] Kalem 5690 istekte eksik aylar ({len(eksik_5690_istekte)} adet): {eksik_5690_istekte[:10]}")
         is_valid = False
     else:
-        print(f"[OK] Kalem 5690 (Konut Kredisi) tum {len(beklenen_aylar)} ay icin kesintisiz mevcut.")
+        print(f"[OK] Kalem 5690 istekte tum {len(beklenen_aylar)} ay icin mevcut.")
+
+    if eksik_5690_html:
+        print(
+            f"[HATA] Kalem 5690 HTML icerigi dogrulanamayan aylar "
+            f"({len(eksik_5690_html)} adet): {eksik_5690_html[:10]}"
+        )
+        is_valid = False
+    else:
+        print(f"[OK] Kalem 5690 tum {len(beklenen_aylar)} ay icin HTML'de kullanilabilir veri dogrulandi.")
+
+    if html_parse_hatalari:
+        print(f"[HATA] HTML parse hatasi olan {len(html_parse_hatalari)} dosya:")
+        for path, err in html_parse_hatalari[:5]:
+            print(f"  {path}: {err}")
+        is_valid = False
 
     if missing_files:
         print(f"[HATA] Diskte fiziksel dosyasi bulunamayan {len(missing_files)} makbuz var!")
@@ -211,8 +292,15 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
         print(f"[HATA] Boyut uyusmazligi olan {len(size_mismatches)} dosya var!")
         is_valid = False
 
+    if hash_mismatches:
+        print(f"[HATA] SHA-256 uyusmazligi olan {len(hash_mismatches)} dosya var!")
+        for path, detail in hash_mismatches[:5]:
+            print(f"  {path}: {detail}")
+        is_valid = False
+
     print()
     print(f"Para birimleri: {sorted(para_birimleri)}")
+    print(f"Taraf gruplari sayisi: {sorted(taraf_gruplari)}")
     print(f"Satir dagilimlari: {sorted(row_counts.items())}")
 
     # Raw HTML dosyalari boyut istatistigi
@@ -223,14 +311,26 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
             total_mb = sum(sizes) / 1024 / 1024
             print(f"Ham HTML Dosyalari: {len(raw_files)} adet, Toplam: {total_mb:.1f} MB")
 
+    final_valid = (
+        is_valid
+        and len(eksik_5690_istekte) == 0
+        and len(eksik_5690_html) == 0
+        and len(okuma_hatalari) == 0
+        and len(html_parse_hatalari) == 0
+    )
     return {
-        "is_valid": is_valid and (len(eksik_5690_aylar) == 0) and (len(okuma_hatalari) == 0),
+        "is_valid": final_valid,
         "total_receipts": total_receipts,
-        "covered_months_5690": len(ay_seti_5690),
+        "covered_months_5690_request": len(ay_seti_5690_istekte),
+        "covered_months_5690_html": len(ay_seti_5690_html),
         "expected_months": len(beklenen_aylar),
-        "eksik_5690_aylar": eksik_5690_aylar,
+        "eksik_5690_istekte": eksik_5690_istekte,
+        "eksik_5690_html": eksik_5690_html,
+        "eksik_5690_aylar": eksik_5690_html,
         "missing_files_count": len(missing_files),
         "size_mismatches_count": len(size_mismatches),
+        "hash_mismatches_count": len(hash_mismatches),
+        "html_parse_hatalari_count": len(html_parse_hatalari),
     }
 
 
@@ -249,7 +349,7 @@ def main(gunluk_receipts_dir: Path | None = None, haftalik_receipts_dir: Path | 
     print("GENEL DEGERLENDIRME VE CIKIS KODU")
     print("=" * 65)
     print(f"Haftalik Seri Durumu : {'[OK] Basarili' if haftalik_res.get('is_valid') else '[HATA] Eksik veya Hatali'}")
-    print(f"Gunluk Seri Durumu   : {'[BILGI] Gecmis arsiv yok (tek gun anlik snapshot)' if gunluk_res.get('is_valid') else '[HATA] Dosya yok'}")
+    print(f"Gunluk Seri Durumu   : {'[BILGI] Gecmis arsiv erisimi dogrulanamadi (tek gun anlik snapshot)' if gunluk_res.get('is_valid') else '[HATA] Dosya yok'}")
 
     if haftalik_res.get("is_valid"):
         print("\n[BASARILI] Haftalik veri seti 67 ay boyunca Kalem 5690 ozelinde eksiksiz ve dosyalari tam.")
