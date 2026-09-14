@@ -6,6 +6,7 @@ from app.lakehouse.silver import (
     monthly_cpi_index,
     monthly_housing_loan_interest_rate,
     monthly_housing_price_index,
+    validate_monthly_evds_data,
 )
 
 
@@ -222,3 +223,195 @@ def test_merge_keeps_missing_period_visible() -> None:
     february = result[result["period"] == "2021-02"].iloc[0]
 
     assert pd.isna(february["cpi_index"])
+
+def test_ignores_evds_metadata_rows_in_weekly_rate() -> None:
+    weekly_data = pd.DataFrame(
+        {
+            "Tarih": [
+                "01-01-2021",
+                "08-01-2021",
+                "Seri Açıklamaları",
+                "Notlar",
+            ],
+            "TP_KTF12": [
+                18.61,
+                18.41,
+                None,
+                None,
+            ],
+        }
+    )
+
+    result = monthly_housing_loan_interest_rate(weekly_data)
+
+    assert len(result) == 1
+    assert result.loc[0, "period"] == "2021-01"
+    assert result.loc[0, "weekly_observation_count"] == 2
+
+
+def test_rejects_invalid_date_like_weekly_observation() -> None:
+    weekly_data = pd.DataFrame(
+        {
+            "Tarih": [
+                "01-01-2021",
+                "31-02-2021",
+                "Seri Açıklamaları",
+            ],
+            "TP_KTF12": [
+                18.61,
+                18.40,
+                None,
+            ],
+        }
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Invalid EVDS observation dates",
+    ):
+        monthly_housing_loan_interest_rate(weekly_data)
+
+
+def test_validates_complete_66_month_evds_range() -> None:
+    periods = pd.period_range(
+        "2021-01",
+        "2026-06",
+        freq="M",
+    ).astype(str)
+
+    monthly_data = pd.DataFrame(
+        {
+            "period": periods,
+            "housing_loan_interest_rate_pct": [20.0] * len(periods),
+            "cpi_index": [50.0] * len(periods),
+            "housing_price_index": [80.0] * len(periods),
+        }
+    )
+
+    assert len(monthly_data) == 66
+
+    validate_monthly_evds_data(monthly_data)
+
+
+def test_validates_60_month_demo_range() -> None:
+    periods = pd.period_range(
+        "2021-01",
+        "2025-12",
+        freq="M",
+    ).astype(str)
+
+    monthly_data = pd.DataFrame(
+        {
+            "period": periods,
+            "housing_loan_interest_rate_pct": [20.0] * len(periods),
+            "cpi_index": [50.0] * len(periods),
+            "housing_price_index": [80.0] * len(periods),
+        }
+    )
+
+    assert len(monthly_data) == 60
+
+    validate_monthly_evds_data(
+        monthly_data,
+        start_period="2021-01",
+        end_period="2025-12",
+    )
+
+
+def test_validation_detects_one_source_missing_month() -> None:
+    housing_rate = pd.DataFrame(
+        {
+            "period": ["2021-01", "2021-02", "2021-03"],
+            "housing_loan_interest_rate_pct": [18.0, 17.5, 17.0],
+        }
+    )
+
+    cpi = pd.DataFrame(
+        {
+            "period": ["2021-01", "2021-03"],
+            "cpi_index": [16.1, 16.4],
+        }
+    )
+
+    housing_price = pd.DataFrame(
+        {
+            "period": ["2021-01", "2021-02", "2021-03"],
+            "housing_price_index": [16.5, 17.0, 17.3],
+        }
+    )
+
+    merged = merge_monthly_evds_series(
+        housing_rate,
+        cpi,
+        housing_price,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Missing EVDS values",
+    ):
+        validate_monthly_evds_data(
+            merged,
+            start_period="2021-01",
+            end_period="2021-03",
+        )
+
+
+def test_validation_detects_month_missing_from_all_sources() -> None:
+    housing_rate = pd.DataFrame(
+        {
+            "period": ["2021-01", "2021-03"],
+            "housing_loan_interest_rate_pct": [18.0, 17.0],
+        }
+    )
+
+    cpi = pd.DataFrame(
+        {
+            "period": ["2021-01", "2021-03"],
+            "cpi_index": [16.1, 16.4],
+        }
+    )
+
+    housing_price = pd.DataFrame(
+        {
+            "period": ["2021-01", "2021-03"],
+            "housing_price_index": [16.5, 17.3],
+        }
+    )
+
+    merged = merge_monthly_evds_series(
+        housing_rate,
+        cpi,
+        housing_price,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Missing expected EVDS periods",
+    ):
+        validate_monthly_evds_data(
+            merged,
+            start_period="2021-01",
+            end_period="2021-03",
+        )
+
+
+def test_validation_rejects_duplicate_periods() -> None:
+    monthly_data = pd.DataFrame(
+        {
+            "period": ["2021-01", "2021-02", "2021-02"],
+            "housing_loan_interest_rate_pct": [18.0, 17.5, 17.4],
+            "cpi_index": [16.1, 16.2, 16.2],
+            "housing_price_index": [16.5, 17.0, 17.0],
+        }
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Duplicate EVDS periods",
+    ):
+        validate_monthly_evds_data(
+            monthly_data,
+            start_period="2021-01",
+            end_period="2021-02",
+        )

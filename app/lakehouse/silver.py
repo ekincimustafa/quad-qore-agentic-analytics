@@ -6,6 +6,12 @@ import pandas as pd
 EVDS_DATE_COLUMN = "Tarih"
 EVDS_HOUSING_RATE_COLUMN = "TP_KTF12"
 
+EVDS_MONTHLY_VALUE_COLUMNS = (
+    "housing_loan_interest_rate_pct",
+    "cpi_index",
+    "housing_price_index",
+)
+
 
 def monthly_housing_loan_interest_rate(
     weekly_data: pd.DataFrame,
@@ -38,11 +44,27 @@ def monthly_housing_loan_interest_rate(
     ].copy()
 
     # EVDS Excel files may contain metadata rows below the observations.
+    raw_dates = data[EVDS_DATE_COLUMN]
+    date_text = raw_dates.astype("string").str.strip()
+
+    date_like_mask = date_text.str.fullmatch(
+        r"\d{1,2}-\d{1,2}-\d{4}",
+        na=False,
+    )
+
     parsed_dates = pd.to_datetime(
-        data[EVDS_DATE_COLUMN],
+        raw_dates,
         dayfirst=True,
         errors="coerce",
     )
+
+    invalid_date_mask = date_like_mask & parsed_dates.isna()
+
+    if invalid_date_mask.any():
+        invalid_dates = date_text.loc[invalid_date_mask].tolist()
+        raise ValueError(
+            f"Invalid EVDS observation dates detected: {invalid_dates}"
+        )
 
     observation_mask = parsed_dates.notna()
 
@@ -263,3 +285,79 @@ def merge_monthly_evds_series(
     )
 
     return merged
+
+def validate_monthly_evds_data(
+    monthly_data: pd.DataFrame,
+    *,
+    start_period: str = "2021-01",
+    end_period: str = "2026-06",
+) -> None:
+    """Validate completeness of standardized monthly EVDS data."""
+
+    required_columns = {
+        "period",
+        *EVDS_MONTHLY_VALUE_COLUMNS,
+    }
+
+    missing_columns = required_columns.difference(monthly_data.columns)
+
+    if missing_columns:
+        raise ValueError(
+            f"Missing required monthly EVDS columns: {sorted(missing_columns)}"
+        )
+
+    expected_periods = pd.period_range(
+        start=start_period,
+        end=end_period,
+        freq="M",
+    ).astype(str)
+
+    target = monthly_data[
+        (monthly_data["period"] >= start_period)
+        & (monthly_data["period"] <= end_period)
+    ].copy()
+
+    duplicate_periods = (
+        target.loc[
+            target["period"].duplicated(keep=False),
+            "period",
+        ]
+        .drop_duplicates()
+        .tolist()
+    )
+
+    if duplicate_periods:
+        raise ValueError(
+            f"Duplicate EVDS periods detected: {duplicate_periods}"
+        )
+
+    actual_periods = set(target["period"])
+
+    missing_periods = [
+        period
+        for period in expected_periods
+        if period not in actual_periods
+    ]
+
+    if missing_periods:
+        raise ValueError(
+            f"Missing expected EVDS periods: {missing_periods}"
+        )
+
+    missing_value_counts = (
+        target[list(EVDS_MONTHLY_VALUE_COLUMNS)]
+        .isna()
+        .sum()
+    )
+
+    columns_with_missing_values = {
+        column: int(count)
+        for column, count in missing_value_counts.items()
+        if count > 0
+    }
+
+    if columns_with_missing_values:
+        raise ValueError(
+            "Missing EVDS values detected: "
+            f"{columns_with_missing_values}"
+        )
