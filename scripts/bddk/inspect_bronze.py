@@ -33,6 +33,29 @@ def generate_expected_months(start_year: int, start_month: int, end_year: int, e
     return months
 
 
+def resolve_secure_raw_path(base_dir: Path, rel_path: str, use_filename_only: bool = False) -> Path | None:
+    """Path traversal ve guvensiz dosya erisimini onleyen guvenli yol cozucu."""
+    if not rel_path or not isinstance(rel_path, str):
+        return None
+    try:
+        base_resolved = base_dir.resolve()
+        if use_filename_only:
+            clean_name = Path(rel_path).name
+            if not clean_name or clean_name in (".", ".."):
+                return None
+            target = (base_resolved / clean_name).resolve()
+        else:
+            stripped = rel_path.lstrip("/\\")
+            normalized = Path(stripped)
+            if normalized.is_absolute() or normalized.drive or ".." in normalized.parts:
+                return None
+            target = (base_resolved / normalized).resolve()
+        target.relative_to(base_resolved)
+        return target
+    except (ValueError, OSError):
+        return None
+
+
 def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         try:
@@ -182,13 +205,11 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
         donem_str = f"{p['yil']}-{p['ay']:02d}"
         rel_path = r.get("path", "")
         # Raw file path resolution
-        if raw_dir:
-            raw_file = base_raw / Path(rel_path).name
-        else:
-            raw_file = Path("data/bronze/bddk") / rel_path
+        base_dir = base_raw if raw_dir else Path("data/bronze/bddk")
+        raw_file = resolve_secure_raw_path(base_dir, rel_path, use_filename_only=bool(raw_dir))
 
-        if not raw_file.is_file():
-            parse_hatalari.append((donem_str, f"Fiziksel ham dosya bulunamadi: {raw_file}"))
+        if raw_file is None or not raw_file.is_file():
+            parse_hatalari.append((donem_str, f"Fiziksel ham dosya bulunamadi veya guvensiz yol: {rel_path}"))
             is_valid = False
             continue
 
@@ -201,7 +222,7 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
             continue
 
         expected_size = r.get("size_bytes")
-        if expected_size is None or not isinstance(expected_size, int) or expected_size <= 0 or actual_size != expected_size:
+        if expected_size is None or type(expected_size) is not int or expected_size <= 0 or actual_size != expected_size:
             parse_hatalari.append(
                 (donem_str, f"Boyut uyusmazligi veya gecersiz size_bytes: diskte {actual_size} bayt, makbuzda {expected_size}")
             )

@@ -8,11 +8,16 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from scripts.bddk.inspect_bronze import generate_expected_months as gen_bronze_months, main as bronze_main
+from scripts.bddk.inspect_bronze import (
+    generate_expected_months as gen_bronze_months,
+    main as bronze_main,
+    resolve_secure_raw_path as bronze_resolve_secure_raw_path,
+)
 from scripts.bddk.inspect_weekly_daily import (
     generate_expected_months as gen_weekly_months,
     inspect_haftalik,
     inspect_gunluk,
+    resolve_secure_raw_path as weekly_resolve_secure_raw_path,
 )
 
 
@@ -1200,6 +1205,165 @@ class SHA256AndHtmlTests(unittest.TestCase):
             res_missing = inspect_gunluk(receipts_dir=receipts_dir, raw_dir=raw_dir)
             self.assertFalse(res_missing["is_valid"])
             self.assertGreater(res_missing["dosya_hatalari_count"], 0)
+
+    def test_resolve_secure_raw_path_rejects_traversals_and_escapes(self):
+        """resolve_secure_raw_path path traversal ve guvensiz yollari guvenli sekilde reddetmeli."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            for resolver in (bronze_resolve_secure_raw_path, weekly_resolve_secure_raw_path):
+                # Invalid inputs
+                self.assertIsNone(resolver(base, None))
+                self.assertIsNone(resolver(base, 12345))
+                self.assertIsNone(resolver(base, ""))
+                self.assertIsNone(resolver(base, True))
+
+                # Path traversal attempts
+                self.assertIsNone(resolver(base, "../../secret.txt"))
+                self.assertIsNone(resolver(base, "..\\..\\secret.txt"))
+                self.assertIsNone(resolver(base, "sub/../../secret.txt"))
+                self.assertIsNone(resolver(base, "C:\\Windows\\System32\\cmd.exe"))
+                self.assertIsNone(resolver(base, "D:\\data\\file.json"))
+
+                # Valid paths
+                valid_res = resolver(base, "data.json")
+                self.assertIsNotNone(valid_res)
+                self.assertEqual(valid_res, (base / "data.json").resolve())
+
+                valid_nested = resolver(base, "nested/data.json")
+                self.assertIsNotNone(valid_nested)
+                self.assertEqual(valid_nested, (base / "nested" / "data.json").resolve())
+
+                # Filename only mode
+                fn_res = resolver(base, "anything/deep/file.html", use_filename_only=True)
+                self.assertIsNotNone(fn_res)
+                self.assertEqual(fn_res, (base / "file.html").resolve())
+
+                # Filename only invalid edge cases
+                self.assertIsNone(resolver(base, ".", use_filename_only=True))
+                self.assertIsNone(resolver(base, "..", use_filename_only=True))
+
+    def test_inspect_weekly_parses_turkish_thousand_separated_numbers(self):
+        """inspect_haftalik Turkce binlik noktali sayilari ('29.921,60') basariyla float'a cevirebilmeli."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            expected_months = gen_weekly_months(2021, 1, 2026, 7)
+            for ym in expected_months:
+                y, m = ym.split("-")
+                # HTML with Turkish formatted thousand-separated numbers: '277.054,48'
+                html_content = (
+                    "<html><body><table id='TabloExcelGelismis'>"
+                    "<tr><td>Birim: Milyon TL</td><td>Krediler / a) Konut</td></tr>"
+                    f"<tr><td>15.{m}.{y}</td><td>277.054,48</td></tr>"
+                    "</table></body></html>"
+                ).encode("utf-8")
+
+                raw_file = raw_dir / f"weekly_{y}_{m}.html"
+                raw_file.write_bytes(html_content)
+                raw_sha = hashlib.sha256(html_content).hexdigest()
+
+                rec = {
+                    "request_key": f"weekly_{y}_{m}",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {
+                        "BaslangicTarihi": f"01.{m}.{y} 00:00:00",
+                        "BitisTarihi": f"28.{m}.{y} 00:00:00",
+                        "Kalemler": ["5690"],
+                        "SeciliParalar": "TL",
+                        "Taraflar": ["10"],
+                    },
+                    "validation": {"data_rows": 40},
+                    "path": f"weekly_{y}_{m}.html",
+                    "size_bytes": len(html_content),
+                    "sha256": raw_sha,
+                }
+                (receipts_dir / f"rec_{y}_{m}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+            res = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+            self.assertTrue(res["is_valid"])
+            self.assertEqual(res["covered_months_5690_html"], 67)
+            self.assertEqual(res["eksik_5690_html"], [])
+
+    def test_inspect_scripts_fail_closed_on_path_traversal_in_receipts(self):
+        """Makbuzda path traversal iceren yollar ('../../...') fail-closed olarak reddedilmeli."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            outside_file = base / "outside_secret.json"
+            outside_file.write_bytes(b"secret")
+
+            # 1. Bronze test
+            rec_bronze = {
+                "request_key": "tablo4_10001_TL_2021_1",
+                "downloaded_at": "2026-09-11T12:00:00",
+                "parameters": {"tabloNo": "4", "taraf": ["10001"], "paraBirimi": "TL", "yil": 2021, "ay": 1},
+                "validation": {"rows": 41},
+                "path": "../../outside_secret.json",
+                "size_bytes": 6,
+                "sha256": hashlib.sha256(b"secret").hexdigest(),
+            }
+            (receipts_dir / "bronze_traversal.json").write_text(json.dumps(rec_bronze), encoding="utf-8")
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = bronze_main(receipts_dir=receipts_dir, raw_dir=raw_dir)
+            self.assertEqual(code, 1)
+            self.assertIn("guvensiz yol", buf.getvalue())
+
+            # 2. Gunluk test
+            (receipts_dir / "bronze_traversal.json").unlink()
+            rec_gunluk = {
+                "request_key": "gunluk_1",
+                "downloaded_at": "2026-09-11T12:00:00",
+                "path": "../../outside_secret.json",
+                "size_bytes": 6,
+                "sha256": hashlib.sha256(b"secret").hexdigest(),
+                "validation": {"dates": ["2026-09-07"], "historical_coverage": "unverified"},
+            }
+            (receipts_dir / "gunluk_traversal.json").write_text(json.dumps(rec_gunluk), encoding="utf-8")
+            res_gunluk = inspect_gunluk(receipts_dir=receipts_dir, raw_dir=raw_dir)
+            self.assertFalse(res_gunluk["is_valid"])
+            self.assertGreater(res_gunluk["dosya_hatalari_count"], 0)
+
+    def test_inspect_scripts_fail_on_boolean_size_bytes(self):
+        """size_bytes degeri bool (True/False) oldugunda fail-closed olarak reddedilmeli."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            raw_bytes = _make_bronze_raw_content()
+            raw_file = raw_dir / "valid.json"
+            raw_file.write_bytes(raw_bytes)
+
+            expected_months = gen_bronze_months(2021, 1, 2026, 7)
+            for y, m in expected_months:
+                rec = {
+                    "request_key": f"tablo4_10001_TL_{y}_{m}",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {"tabloNo": "4", "taraf": ["10001"], "paraBirimi": "TL", "yil": y, "ay": m},
+                    "validation": {"rows": 41},
+                    "path": "valid.json",
+                    "size_bytes": True,  # Bool bypass attempt
+                    "sha256": hashlib.sha256(raw_bytes).hexdigest(),
+                }
+                (receipts_dir / f"rec_{y}_{m}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = bronze_main(receipts_dir=receipts_dir, raw_dir=raw_dir)
+            self.assertEqual(code, 1)
+            self.assertIn("gecersiz size_bytes", buf.getvalue())
 
 
 if __name__ == "__main__":
