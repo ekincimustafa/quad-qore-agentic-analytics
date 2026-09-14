@@ -1,258 +1,284 @@
 # İlk Uçtan Uca Demo Senaryosu
 
-**Durum:** Taslak
+**Durum:** Aktif sözleşme
 **Sorumlu:** Mustafa Ekinci
 **İlgili issue:** #1
 
 ## 1. Amaç
 
-Bu senaryo, Quad-Qore platformunun ilk uçtan uca çalışan örneğini tanımlar.
+Bu belge, Quad-Qore platformunun ilk uçtan uca çalışan demo senaryosunu
+tanımlar.
 
-Amaç; BDDK ve TCMB EVDS verilerini güvenilir biçimde bir araya getirmek, belirli ekonomik koşulları Python ile hesaplamak ve doğrulanmış sonuçları Kloudeks MIA modeli yardımıyla kullanıcıya anlaşılır biçimde açıklamaktır.
+Amaç; BDDK ve TCMB EVDS verilerini güvenilir biçimde bir araya getirmek,
+sayısal işlemleri deterministik Python araçlarıyla yapmak ve doğrulanmış
+sonuçları Kloudeks MIA modeliyle kullanıcıya anlaşılır biçimde açıklamaktır.
 
-Bu senaryo aynı zamanda veri bağlantıları, lakehouse katmanları, analitik araçlar, agent orchestration, çıktı doğrulama ve kaynak izlenebilirliği bileşenlerinin birlikte çalıştığını gösterecektir.
+Dil modeli ham veriden kendi başına hesaplama yapmayacak veya kaynakta olmayan
+değer üretmeyecektir.
 
 ## 2. Ana kullanıcı sorusu
 
-> 2021–2025 döneminde konut kredisi faizlerinin düştüğü hâlde toplam konut kredisi tutarının artmadığı ayları bul ve olası nedenleri kaynaklarıyla açıkla.
+> 2021-2025 döneminde konut kredisi faizinin düştüğü hâlde reel konut kredisi
+> tutarının artmadığı ayları bul; bu dönemleri TÜFE ve Konut Fiyat Endeksi
+> bağlamında karşılaştır ve nedensellik iddiası kurmadan açıkla.
+
+Bu soru hem belirli bir koşulu deterministik olarak bulmayı hem de hesaplanan
+sonuçları ekonomik göstergelerle birlikte açıklamayı gerektirir.
 
 ## 3. İlk sürümün kapsamı
 
-İlk sürüm şu dönemi kapsayacaktır:
+- Başlangıç dönemi: `2021-01`
+- Bitiş dönemi: `2025-12`
+- Hedef frekans: Aylık
+- Beklenen gözlem sayısı: 60 ay
+- Coğrafi kapsam: Türkiye geneli
+- Para birimi: TL
+- BDDK tutar birimi: Milyon TL
 
-* Başlangıç: Ocak 2021
-* Bitiş: Aralık 2025
-* Hedef frekans: Aylık
-* Beklenen gözlem sayısı: 60 ay
+Kaynaklarda 2026 yılına ait veriler saklanabilir ancak ilk demo yalnızca
+2021-2025 arasındaki 60 tamamlanmış ayı kullanacaktır.
 
-İlk sürümde yalnızca Türkiye geneli toplam konut kredisi verisi kullanılacaktır. İl bazlı FinTürk verileri ve farklı kredi türleri sonraki sürümlerde ele alınabilir.
+## 4. Veri anlamı
 
-## 4. Önemli veri anlamı
+BDDK konut kredisi tutarı ile EVDS konut kredisi faiz oranı aynı tür ölçüm
+değildir.
 
-BDDK konut kredisi verisi ile EVDS konut kredisi faiz verisi aynı tür ölçüm değildir.
+- BDDK aylık konut kredisi tutarı bir **stok** büyüklüğüdür.
+- EVDS `TP.KTF12`, yeni kullandırılan konut kredilerine ilişkin haftalık
+  **akım faiz oranıdır**.
+- TÜFE, nominal kredi stokunu 2025 fiyatlarıyla reel hâle getirmek için
+  kullanılır.
+- Konut Fiyat Endeksi (KFE), konut fiyatlarının seyrini karşılaştırmak için
+  kullanılır; kredi tutarının deflatörü değildir.
 
-* BDDK tarafındaki toplam konut kredisi tutarının bir **stok** büyüklüğü olması beklenmektedir.
-* EVDS `TP.KTF12` serisi yeni kullandırılan konut kredilerine ilişkin ağırlıklı ortalama **akım faiz oranıdır**.
-
-Bu nedenle iki seri doğrudan aynı ekonomik büyüklüğü ölçmez. Analizde faiz oranı değişimleriyle kredi stoku değişimleri birlikte incelenecek ancak aralarında otomatik olarak nedensellik kurulduğu iddia edilmeyecektir.
+Bu göstergeler birlikte incelenecek ancak aralarında otomatik nedensellik
+kurulmayacaktır.
 
 ## 5. Veri kaynakları
 
-| Veri                        | Kaynak    | Seri veya tablo                      | Ham frekans  | Durum      |
-| --------------------------- | --------- | ------------------------------------ | ------------ | ---------- |
-| Toplam konut kredisi tutarı | BDDK      | Osman’ın araştırmasıyla kesinleşecek | Kesinleşecek | Bekleniyor |
-| Konut kredisi faiz oranı    | TCMB EVDS | `TP.KTF12`                           | Haftalık     | Doğrulandı |
-| Tüketici fiyat endeksi      | TCMB EVDS | Afra’nın araştırmasıyla kesinleşecek | Kesinleşecek | Bekleniyor |
-| Konut Fiyat Endeksi         | TCMB EVDS | Afra’nın araştırmasıyla kesinleşecek | Kesinleşecek | Bekleniyor |
+| Veri | Kaynak | Seri veya tablo | Ham frekans | Demo alanı |
+|---|---|---|---:|---|
+| Toplam konut kredisi tutarı | BDDK Aylık Bülten | Tablo 4, Sektör `10001`, TL, `Tüketici Kredileri - Konut` | Aylık | `nominal_housing_loan_mn_try` |
+| Konut kredisi faiz oranı | TCMB EVDS | `TP.KTF12` | Haftalık | `housing_loan_interest_rate_pct` |
+| Tüketici Fiyat Endeksi | TCMB EVDS | `TP.TUKFIY2025.GENEL`, 2025=100 | Aylık | `cpi_index` |
+| Konut Fiyat Endeksi | TCMB EVDS | `TP.KFE.TR`, 2023=100 | Aylık | `housing_price_index` |
 
-Her veri kaydıyla birlikte şu metadata alanları korunmalıdır:
+Her kaynak için aşağıdaki provenance bilgileri korunmalıdır:
 
-* Kaynak kurum
-* Kaynak adresi
-* Seri kodu veya tablo adı
-* Açıklama
-* Birim
-* Ham frekans
-* Kullanılan tarih aralığı
-* İndirme zamanı
-* Uygulanan dönüşümler
+- Kaynak kurum ve adres
+- Seri kodu veya tablo adı
+- Açıklama, birim ve ham frekans
+- Kullanılan tarih aralığı
+- İndirme zamanı
+- Ham dosya özeti (SHA-256)
+- Uygulanan dönüşümler
 
-## 6. Harness-first görev ayrımı
-
-### Python ve araçların sorumlulukları
-
-Aşağıdaki işlemler deterministik kodla yapılacaktır:
-
-* Kaynak dosyalarını indirmek veya okumak
-* Excel, CSV veya API yanıtlarını ayrıştırmak
-* Tarihleri standart biçime dönüştürmek
-* Sayısal değerleri temizlemek
-* Birimleri kontrol etmek
-* Haftalık veriyi aylık frekansa dönüştürmek
-* Serileri ay bazında birleştirmek
-* Aylık değişimleri hesaplamak
-* Koşula uyan ayları belirlemek
-* Eksik verileri tespit etmek
-* Çıktı şemasını doğrulamak
-* Kaynak ve dönüşüm bilgilerini saklamak
-
-### LLM’in sorumlulukları
-
-Kloudeks MIA modeli şu görevlerle sınırlandırılacaktır:
-
-* Kullanıcının doğal dildeki amacını anlamak
-* Tanımlı araçlar arasından uygun olanları seçmek
-* Araçların ürettiği doğrulanmış sonuçları yorumlamak
-* Sonraki araştırma adımını önermek
-* Sonucu anlaşılır bir dille açıklamak
-* Analizin sınırlamalarını belirtmek
-
-LLM:
-
-* Ham veriden kendi başına sayısal sonuç üretmemelidir.
-* Kaynakta bulunmayan değer uydurmamalıdır.
-* Python tarafından hesaplanan değerleri değiştirmemelidir.
-* Korelasyonu nedensellik olarak sunmamalıdır.
-* Tanımlanmamış bir aracı çağırmamalıdır.
-
-## 7. Veri katmanları
+## 6. Veri katmanları
 
 ### Bronze
 
-Kaynaklardan alınan ham veriler mümkün olduğunca değiştirilmeden saklanır.
-
-Örnek içerik:
-
-* Ham BDDK Excel dosyası
-* Ham EVDS yanıtı
-* Kaynak adresi
-* İndirme zamanı
-* Dosya özeti veya hash değeri
+Kaynak yanıtları mümkün olduğunca değiştirilmeden saklanır. Kaynak adresi,
+istek parametreleri, indirme zamanı, dosya boyutu ve SHA-256 özeti makbuzla
+birlikte korunur.
 
 ### Silver
 
-Veriler temizlenir ve standartlaştırılır.
+Her kaynak kendi içinde temizlenir ve standartlaştırılır:
 
-Beklenen işlemler:
-
-* Tarih normalizasyonu
-* Sayısal değer dönüşümü
-* Birim kontrolü
-* Frekans dönüşümü
-* Seri ve sütun adlarının standartlaştırılması
-* Eksik ve hatalı gözlemlerin işaretlenmesi
+- Tarih ve dönem normalizasyonu
+- Sayısal değer dönüşümü
+- Şema ve birim kontrolü
+- Haftalık faizin aylıklaştırılması
+- Eksik ve mükerrer dönem doğrulaması
+- Standart sütun adları
 
 ### Gold
 
-Demo sorusuna doğrudan cevap verecek birleştirilmiş aylık tablo oluşturulur.
+Doğrulanmış BDDK ve EVDS Silver tabloları `period` alanı üzerinden birleştirilir.
+Demo Gold tablosu `2021-01` ile `2025-12` arasındaki 60 ayı içermelidir.
 
-Gold tablosu Ocak 2021–Aralık 2025 dönemini kapsayan 60 satır içermelidir.
+## 7. Deterministik hesaplama kuralları
 
-## 8. Gold tablo sözleşmesi
+### 7.1. Faiz oranının aylıklaştırılması
 
-| Alan                             | Açıklama                                   |
-| -------------------------------- | ------------------------------------------ |
-| `period`                         | Ay bilgisi, `YYYY-MM` biçiminde            |
-| `housing_loan_amount`            | Toplam konut kredisi tutarı                |
-| `housing_loan_unit`              | BDDK verisinin birimi                      |
-| `housing_loan_change_pct`        | Bir önceki aya göre kredi tutarı değişimi  |
-| `housing_loan_interest_rate_pct` | Aylıklaştırılmış konut kredisi faiz oranı  |
-| `interest_rate_change_pp`        | Faiz oranındaki aylık yüzde puan değişimi  |
-| `rate_down_credit_not_up`        | Ana koşulun gerçekleşip gerçekleşmediği    |
-| `bddk_source_ref`                | BDDK kaynak referansı                      |
-| `evds_series_code`               | Kullanılan EVDS seri kodu                  |
-| `evds_source_ref`                | EVDS kaynak referansı                      |
-| `data_quality_note`              | Eksik veya şüpheli veriye ilişkin açıklama |
-
-## 9. İlk hesaplama kuralları
-
-### Faiz oranının aylıklaştırılması
-
-EVDS `TP.KTF12` haftalık bir akım faiz serisidir.
-
-İlk teknik varsayım olarak bir ay içindeki haftalık faiz gözlemlerinin aritmetik ortalaması kullanılacaktır:
+Haftalık `TP.KTF12` gözlemleri, gözlem tarihinin bulunduğu aya atanır:
 
 ```text
 monthly_interest_rate = mean(weekly_interest_rates_in_month)
 ```
 
-Bu karar geçicidir. Ortalama ile ay sonu değerinin hangisinin kullanılacağı ekip ve mentor görüşmesiyle kesinleştirilecektir.
+Her ay için kullanılan haftalık gözlem sayısı da saklanır.
 
-### Kredi tutarındaki aylık değişim
+### 7.2. Reel kredi tutarı
+
+TÜFE serisi `2025=100` bazlı olduğundan:
 
 ```text
-housing_loan_change_pct =
-    ((current_amount - previous_amount) / previous_amount) * 100
+real_housing_loan_2025_mn_try =
+    nominal_housing_loan_mn_try * 100 / cpi_index
 ```
 
-### Faiz oranındaki değişim
+### 7.3. Kredi tutarındaki aylık değişim
 
-Faiz değişimi yüzde değişim olarak değil, yüzde puan olarak hesaplanacaktır:
+Nominal ve reel kredi için aynı değişim formülü uygulanır:
+
+```text
+monthly_change_pct =
+    ((current_value - previous_value) / previous_value) * 100
+```
+
+### 7.4. Faiz oranındaki aylık değişim
+
+Faiz değişimi yüzde değişim olarak değil, yüzde puan olarak hesaplanır:
 
 ```text
 interest_rate_change_pp =
     current_interest_rate - previous_interest_rate
 ```
 
-### Ana koşul
+### 7.5. Ana koşul
 
 ```text
-rate_down_credit_not_up =
+rate_down_real_credit_not_up =
     interest_rate_change_pp < 0
-    AND housing_loan_change_pct <= 0
+    AND real_housing_loan_change_pct <= 0
 ```
 
-İlk ay için önceki ay değeri bulunmadığından değişim alanları ve koşul sonucu `null` olacaktır.
+İlk ay için önceki değer bulunmadığından değişim alanları ve koşul sonucu
+`null` olacaktır.
 
-## 10. Eksik veri politikası
+## 8. Gold tablo sözleşmesi
 
-İlk sürümde eksik gözlemler sessizce doldurulmayacaktır.
+| Alan | Açıklama |
+|---|---|
+| `period` | Ay, `YYYY-MM` biçiminde |
+| `nominal_housing_loan_mn_try` | Nominal konut kredisi stoku |
+| `real_housing_loan_2025_mn_try` | 2025 fiyatlarıyla reel kredi stoku |
+| `nominal_housing_loan_change_pct` | Nominal stokun aylık değişimi |
+| `real_housing_loan_change_pct` | Reel stokun aylık değişimi |
+| `housing_loan_interest_rate_pct` | Aylıklaştırılmış konut kredisi faizi |
+| `weekly_observation_count` | Aylık ortalamada kullanılan haftalık gözlem sayısı |
+| `interest_rate_change_pp` | Faizin aylık yüzde puan değişimi |
+| `cpi_index` | TÜFE genel endeksi, 2025=100 |
+| `housing_price_index` | Türkiye KFE, 2023=100 |
+| `rate_down_real_credit_not_up` | Ana koşul sonucu |
+| `bddk_source_ref` | BDDK kaynak referansı |
+| `evds_source_refs` | Kullanılan EVDS seri referansları |
+| `data_quality_note` | Veri kalitesi uyarıları |
 
-* Eksik ay varsa sonuç tablosunda işaretlenecektir.
-* `data_quality_note` alanına açıklama yazılacaktır.
-* Eksik değere sahip dönem ana koşul değerlendirmesine alınmayacaktır.
-* İnterpolasyon ancak açık bir yöntem ve gerekçe belirlendikten sonra uygulanacaktır.
+## 9. Veri kalitesi ve hata politikası
+
+Başarılı demo sonucu üretilmeden önce şu koşulların tamamı doğrulanmalıdır:
+
+1. `2021-01` ile `2025-12` arasındaki 60 ay eksiksiz bulunmalıdır.
+2. `period` alanı sıralı ve benzersiz olmalıdır.
+3. Temel analiz alanlarında eksik değer bulunmamalıdır.
+4. Sayısal alanlar gerçekten sayısal ve negatif olmayan değerler içermelidir.
+5. Her ay için en az bir geçerli haftalık faiz gözlemi bulunmalıdır.
+6. Veri kaynağı, seri kodu, dönem ve ham dosya izlenebilir olmalıdır.
+7. Ham dosyanın SHA-256 özeti makbuzla eşleşmelidir.
+8. Aynı girdiler aynı hesaplama sonucunu üretmelidir.
+
+Eksik veya mükerrer dönemler sessizce atılmayacak, doldurulmayacak ve başarılı
+analiz olarak sunulmayacaktır. İnterpolasyon ilk demo kapsamında yapılmayacaktır.
+
+## 10. Harness-first görev ayrımı
+
+### Python araçlarının sorumlulukları
+
+- Kaynak dosyalarını indirmek veya okumak
+- Ham yanıtları ayrıştırmak
+- Tarihleri ve sütunları standartlaştırmak
+- Haftalık veriyi aylık frekansa dönüştürmek
+- Serileri `period` üzerinden birleştirmek
+- Reel tutarları ve değişimleri hesaplamak
+- Ana koşula uyan ayları belirlemek
+- Veri kalitesi ve çıktı şemasını doğrulamak
+- Kaynak ve dönüşüm bilgilerini saklamak
+
+### Agent ve LLM sorumlulukları
+
+- Kullanıcının amacını anlamak
+- Yalnızca tanımlı ve izinli araçlardan uygun olanı seçmek
+- Başlangıç ve bitiş dönemlerini doğrulamak
+- Doğrulanmış araç sonucunu açıklamak
+- Kaynakları ve analizin sınırlarını göstermek
+
+LLM:
+
+- Ham veriden kendi başına sayısal sonuç üretmemelidir.
+- Kaynakta bulunmayan değer uydurmamalıdır.
+- Python tarafından hesaplanan değerleri değiştirmemelidir.
+- Korelasyonu nedensellik olarak sunmamalıdır.
+- Tanımlanmamış bir aracı çağırmamalıdır.
 
 ## 11. Beklenen çalışma akışı
 
-1. Kullanıcı doğal dilde sorusunu gönderir.
-2. Agent controller soruyu analiz eder.
-3. Agent yalnızca izinli veri ve analiz araçlarını seçer.
-4. BDDK ve EVDS araçları gerekli verileri lakehouse üzerinden getirir.
-5. Python araçları serileri aylık frekansta birleştirir.
-6. Değişimler ve ana koşul deterministik olarak hesaplanır.
-7. Çıktı doğrulayıcı tablo şemasını, tarihleri ve kaynakları kontrol eder.
-8. MIA modeli doğrulanmış sonuçları yorumlar.
-9. Son cevap tablo, açıklama, kaynaklar ve sınırlamalarla kullanıcıya sunulur.
+```mermaid
+flowchart TD
+    A["Kullanıcı sorusu"] --> B["Agent yönlendirmesi"]
+    B --> C["Deterministik analiz aracı"]
+    C --> D["Veri kalite doğrulaması"]
+    D --> E["MIA açıklaması"]
+    E --> F["Kaynaklı API cevabı"]
+```
 
 ## 12. Beklenen kullanıcı çıktısı
 
-Kullanıcıya en az şu bilgiler gösterilmelidir:
+- Koşula uyan ayların listesi
+- İlgili aylardaki nominal ve reel kredi tutarları
+- Kredi tutarı ve faiz değişimleri
+- TÜFE ve KFE bağlamı
+- Zaman serisi grafiği
+- Kullanılan BDDK ve EVDS kaynakları
+- Aylıklaştırma ve reel hesaplama yöntemleri
+- Eksik veya şüpheli veri uyarıları
+- Korelasyon ve nedensellik sınırlaması
 
-* Koşula uyan ayların listesi
-* İlgili aylardaki kredi tutarı ve değişimi
-* İlgili aylardaki faiz oranı ve değişimi
-* Kullanılan BDDK ve EVDS kaynakları
-* Uygulanan aylıklaştırma yöntemi
-* Eksik veya şüpheli veri notları
-* Korelasyon ve nedensellik sınırlaması
-* Enflasyon veya Konut Fiyat Endeksiyle analizi genişletme önerisi
+## 13. Kontrollü hata durumları
 
-## 13. İlk değerlendirme ölçütleri
+Sistem aşağıdaki durumlarda tahmin yürütmek yerine kontrollü hata döndürmelidir:
 
-Senaryo başarılı kabul edilmek için:
+- İstenen dönem desteklenen aralığın dışındaysa
+- Herhangi bir kaynakta ay eksikse
+- Aynı ay birden fazla kez bulunuyorsa
+- Ham değer sayısal değilse
+- Kaynak veya provenance bilgisi bulunamıyorsa
+- Ham dosya özeti makbuzla eşleşmiyorsa
+- Haftalık faiz aylıklaştırılamıyorsa
+- Veri setleri ortak aylık kapsama getirilemiyorsa
 
-* 60 aylık hedef dönem açıkça oluşturulmalıdır.
-* BDDK ve EVDS verileri aynı ay anahtarıyla birleştirilmelidir.
-* Sayısal hesaplar yalnızca Python tarafından yapılmalıdır.
-* Koşula uyan aylar deterministik kuralla belirlenmelidir.
-* Her sonuç kullanılan kaynaklara bağlanmalıdır.
-* Eksik veriler gizlenmemelidir.
-* LLM hesaplanmamış sayısal değer üretmemelidir.
-* Sonuç açıklaması korelasyonu nedensellik olarak sunmamalıdır.
-* Aynı veri ve parametrelerle çalıştırılan araçlar aynı sonucu üretmelidir.
+## 14. Kabul kriterleri
 
-## 14. Açık kararlar
+İlk demo şu koşullar sağlandığında tamamlanmış kabul edilir:
 
-Aşağıdaki konular takım araştırmaları tamamlandıktan sonra güncellenecektir:
-
-* [ ] BDDK veri setinin kesin adı
-* [ ] BDDK tablo veya sütun adı
-* [ ] BDDK verisinin birimi
-* [ ] BDDK ham veri frekansı
-* [ ] EVDS haftalık faiz verisinin aylıklaştırma yöntemi
-* [ ] Enflasyon serisinin kesin kodu ve baz yılı
-* [ ] Konut Fiyat Endeksi serisinin kesin kodu ve baz yılı
-* [ ] Eksik değerler için son politika
-* [ ] Kullanılacak analiz ve değişim araçlarının kesin adları
+- 2021-2025 için tam 60 aylık doğrulanmış Gold tablo üretilmesi
+- BDDK ve üç EVDS serisinin dönem bazında birleştirilmesi
+- Reel kredi tutarının deterministik kodla hesaplanması
+- Eksik ve mükerrer dönem testlerinin geçmesi
+- Ana koşula uyan ayların kodla belirlenmesi
+- Aynı girdinin aynı sayısal çıktıyı üretmesi
+- Bütün sayısal iddiaların araç çıktısıyla eşleşmesi
+- Kaynak ve provenance bilgilerinin gösterilmesi
+- MIA modelinin araç sonucuna yeni değer eklemeden açıklama üretmesi
+- Akışın FastAPI üzerinden çalıştırılabilmesi
 
 ## 15. İlk sürüm dışında kalanlar
 
-Aşağıdaki özellikler ilk uçtan uca sürümün dışında tutulacaktır:
+- İl bazlı FinTürk karşılaştırmaları
+- Tahmin modeli geliştirme
+- Otomatik ekonomik nedensellik iddiası
+- Bireysel kredi veya müşteri verisi
+- Kredi skorlama veya kredi kararı
+- Yatırım tavsiyesi
+- Çok sayıda kredi türünü aynı anda analiz etme
+- Kullanıcıya serbest SQL veya sınırsız araç çalıştırma yetkisi
+- Modelin doğrudan ham veriyi değiştirmesi
 
-* İl bazlı FinTürk karşılaştırmaları
-* Tahmin modeli geliştirme
-* Otomatik ekonomik nedensellik iddiası
-* Çok sayıda kredi türünün aynı anda analizi
-* Kullanıcıya sınırsız araç çalıştırma yetkisi
-* Modelin doğrudan ham veriyi değiştirmesi
+## 16. Uygulama öncesi son doğrulamalar
+
+- [ ] BDDK aylık `toplam` alanının ekonomik anlamını örnek dönemlerle insan kontrolünden geçirmek
+- [ ] `TP.KTF12` aylık ortalamasının gerçek EVDS dosyasında 60 ayı eksiksiz ürettiğini doğrulamak
+- [ ] TÜFE ve KFE baz yıllarını kaynak metadata bilgileriyle kaydetmek
+- [ ] BDDK ve EVDS Silver tablolarının ortak `period` sözleşmesini test etmek
+- [ ] Gold şeması ve agent araç çıktısı için Pydantic modellerini kesinleştirmek
