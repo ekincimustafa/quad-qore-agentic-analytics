@@ -161,6 +161,7 @@ class InspectScriptsTests(unittest.TestCase):
                     },
                     "path": "valid_raw.json",
                     "size_bytes": len(raw_bytes),
+                    "sha256": hashlib.sha256(raw_bytes).hexdigest(),
                 }
                 (receipts_dir / f"receipt_{y}_{m:02d}.json").write_text(
                     json.dumps(rec), encoding="utf-8"
@@ -207,6 +208,7 @@ class InspectScriptsTests(unittest.TestCase):
                     },
                     "path": "valid_raw.json",
                     "size_bytes": size,
+                    "sha256": hashlib.sha256(raw_bytes).hexdigest(),
                 }
                 (receipts_dir / f"receipt_{y}_{m:02d}.json").write_text(
                     json.dumps(rec), encoding="utf-8"
@@ -228,14 +230,13 @@ class InspectScriptsTests(unittest.TestCase):
             receipts_dir.mkdir()
             raw_dir.mkdir()
 
-            html_content = b"<html><table><tr><td>01.01.2021</td><td>100</td></tr></table></html>"
-            html_file = raw_dir / "sample.html"
-            html_file.write_bytes(html_content)
-
             expected_months = gen_weekly_months(2021, 1, 2026, 7)
 
             for month_str in expected_months:
                 y, m = map(int, month_str.split("-"))
+                html_content = _make_weekly_html_with_konut(f"01.{m:02d}.{y}")
+                html_file = raw_dir / f"sample_{month_str}.html"
+                html_file.write_bytes(html_content)
                 # Omit Kalem 5690 in 2023-05 and 2024-08
                 kalemler = ["1234"] if month_str in {"2023-05", "2024-08"} else ["5690"]
                 rec = {
@@ -248,8 +249,9 @@ class InspectScriptsTests(unittest.TestCase):
                         "Taraflar": ["10001"],
                     },
                     "validation": {"data_rows": 5},
-                    "path": "sample.html",
+                    "path": f"sample_{month_str}.html",
                     "size_bytes": len(html_content),
+                    "sha256": hashlib.sha256(html_content).hexdigest(),
                 }
                 (receipts_dir / f"receipt_{month_str}.json").write_text(
                     json.dumps(rec), encoding="utf-8"
@@ -261,6 +263,7 @@ class InspectScriptsTests(unittest.TestCase):
 
             self.assertFalse(res["is_valid"])
             self.assertEqual(res["covered_months_5690_request"], 65)
+            self.assertEqual(res["covered_months_5690_html"], 65)
             self.assertIn("2023-05", res["eksik_5690_aylar"])
             self.assertIn("2024-08", res["eksik_5690_aylar"])
 
@@ -273,14 +276,13 @@ class InspectScriptsTests(unittest.TestCase):
             receipts_dir.mkdir()
             raw_dir.mkdir()
 
-            html_content = b"<html><table><tr><td>01.01.2021</td><td>100</td></tr></table></html>"
-            html_file = raw_dir / "sample.html"
-            html_file.write_bytes(html_content)
-
             expected_months = gen_weekly_months(2021, 1, 2026, 7)
 
             for month_str in expected_months:
                 y, m = map(int, month_str.split("-"))
+                html_content = _make_weekly_html_with_konut(f"01.{m:02d}.{y}")
+                html_file = raw_dir / f"sample_{month_str}.html"
+                html_file.write_bytes(html_content)
                 rec = {
                     "request_key": f"haftalik_{y}_{m}",
                     "downloaded_at": "2026-09-11T12:00:00",
@@ -292,8 +294,9 @@ class InspectScriptsTests(unittest.TestCase):
                     },
                     "validation": {"data_rows": 5},
                     # Month 2022-01 points to missing file
-                    "path": "missing.html" if month_str == "2022-01" else "sample.html",
+                    "path": "missing.html" if month_str == "2022-01" else f"sample_{month_str}.html",
                     "size_bytes": len(html_content),
+                    "sha256": hashlib.sha256(html_content).hexdigest(),
                 }
                 (receipts_dir / f"receipt_{month_str}.json").write_text(
                     json.dumps(rec), encoding="utf-8"
@@ -489,15 +492,14 @@ class SHA256AndHtmlTests(unittest.TestCase):
             receipts_dir.mkdir()
             raw_dir.mkdir()
 
-            html_content = _make_weekly_html_with_konut()
-            html_file = raw_dir / "sample.html"
-            html_file.write_bytes(html_content)
-            correct_sha = hashlib.sha256(html_content).hexdigest()
-
             expected_months = gen_weekly_months(2021, 1, 2026, 7)
 
             for month_str in expected_months:
                 y, m = map(int, month_str.split("-"))
+                html_content = _make_weekly_html_with_konut(f"01.{m:02d}.{y}")
+                html_file = raw_dir / f"sample_{month_str}.html"
+                html_file.write_bytes(html_content)
+                correct_sha = hashlib.sha256(html_content).hexdigest()
                 is_bad = month_str == "2025-06"
                 rec = {
                     "request_key": f"haftalik_{y}_{m}",
@@ -509,7 +511,7 @@ class SHA256AndHtmlTests(unittest.TestCase):
                         "Taraflar": ["10001"],
                     },
                     "validation": {"data_rows": 1},
-                    "path": "sample.html",
+                    "path": f"sample_{month_str}.html",
                     "size_bytes": len(html_content),
                     "sha256": "0" * 64 if is_bad else correct_sha,
                 }
@@ -585,7 +587,7 @@ class SHA256AndHtmlTests(unittest.TestCase):
             self.assertIn("HTML icerigi dogrulanamayan", output)
 
     def test_inspect_weekly_passes_when_all_valid(self):
-        """inspect_haftalik is_valid=True olmali: tum 67 ay icin SHA-256 ve Konut HTML icerigi dogru."""
+        """inspect_haftalik is_valid=True olmali: tum 67 ay icin SHA-256 ve donemle eslesen Konut HTML icerigi dogru."""
         with tempfile.TemporaryDirectory() as td:
             base = Path(td)
             receipts_dir = base / "receipts"
@@ -593,15 +595,15 @@ class SHA256AndHtmlTests(unittest.TestCase):
             receipts_dir.mkdir()
             raw_dir.mkdir()
 
-            html_content = _make_weekly_html_with_konut()
-            html_file = raw_dir / "sample.html"
-            html_file.write_bytes(html_content)
-            correct_sha = hashlib.sha256(html_content).hexdigest()
-
             expected_months = gen_weekly_months(2021, 1, 2026, 7)
 
             for month_str in expected_months:
                 y, m = map(int, month_str.split("-"))
+                html_content = _make_weekly_html_with_konut(f"01.{m:02d}.{y}")
+                html_file = raw_dir / f"sample_{month_str}.html"
+                html_file.write_bytes(html_content)
+                correct_sha = hashlib.sha256(html_content).hexdigest()
+
                 rec = {
                     "request_key": f"haftalik_{y}_{m}",
                     "downloaded_at": "2026-09-11T12:00:00",
@@ -612,7 +614,7 @@ class SHA256AndHtmlTests(unittest.TestCase):
                         "Taraflar": ["10001"],
                     },
                     "validation": {"data_rows": 1},
-                    "path": "sample.html",
+                    "path": f"sample_{month_str}.html",
                     "size_bytes": len(html_content),
                     "sha256": correct_sha,
                 }
@@ -632,6 +634,56 @@ class SHA256AndHtmlTests(unittest.TestCase):
             self.assertEqual(res["covered_months_5690_html"], 67)
             self.assertEqual(len(res["eksik_5690_aylar"]), 0)
             self.assertIn("[OK] Kalem 5690 tum 67 ay icin HTML'de kullanilabilir veri dogrulandi.", buf.getvalue())
+
+    def test_inspect_weekly_fails_when_html_date_mismatches_request_period(self):
+        """Istek donemi ile HTML icindeki tarih uyusmazsa o ay HTML kumesine eklenmemeli ve fail olmali."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            expected_months = gen_weekly_months(2021, 1, 2026, 7)
+
+            for month_str in expected_months:
+                y, m = map(int, month_str.split("-"))
+                # 2023-05 icin HTML dosyasina bilerek yanlis ay (01.01.2021) veriyoruz
+                if month_str == "2023-05":
+                    html_content = _make_weekly_html_with_konut("01.01.2021")
+                else:
+                    html_content = _make_weekly_html_with_konut(f"01.{m:02d}.{y}")
+                html_file = raw_dir / f"sample_{month_str}.html"
+                html_file.write_bytes(html_content)
+                correct_sha = hashlib.sha256(html_content).hexdigest()
+
+                rec = {
+                    "request_key": f"haftalik_{y}_{m}",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {
+                        "BaslangicTarihi": f"01.{m:02d}.{y}",
+                        "Kalemler": ["5690"],
+                        "SeciliParalar": "TL",
+                        "Taraflar": ["10001"],
+                    },
+                    "validation": {"data_rows": 1},
+                    "path": f"sample_{month_str}.html",
+                    "size_bytes": len(html_content),
+                    "sha256": correct_sha,
+                }
+                (receipts_dir / f"receipt_{month_str}.json").write_text(
+                    json.dumps(rec), encoding="utf-8"
+                )
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                res = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+            self.assertFalse(res["is_valid"])
+            self.assertEqual(res["covered_months_5690_request"], 67)
+            self.assertEqual(res["covered_months_5690_html"], 66)
+            self.assertIn("2023-05", res["eksik_5690_aylar"])
+            self.assertIn("HTML icerigi dogrulanamayan aylar (1 adet)", buf.getvalue())
 
     def test_inspect_bronze_skips_corrupted_file_on_sha256_mismatch(self):
         """Bozuk dosyada SHA-256 uyusmazligi tespit edilince continue ile parse atlanmali."""
@@ -700,15 +752,15 @@ class SHA256AndHtmlTests(unittest.TestCase):
             receipts_dir.mkdir()
             raw_dir.mkdir()
 
-            html_content = _make_weekly_html_with_konut()
-            html_file = raw_dir / "sample.html"
-            html_file.write_bytes(html_content)
-            correct_sha = hashlib.sha256(html_content).hexdigest()
-
             expected_months = gen_weekly_months(2021, 1, 2026, 7)
 
             for month_str in expected_months:
                 y, m = map(int, month_str.split("-"))
+                html_content = _make_weekly_html_with_konut(f"01.{m:02d}.{y}")
+                html_file = raw_dir / f"sample_{month_str}.html"
+                html_file.write_bytes(html_content)
+                correct_sha = hashlib.sha256(html_content).hexdigest()
+
                 rec = {
                     "request_key": f"haftalik_{y}_{m}",
                     "downloaded_at": "2026-09-11T12:00:00",
@@ -719,7 +771,7 @@ class SHA256AndHtmlTests(unittest.TestCase):
                         "Taraflar": ["10001"],
                     },
                     "validation": {"data_rows": 1},
-                    "path": "sample.html",
+                    "path": f"sample_{month_str}.html",
                     "size_bytes": len(html_content),
                     "sha256": correct_sha,
                 }
@@ -735,6 +787,192 @@ class SHA256AndHtmlTests(unittest.TestCase):
             self.assertFalse(res["is_valid"])
             self.assertGreater(res["html_parse_hatalari_count"], 0)
             self.assertIn("HTML parse hatasi olan", buf.getvalue())
+
+    def test_inspect_bronze_fails_on_missing_sha256_metadata(self):
+        """Makbuzda sha256 alani yoksa fail-closed: parse edilmemeli ve exit 1 vermeli."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            raw_bytes = _make_bronze_raw_content()
+            (raw_dir / "valid_raw.json").write_bytes(raw_bytes)
+
+            expected_months = gen_bronze_months(2021, 1, 2026, 7)
+            for y, m in expected_months:
+                rec = {
+                    "request_key": f"tablo4_10001_TL_{y}_{m}",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {"tabloNo": "4", "taraf": ["10001"], "paraBirimi": "TL", "yil": y, "ay": m},
+                    "validation": {"rows": 41, "period_confirmation": "response_caption"},
+                    "path": "valid_raw.json",
+                    "size_bytes": len(raw_bytes),
+                    # sha256 alani kasitli olarak yok
+                }
+                (receipts_dir / f"receipt_{y}_{m:02d}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                exit_code = bronze_main(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("Gecersiz veya eksik SHA-256 metadata", buf.getvalue())
+
+    def test_inspect_bronze_fails_on_empty_or_malformed_sha256_metadata(self):
+        """Makbuzda sha256 bos veya bicimi bozuksa fail-closed: exit 1 vermeli."""
+        for bad_sha in ["", "not_a_valid_hex", "1234", "z" * 64]:
+            with tempfile.TemporaryDirectory() as td:
+                base = Path(td)
+                receipts_dir = base / "receipts"
+                raw_dir = base / "raw"
+                receipts_dir.mkdir()
+                raw_dir.mkdir()
+
+                raw_bytes = _make_bronze_raw_content()
+                (raw_dir / "valid_raw.json").write_bytes(raw_bytes)
+
+                expected_months = gen_bronze_months(2021, 1, 2026, 7)
+                for y, m in expected_months:
+                    rec = {
+                        "request_key": f"tablo4_10001_TL_{y}_{m}",
+                        "downloaded_at": "2026-09-11T12:00:00",
+                        "parameters": {"tabloNo": "4", "taraf": ["10001"], "paraBirimi": "TL", "yil": y, "ay": m},
+                        "validation": {"rows": 41, "period_confirmation": "response_caption"},
+                        "path": "valid_raw.json",
+                        "size_bytes": len(raw_bytes),
+                        "sha256": bad_sha,
+                    }
+                    (receipts_dir / f"receipt_{y}_{m:02d}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    exit_code = bronze_main(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+                self.assertEqual(exit_code, 1)
+                self.assertIn("Gecersiz veya eksik SHA-256 metadata", buf.getvalue())
+
+    def test_inspect_weekly_fails_on_missing_or_malformed_sha256_metadata(self):
+        """Haftalik makbuzda sha256 eksik, bos veya bicimi bozuksa is_valid=False olmali."""
+        for bad_sha in [None, "", "bad_hex_123", "0" * 63]:
+            with tempfile.TemporaryDirectory() as td:
+                base = Path(td)
+                receipts_dir = base / "receipts"
+                raw_dir = base / "raw"
+                receipts_dir.mkdir()
+                raw_dir.mkdir()
+
+                expected_months = gen_weekly_months(2021, 1, 2026, 7)
+                for month_str in expected_months:
+                    y, m = map(int, month_str.split("-"))
+                    html_content = _make_weekly_html_with_konut(f"01.{m:02d}.{y}")
+                    html_file = raw_dir / f"sample_{month_str}.html"
+                    html_file.write_bytes(html_content)
+
+                    rec = {
+                        "request_key": f"haftalik_{y}_{m}",
+                        "downloaded_at": "2026-09-11T12:00:00",
+                        "parameters": {
+                            "BaslangicTarihi": f"01.{m:02d}.{y}",
+                            "Kalemler": ["5690"],
+                            "SeciliParalar": "TL",
+                            "Taraflar": ["10001"],
+                        },
+                        "validation": {"data_rows": 1},
+                        "path": f"sample_{month_str}.html",
+                        "size_bytes": len(html_content),
+                    }
+                    if bad_sha is not None:
+                        rec["sha256"] = bad_sha
+                    (receipts_dir / f"receipt_{month_str}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    res = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+                self.assertFalse(res["is_valid"])
+                self.assertIn("gecersiz veya eksik SHA-256 metadata", buf.getvalue())
+
+    def test_inspect_bronze_fails_on_file_read_error(self):
+        """Fiziksel dosya okumasinda OSError olusursa kontrollu sekilde exit 1 vermeli."""
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            raw_bytes = _make_bronze_raw_content()
+            (raw_dir / "valid_raw.json").write_bytes(raw_bytes)
+            valid_sha = hashlib.sha256(raw_bytes).hexdigest()
+
+            expected_months = gen_bronze_months(2021, 1, 2026, 7)
+            for y, m in expected_months:
+                rec = {
+                    "request_key": f"tablo4_10001_TL_{y}_{m}",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {"tabloNo": "4", "taraf": ["10001"], "paraBirimi": "TL", "yil": y, "ay": m},
+                    "validation": {"rows": 41, "period_confirmation": "response_caption"},
+                    "path": "valid_raw.json",
+                    "size_bytes": len(raw_bytes),
+                    "sha256": valid_sha,
+                }
+                (receipts_dir / f"receipt_{y}_{m:02d}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+            buf = io.StringIO()
+            with patch("pathlib.Path.read_bytes", side_effect=PermissionError("Izin reddedildi")):
+                with redirect_stdout(buf):
+                    exit_code = bronze_main(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("Fiziksel dosya okuma hatasi", buf.getvalue())
+
+    def test_inspect_weekly_fails_on_file_read_error(self):
+        """Haftalik dosya okumasinda OSError olusursa kontrollu sekilde is_valid=False olmali."""
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            expected_months = gen_weekly_months(2021, 1, 2026, 7)
+            for month_str in expected_months:
+                y, m = map(int, month_str.split("-"))
+                html_content = _make_weekly_html_with_konut(f"01.{m:02d}.{y}")
+                html_file = raw_dir / f"sample_{month_str}.html"
+                html_file.write_bytes(html_content)
+                correct_sha = hashlib.sha256(html_content).hexdigest()
+
+                rec = {
+                    "request_key": f"haftalik_{y}_{m}",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {
+                        "BaslangicTarihi": f"01.{m:02d}.{y}",
+                        "Kalemler": ["5690"],
+                        "SeciliParalar": "TL",
+                        "Taraflar": ["10001"],
+                    },
+                    "validation": {"data_rows": 1},
+                    "path": f"sample_{month_str}.html",
+                    "size_bytes": len(html_content),
+                    "sha256": correct_sha,
+                }
+                (receipts_dir / f"receipt_{month_str}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+            buf = io.StringIO()
+            with patch("pathlib.Path.read_bytes", side_effect=OSError("Disk okuma hatasi")):
+                with redirect_stdout(buf):
+                    res = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+            self.assertFalse(res["is_valid"])
+            self.assertGreater(res["io_errors_count"], 0)
+            self.assertIn("Dosya okuma hatasi", buf.getvalue())
 
 
 if __name__ == "__main__":

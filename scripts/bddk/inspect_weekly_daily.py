@@ -155,6 +155,7 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
     taraf_gruplari: set = set()
     row_counts: dict = {}
     missing_files: list = []
+    io_errors: list = []
     size_mismatches: list = []
     hash_mismatches: list = []
     html_parse_hatalari: list = []
@@ -196,24 +197,36 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
             is_valid = False
             continue
 
-        actual_size = raw_file.stat().st_size
+        try:
+            actual_size = raw_file.stat().st_size
+            raw_bytes = raw_file.read_bytes()
+        except OSError as exc:
+            io_errors.append((rel_path, f"Dosya okuma hatasi: {exc}"))
+            is_valid = False
+            continue
+
         expected_size = d.get("size_bytes")
         if expected_size is not None and actual_size != expected_size:
             size_mismatches.append((rel_path, actual_size, expected_size))
             is_valid = False
             continue
 
-        raw_bytes = raw_file.read_bytes()
         expected_sha = d.get("sha256")
-        if expected_sha:
-            actual_sha = hashlib.sha256(raw_bytes).hexdigest()
-            if actual_sha != expected_sha:
-                hash_mismatches.append(
-                    (rel_path,
-                     f"diskte {actual_sha[:16]}..., makbuzda {expected_sha[:16]}...")
-                )
-                is_valid = False
-                continue
+        if not expected_sha or not isinstance(expected_sha, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", expected_sha):
+            hash_mismatches.append(
+                (rel_path, f"gecersiz veya eksik SHA-256 metadata: {expected_sha!r}")
+            )
+            is_valid = False
+            continue
+
+        actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+        if actual_sha != expected_sha.lower():
+            hash_mismatches.append(
+                (rel_path,
+                 f"diskte {actual_sha[:16]}..., makbuzda {expected_sha[:16]}...")
+            )
+            is_valid = False
+            continue
 
         # Set 2: 5690 HTML icin kullanilabilir veri dogrulamasi
         # (Yalnizca fiziksel dosya, boyut ve SHA-256 dogrulandiysa parse et)
@@ -230,25 +243,30 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
                     if "konut" in cell.lower()
                 ]
                 if konut_cols:
-                    # Veri satirlarinda bu sutunlarda sayisal deger var mi?
-                    date_rows = [
-                        row for row in table_rows
-                        if row and re.fullmatch(r"\d{1,2}\.\d{1,2}\.\d{4}", row[0].strip() if row else "")
-                    ]
-                    has_numeric = False
-                    for row in date_rows:
-                        for col_idx in konut_cols:
-                            if col_idx < len(row):
-                                cell_val = row[col_idx].replace(",", ".").replace(" ", "").replace("\xa0", "")
-                                try:
-                                    float(cell_val)
-                                    has_numeric = True
-                                    break
-                                except ValueError:
-                                    pass
-                        if has_numeric:
+                    # Yalnizca tarihi istek donemi (ay_key) ile eslesen satirlari filtrele
+                    has_matching_numeric = False
+                    for row in table_rows:
+                        if not row:
+                            continue
+                        first_cell = row[0].strip() if row[0] else ""
+                        match = re.fullmatch(r"(\d{1,2})\.(\d{1,2})\.(\d{4})", first_cell)
+                        if match:
+                            row_month = match.group(2).zfill(2)
+                            row_year = match.group(3)
+                            row_ay_key = f"{row_year}-{row_month}"
+                            if row_ay_key == ay_key:
+                                for col_idx in konut_cols:
+                                    if col_idx < len(row):
+                                        cell_val = row[col_idx].replace(",", ".").replace(" ", "").replace("\xa0", "")
+                                        try:
+                                            float(cell_val)
+                                            has_matching_numeric = True
+                                            break
+                                        except ValueError:
+                                            pass
+                        if has_matching_numeric:
                             break
-                    if has_numeric:
+                    if has_matching_numeric:
                         ay_seti_5690_html.add(ay_key)
             except Exception as exc:
                 html_parse_hatalari.append((rel_path, str(exc)))
@@ -288,6 +306,12 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
         print(f"[HATA] Diskte fiziksel dosyasi bulunamayan {len(missing_files)} makbuz var!")
         is_valid = False
 
+    if io_errors:
+        print(f"[HATA] Dosya okuma hatasi olan {len(io_errors)} dosya var:")
+        for path, err in io_errors[:5]:
+            print(f"  {path}: {err}")
+        is_valid = False
+
     if size_mismatches:
         print(f"[HATA] Boyut uyusmazligi olan {len(size_mismatches)} dosya var!")
         is_valid = False
@@ -317,6 +341,7 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
         and len(eksik_5690_html) == 0
         and len(okuma_hatalari) == 0
         and len(html_parse_hatalari) == 0
+        and len(io_errors) == 0
     )
     return {
         "is_valid": final_valid,
@@ -328,6 +353,7 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
         "eksik_5690_html": eksik_5690_html,
         "eksik_5690_aylar": eksik_5690_html,
         "missing_files_count": len(missing_files),
+        "io_errors_count": len(io_errors),
         "size_mismatches_count": len(size_mismatches),
         "hash_mismatches_count": len(hash_mismatches),
         "html_parse_hatalari_count": len(html_parse_hatalari),

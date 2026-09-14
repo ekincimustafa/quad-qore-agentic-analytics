@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -191,7 +192,14 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
             is_valid = False
             continue
 
-        actual_size = raw_file.stat().st_size
+        try:
+            actual_size = raw_file.stat().st_size
+            raw_bytes = raw_file.read_bytes()
+        except OSError as exc:
+            parse_hatalari.append((donem_str, f"Fiziksel dosya okuma hatasi: {exc}"))
+            is_valid = False
+            continue
+
         expected_size = r.get("size_bytes")
         if expected_size is not None and actual_size != expected_size:
             parse_hatalari.append(
@@ -200,17 +208,22 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
             is_valid = False
             continue
 
-        raw_bytes = raw_file.read_bytes()
         expected_sha = r.get("sha256")
-        if expected_sha:
-            actual_sha = hashlib.sha256(raw_bytes).hexdigest()
-            if actual_sha != expected_sha:
-                parse_hatalari.append(
-                    (donem_str,
-                     f"SHA-256 uyusmazligi: diskte {actual_sha[:16]}..., makbuzda {expected_sha[:16]}...")
-                )
-                is_valid = False
-                continue
+        if not expected_sha or not isinstance(expected_sha, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", expected_sha):
+            parse_hatalari.append(
+                (donem_str, f"Gecersiz veya eksik SHA-256 metadata: {expected_sha!r}")
+            )
+            is_valid = False
+            continue
+
+        actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+        if actual_sha != expected_sha.lower():
+            parse_hatalari.append(
+                (donem_str,
+                 f"SHA-256 uyusmazligi: diskte {actual_sha[:16]}..., makbuzda {expected_sha[:16]}...")
+            )
+            is_valid = False
+            continue
 
         try:
             raw_payload = json.loads(raw_bytes.decode("utf-8"))
