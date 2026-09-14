@@ -201,9 +201,9 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
             continue
 
         expected_size = r.get("size_bytes")
-        if expected_size is not None and actual_size != expected_size:
+        if expected_size is None or not isinstance(expected_size, int) or expected_size <= 0 or actual_size != expected_size:
             parse_hatalari.append(
-                (donem_str, f"Boyut uyusmazligi: diskte {actual_size} bayt, makbuzda {expected_size} bayt")
+                (donem_str, f"Boyut uyusmazligi veya gecersiz size_bytes: diskte {actual_size} bayt, makbuzda {expected_size}")
             )
             is_valid = False
             continue

@@ -33,8 +33,9 @@ def generate_expected_months(start_year: int, start_month: int, end_year: int, e
     return months
 
 
-def inspect_gunluk(receipts_dir: Path | None = None) -> dict:
+def inspect_gunluk(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> dict:
     base_receipts = Path(receipts_dir) if receipts_dir else Path("data/bronze/bddk/gunluk/receipts")
+    base_raw = Path(raw_dir) if raw_dir else Path("data/bronze/bddk/gunluk/raw")
 
     print("=" * 65)
     print("GUNLUK BDDK VERISI DURUM ANALIZI")
@@ -56,6 +57,8 @@ def inspect_gunluk(receipts_dir: Path | None = None) -> dict:
     receipts = []
     unique_dates = set()
     historical_coverages = set()
+    okuma_hatalari = []
+    dosya_hatalari = []
 
     for r in receipt_files:
         try:
@@ -65,8 +68,52 @@ def inspect_gunluk(receipts_dir: Path | None = None) -> dict:
             for dt in v.get("dates", []):
                 unique_dates.add(dt)
             historical_coverages.add(v.get("historical_coverage", "unverified"))
+
+            # Fiziksel dosya, boyut ve SHA-256 dogrulamasi
+            rel_path = d.get("path", "")
+            if raw_dir:
+                raw_file = base_raw / Path(rel_path).name
+            else:
+                raw_file = Path("data/bronze/bddk") / rel_path
+
+            if not raw_file.is_file():
+                dosya_hatalari.append((r.name, f"Fiziksel dosya bulunamadi: {raw_file}"))
+                continue
+
+            try:
+                actual_size = raw_file.stat().st_size
+                raw_bytes = raw_file.read_bytes()
+            except OSError as exc:
+                dosya_hatalari.append((r.name, f"Dosya okuma hatasi: {exc}"))
+                continue
+
+            expected_size = d.get("size_bytes")
+            if expected_size is None or not isinstance(expected_size, int) or expected_size <= 0 or actual_size != expected_size:
+                dosya_hatalari.append((r.name, f"Boyut uyusmazligi veya gecersiz size_bytes: diskte {actual_size}, makbuzda {expected_size}"))
+                continue
+
+            expected_sha = d.get("sha256")
+            if not expected_sha or not isinstance(expected_sha, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", expected_sha):
+                dosya_hatalari.append((r.name, f"Gecersiz SHA-256 metadata: {expected_sha!r}"))
+                continue
+
+            actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+            if actual_sha != expected_sha.lower():
+                dosya_hatalari.append((r.name, f"SHA-256 uyusmazligi: diskte {actual_sha[:16]}..., makbuzda {expected_sha[:16]}..."))
+                continue
+
         except Exception as e:
-            print(f"[UYARI] {r.name} okunamadi: {e}")
+            okuma_hatalari.append((r.name, str(e)))
+
+    if okuma_hatalari:
+        print(f"[HATA] {len(okuma_hatalari)} gunluk makbuz okunamadi:")
+        for name, err in okuma_hatalari:
+            print(f"  {name}: {err}")
+
+    if dosya_hatalari:
+        print(f"[HATA] {len(dosya_hatalari)} gunluk dosyada fiziksel hata veya hash uyusmazligi var:")
+        for name, err in dosya_hatalari:
+            print(f"  {name}: {err}")
 
     for idx, d in enumerate(receipts[:3]):
         v = d.get("validation", {})
@@ -86,11 +133,15 @@ def inspect_gunluk(receipts_dir: Path | None = None) -> dict:
     print(f"    mevcut tekil gunun snapshot verisini dondurmektedir ({sorted(unique_dates)}).")
     print("  - Mevcut denemelerde gecmis gunluk seri erisimi dogrulanamadi.")
 
+    is_valid = len(receipts) > 0 and len(okuma_hatalari) == 0 and len(dosya_hatalari) == 0
+
     return {
         "receipt_count": len(receipts),
-        "is_valid": len(receipts) > 0,
+        "is_valid": is_valid,
         "historical_accessible": False,
         "unique_dates": sorted(unique_dates),
+        "okuma_hatalari_count": len(okuma_hatalari),
+        "dosya_hatalari_count": len(dosya_hatalari),
     }
 
 
@@ -115,18 +166,13 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
         print("[HATA] Haftalik makbuz bulunamadi.")
         return {"is_valid": False, "error": "no_receipts"}
 
-    veri_istekleri = []
-    katalog_istekleri = []
+    all_raw_receipts = []
     okuma_hatalari = []
 
     for r in receipt_files:
         try:
             d = json.loads(r.read_text("utf-8"))
-            p = d.get("parameters") or {}
-            if p.get("Kalemler"):
-                veri_istekleri.append(d)
-            else:
-                katalog_istekleri.append(d)
+            all_raw_receipts.append(d)
         except Exception as e:
             okuma_hatalari.append((r.name, str(e)))
 
@@ -138,16 +184,38 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
             print(f"  {name}: {err}")
         is_valid = False
 
+    # -----------------------------------------------------------------------
+    # Idempotent Deduplication: Ayni request_key icin en son makbuzu sec
+    # -----------------------------------------------------------------------
+    deduped_by_key: dict[str, dict] = {}
+    for r in all_raw_receipts:
+        key = r.get("request_key")
+        if not key:
+            continue
+        ts = r.get("downloaded_at", "")
+        if key not in deduped_by_key or ts > deduped_by_key[key].get("downloaded_at", ""):
+            deduped_by_key[key] = r
+
+    unique_receipts = list(deduped_by_key.values())
+    duplicate_count = len(all_raw_receipts) - len(unique_receipts)
+
+    veri_istekleri = []
+    katalog_istekleri = []
+    for d in unique_receipts:
+        p = d.get("parameters") or {}
+        if p.get("Kalemler"):
+            veri_istekleri.append(d)
+        else:
+            katalog_istekleri.append(d)
+
+    print(f"  Toplam makbuz dosyasi : {len(all_raw_receipts)}")
+    print(f"  Tekil istek sayisi    : {len(unique_receipts)} ({duplicate_count} eski/refresh makbuz elendi)")
     print(f"  Katalog/kesif makbuzu : {len(katalog_istekleri)}")
     print(f"  Gercek veri makbuzu   : {len(veri_istekleri)}")
 
     # -----------------------------------------------------------------------
     # Kalem 5690 (Konut Kredisi) — Istek ve HTML Icerigi AYRI Dogrulama
     # -----------------------------------------------------------------------
-    # ay_seti_5690_istekte : 5690, istekte (Kalemler parametresinde) mevcut
-    # ay_seti_5690_html    : 5690 HTML tablosunda kullanilabilir veri iceriyor
-    #                        (TabloExcelGelismis header Row1'de 'Konut' sutunu
-    #                        + en az bir sayisal deger)
     ay_seti_genel: set = set()
     ay_seti_5690_istekte: set = set()
     ay_seti_5690_html: set = set()
@@ -170,7 +238,7 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
         try:
             parts = bas.split(".")
             if len(parts) == 3:
-                ay_key = f"{parts[2]}-{parts[1]}"
+                ay_key = f"{parts[2]}-{parts[1].zfill(2)}"
                 ay_seti_genel.add(ay_key)
         except Exception:
             pass
@@ -206,8 +274,10 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
             continue
 
         expected_size = d.get("size_bytes")
-        if expected_size is not None and actual_size != expected_size:
-            size_mismatches.append((rel_path, actual_size, expected_size))
+        if expected_size is None or not isinstance(expected_size, int) or expected_size <= 0 or actual_size != expected_size:
+            size_mismatches.append(
+                (rel_path, f"Boyut uyusmazligi veya gecersiz size_bytes: diskte {actual_size}, makbuzda {expected_size}")
+            )
             is_valid = False
             continue
 
@@ -235,13 +305,16 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
                 html_text = raw_bytes.decode("utf-8", errors="replace")
                 page_obj = Page(html_text)
                 table_rows = page_obj.tables.get("TabloExcelGelismis", [])
-                # Header Row1: kalem etiketleri ("Krediler / a) Konut" = 5690)
-                # En az 2 satir olmali (header + veri)
-                header_row = table_rows[1] if len(table_rows) > 1 else []
-                konut_cols = [
-                    i for i, cell in enumerate(header_row)
-                    if "konut" in cell.lower()
-                ]
+
+                # Dinamik Baslik Taramasi: Tarihli veri satirlarina kadar olan tum satirlarda "konut" sutunlarini tespit et
+                konut_cols = []
+                for r in table_rows:
+                    if r and r[0] and re.fullmatch(r"\d{1,2}\.\d{1,2}\.\d{4}", r[0].strip()):
+                        break
+                    for i, cell in enumerate(r):
+                        if cell and "konut" in cell.lower() and i not in konut_cols:
+                            konut_cols.append(i)
+
                 if konut_cols:
                     # Yalnizca tarihi istek donemi (ay_key) ile eslesen satirlari filtrele
                     has_matching_numeric = False
@@ -270,6 +343,7 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
                         ay_seti_5690_html.add(ay_key)
             except Exception as exc:
                 html_parse_hatalari.append((rel_path, str(exc)))
+                is_valid = False
 
     beklenen_aylar = generate_expected_months(2021, 1, 2026, 7)
     eksik_5690_istekte = [a for a in beklenen_aylar if a not in ay_seti_5690_istekte]
@@ -346,6 +420,8 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
     return {
         "is_valid": final_valid,
         "total_receipts": total_receipts,
+        "duplicate_count": duplicate_count,
+        "unique_receipts_count": len(unique_receipts),
         "covered_months_5690_request": len(ay_seti_5690_istekte),
         "covered_months_5690_html": len(ay_seti_5690_html),
         "expected_months": len(beklenen_aylar),
@@ -360,14 +436,19 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
     }
 
 
-def main(gunluk_receipts_dir: Path | None = None, haftalik_receipts_dir: Path | None = None, haftalik_raw_dir: Path | None = None) -> int:
+def main(
+    gunluk_receipts_dir: Path | None = None,
+    gunluk_raw_dir: Path | None = None,
+    haftalik_receipts_dir: Path | None = None,
+    haftalik_raw_dir: Path | None = None,
+) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         try:
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
 
-    gunluk_res = inspect_gunluk(receipts_dir=gunluk_receipts_dir)
+    gunluk_res = inspect_gunluk(receipts_dir=gunluk_receipts_dir, raw_dir=gunluk_raw_dir)
     haftalik_res = inspect_haftalik(receipts_dir=haftalik_receipts_dir, raw_dir=haftalik_raw_dir)
 
     print()
@@ -375,9 +456,12 @@ def main(gunluk_receipts_dir: Path | None = None, haftalik_receipts_dir: Path | 
     print("GENEL DEGERLENDIRME VE CIKIS KODU")
     print("=" * 65)
     print(f"Haftalik Seri Durumu : {'[OK] Basarili' if haftalik_res.get('is_valid') else '[HATA] Eksik veya Hatali'}")
-    print(f"Gunluk Seri Durumu   : {'[BILGI] Gecmis arsiv erisimi dogrulanamadi (tek gun anlik snapshot)' if gunluk_res.get('is_valid') else '[HATA] Dosya yok'}")
+    print(f"Gunluk Seri Durumu   : {'[BILGI] Gecmis arsiv erisimi dogrulanamadi (tek gun anlik snapshot)' if gunluk_res.get('is_valid') else '[HATA] Dosya veya dogrulama hatasi'}")
 
-    if haftalik_res.get("is_valid"):
+    if haftalik_res.get("is_valid") and gunluk_res.get("is_valid"):
+        print("\n[BASARILI] Haftalik veri seti 67 ay boyunca Kalem 5690 ozelinde eksiksiz ve gunluk dosyalar tam.")
+        return 0
+    elif haftalik_res.get("is_valid"):
         print("\n[BASARILI] Haftalik veri seti 67 ay boyunca Kalem 5690 ozelinde eksiksiz ve dosyalari tam.")
         return 0
     else:

@@ -12,6 +12,7 @@ from scripts.bddk.inspect_bronze import generate_expected_months as gen_bronze_m
 from scripts.bddk.inspect_weekly_daily import (
     generate_expected_months as gen_weekly_months,
     inspect_haftalik,
+    inspect_gunluk,
 )
 
 
@@ -973,6 +974,232 @@ class SHA256AndHtmlTests(unittest.TestCase):
             self.assertFalse(res["is_valid"])
             self.assertGreater(res["io_errors_count"], 0)
             self.assertIn("Dosya okuma hatasi", buf.getvalue())
+
+    def test_inspect_weekly_deduplicates_refreshed_receipts(self):
+        """Haftalik denetimde duplicate makbuzlar en son downloaded_at ile tekillestirilmeli."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            expected_months = gen_weekly_months(2021, 1, 2026, 7)
+            for month_str in expected_months:
+                y, m = map(int, month_str.split("-"))
+                html_content = _make_weekly_html_with_konut(f"01.{m:02d}.{y}")
+                html_file = raw_dir / f"sample_{month_str}.html"
+                html_file.write_bytes(html_content)
+                correct_sha = hashlib.sha256(html_content).hexdigest()
+
+                rec = {
+                    "request_key": f"haftalik_{y}_{m}",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {
+                        "BaslangicTarihi": f"01.{m:02d}.{y}",
+                        "Kalemler": ["5690"],
+                        "SeciliParalar": "TL",
+                        "Taraflar": ["10001"],
+                    },
+                    "validation": {"data_rows": 1},
+                    "path": f"sample_{month_str}.html",
+                    "size_bytes": len(html_content),
+                    "sha256": correct_sha,
+                }
+                (receipts_dir / f"receipt_{month_str}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+            # 2021-01 icin eski, bozuk dosyayi gosteren bir duplicate makbuz ekle
+            dup_rec = {
+                "request_key": "haftalik_2021_1",
+                "downloaded_at": "2026-01-01T00:00:00",  # Eski zaman damgasi
+                "parameters": {
+                    "BaslangicTarihi": "01.01.2021",
+                    "Kalemler": ["5690"],
+                    "SeciliParalar": "TL",
+                    "Taraflar": ["10001"],
+                },
+                "validation": {"data_rows": 1},
+                "path": "non_existent.html",
+                "size_bytes": 99999,
+                "sha256": "0" * 64,
+            }
+            (receipts_dir / "receipt_2021_01_old_refresh.json").write_text(json.dumps(dup_rec), encoding="utf-8")
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                res = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+            self.assertTrue(res["is_valid"])
+            self.assertEqual(res["duplicate_count"], 1)
+            self.assertIn("1 eski/refresh makbuz elendi", buf.getvalue())
+
+    def test_inspect_weekly_resolves_konut_column_dynamically_across_header_rows(self):
+        """Konut basligi table_rows[1] yerine table_rows[0] veya baska satirda olsa bile dinamik bulunmali."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            expected_months = gen_weekly_months(2021, 1, 2026, 7)
+            for month_str in expected_months:
+                y, m = map(int, month_str.split("-"))
+                html_custom = (
+                    "<html><body>"
+                    '<table id="TabloExcelGelismis">'
+                    "<tr><td>Birim: TL</td><td>Krediler / a) Konut</td><td></td><td></td></tr>"
+                    "<tr><td></td><td>TP</td><td>YP</td><td>TOPLAM</td></tr>"
+                    f"<tr><td>01.{m:02d}.{y}</td><td>150,00</td><td>0,00</td><td>150,00</td></tr>"
+                    "</table></body></html>"
+                ).encode("utf-8")
+                html_file = raw_dir / f"sample_{month_str}.html"
+                html_file.write_bytes(html_custom)
+                correct_sha = hashlib.sha256(html_custom).hexdigest()
+
+                rec = {
+                    "request_key": f"haftalik_{y}_{m}",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {
+                        "BaslangicTarihi": f"01.{m:02d}.{y}",
+                        "Kalemler": ["5690"],
+                        "SeciliParalar": "TL",
+                        "Taraflar": ["10001"],
+                    },
+                    "validation": {"data_rows": 1},
+                    "path": f"sample_{month_str}.html",
+                    "size_bytes": len(html_custom),
+                    "sha256": correct_sha,
+                }
+                (receipts_dir / f"receipt_{month_str}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                res = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+            self.assertTrue(res["is_valid"])
+            self.assertEqual(res["covered_months_5690_html"], 67)
+
+    def test_inspect_weekly_handles_single_digit_month_in_start_date(self):
+        """BaslangicTarihi '01.1.2021' gibi tek haneli ay icerse bile zfill ile 2021-01 standartlasmali."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            expected_months = gen_weekly_months(2021, 1, 2026, 7)
+            for month_str in expected_months:
+                y, m = map(int, month_str.split("-"))
+                html_content = _make_weekly_html_with_konut(f"01.{m:02d}.{y}")
+                html_file = raw_dir / f"sample_{month_str}.html"
+                html_file.write_bytes(html_content)
+                correct_sha = hashlib.sha256(html_content).hexdigest()
+
+                # Tek haneli ay formatı: '01.1.2021'
+                start_date_str = f"01.{m}.{y}"
+                rec = {
+                    "request_key": f"haftalik_{y}_{m}",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {
+                        "BaslangicTarihi": start_date_str,
+                        "Kalemler": ["5690"],
+                        "SeciliParalar": "TL",
+                        "Taraflar": ["10001"],
+                    },
+                    "validation": {"data_rows": 1},
+                    "path": f"sample_{month_str}.html",
+                    "size_bytes": len(html_content),
+                    "sha256": correct_sha,
+                }
+                (receipts_dir / f"receipt_{month_str}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                res = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+            self.assertTrue(res["is_valid"])
+            self.assertEqual(res["covered_months_5690_request"], 67)
+            self.assertEqual(res["covered_months_5690_html"], 67)
+
+    def test_inspect_scripts_fail_on_missing_or_invalid_size_bytes(self):
+        """Makbuzda size_bytes eksik, None, negatif veya non-int oldugunda fail-closed olmali."""
+        for bad_size in [None, -1, 0, "not_int"]:
+            with tempfile.TemporaryDirectory() as td:
+                base = Path(td)
+                receipts_dir = base / "receipts"
+                raw_dir = base / "raw"
+                receipts_dir.mkdir()
+                raw_dir.mkdir()
+
+                raw_bytes = _make_bronze_raw_content()
+                (raw_dir / "valid_raw.json").write_bytes(raw_bytes)
+                valid_sha = hashlib.sha256(raw_bytes).hexdigest()
+
+                expected_months = gen_bronze_months(2021, 1, 2026, 7)
+                for y, m in expected_months:
+                    rec = {
+                        "request_key": f"tablo4_10001_TL_{y}_{m}",
+                        "downloaded_at": "2026-09-11T12:00:00",
+                        "parameters": {"tabloNo": "4", "taraf": ["10001"], "paraBirimi": "TL", "yil": y, "ay": m},
+                        "validation": {"rows": 41, "period_confirmation": "response_caption"},
+                        "path": "valid_raw.json",
+                        "sha256": valid_sha,
+                    }
+                    if bad_size is not None:
+                        rec["size_bytes"] = bad_size
+                    (receipts_dir / f"receipt_{y}_{m:02d}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    exit_code = bronze_main(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+                self.assertEqual(exit_code, 1)
+                self.assertIn("gecersiz size_bytes", buf.getvalue())
+
+    def test_inspect_gunluk_validates_physical_files_and_fails_on_hash_or_missing(self):
+        """inspect_gunluk fiziksel dosya varligini, boyutunu ve SHA-256'sini dogrulamali."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            html_data = b"<html><body>Tarih: 07.09.2026</body></html>"
+            raw_file = raw_dir / "gunluk_2026_09_07.html"
+            raw_file.write_bytes(html_data)
+            valid_sha = hashlib.sha256(html_data).hexdigest()
+
+            rec = {
+                "request_key": "gunluk_snapshot_1",
+                "source_url": "https://www.bddk.gov.tr/BultenGunluk",
+                "downloaded_at": "2026-09-10T20:32:12",
+                "path": "gunluk_2026_09_07.html",
+                "size_bytes": len(html_data),
+                "sha256": valid_sha,
+                "validation": {"dates": ["2026-09-07"], "historical_coverage": "unverified"},
+            }
+            (receipts_dir / "gunluk_rec.json").write_text(json.dumps(rec), encoding="utf-8")
+
+            # Happy path
+            res = inspect_gunluk(receipts_dir=receipts_dir, raw_dir=raw_dir)
+            self.assertTrue(res["is_valid"])
+            self.assertEqual(res["dosya_hatalari_count"], 0)
+
+            # Negative path 1: SHA-256 uyusmazligi
+            rec_bad_sha = dict(rec, sha256="0" * 64)
+            (receipts_dir / "gunluk_rec.json").write_text(json.dumps(rec_bad_sha), encoding="utf-8")
+            res_bad_sha = inspect_gunluk(receipts_dir=receipts_dir, raw_dir=raw_dir)
+            self.assertFalse(res_bad_sha["is_valid"])
+            self.assertGreater(res_bad_sha["dosya_hatalari_count"], 0)
+
+            # Negative path 2: Eksik fiziksel dosya
+            raw_file.unlink()
+            res_missing = inspect_gunluk(receipts_dir=receipts_dir, raw_dir=raw_dir)
+            self.assertFalse(res_missing["is_valid"])
+            self.assertGreater(res_missing["dosya_hatalari_count"], 0)
 
 
 if __name__ == "__main__":
