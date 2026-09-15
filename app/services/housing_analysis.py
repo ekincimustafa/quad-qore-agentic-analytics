@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import pandas as pd
 
 from app.lakehouse.gold import build_housing_gold_table
+from app.tools.housing_chart import build_housing_chart
 from app.tools.housing_evidence import (
     HousingAnalysisEvidence,
     build_housing_analysis_evidence,
@@ -26,6 +28,7 @@ class HousingAnalysisRun:
     """Validated result returned by the application service."""
 
     evidence: HousingAnalysisEvidence
+    chart: dict[str, Any]
     narration: str | None
 
 
@@ -54,6 +57,7 @@ def run_housing_analysis(
         start_period=start_period,
         end_period=end_period,
     )
+    chart = build_housing_chart(gold_table)
 
     narration: str | None = None
     if narrator is not None:
@@ -65,4 +69,8 @@ def run_housing_analysis(
             raise HousingNarrationError("MIA narration returned an empty response.")
         narration = candidate.strip()
 
-    return HousingAnalysisRun(evidence=evidence, narration=narration)
+    return HousingAnalysisRun(
+        evidence=evidence,
+        chart=chart,
+        narration=narration,
+    )

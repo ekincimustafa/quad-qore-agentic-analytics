@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,6 +18,7 @@ from app.services.housing_analysis import (
     HousingNarrator,
     run_housing_analysis,
 )
+from app.tools.housing_chart import HousingChartError
 from app.tools.housing_evidence import EvidenceBuildError, HousingAnalysisEvidence
 from app.tools.housing_narrator import narrate_housing_evidence_with_mia
 
@@ -76,6 +77,7 @@ class HousingAnalysisResponse(BaseModel):
 
     status: Literal["ok"] = "ok"
     evidence: HousingAnalysisEvidence
+    chart: dict[str, Any]
     narration: str | None
 
 
@@ -114,7 +116,7 @@ def analyze_housing(
             evds_source_refs=request.evds_source_refs,
             narrator=selected_narrator,
         )
-    except (GoldAnalysisError, EvidenceBuildError) as exc:
+    except (GoldAnalysisError, EvidenceBuildError, HousingChartError) as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={
@@ -133,5 +135,6 @@ def analyze_housing(
 
     return HousingAnalysisResponse(
         evidence=result.evidence,
+        chart=result.chart,
         narration=result.narration,
     )
