@@ -56,6 +56,7 @@ def test_housing_endpoint_returns_verified_evidence_without_calling_mia():
     assert body["status"] == "ok"
     assert body["narration"] is None
     assert body["evidence"]["matched_periods"] == ["2021-02"]
+    assert len(body["chart"]["data"]) == 6
 
 
 def test_housing_endpoint_uses_injected_narrator_when_requested():

@@ -49,6 +49,7 @@ def test_run_housing_analysis_builds_verified_evidence():
     assert result.evidence.observed_month_count == 3
     assert result.evidence.matched_month_count == 1
     assert result.evidence.matched_periods == ("2021-02",)
+    assert len(result.chart["data"]) == 6
 
 
 def test_run_housing_analysis_calls_injected_narrator():
