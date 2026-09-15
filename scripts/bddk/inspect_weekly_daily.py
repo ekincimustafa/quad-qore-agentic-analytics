@@ -35,21 +35,29 @@ def generate_expected_months(start_year: int, start_month: int, end_year: int, e
 
 def resolve_secure_raw_path(base_dir: Path, rel_path: str, use_filename_only: bool = False) -> Path | None:
     """Path traversal ve guvensiz dosya erisimini onleyen guvenli yol cozucu."""
-    if not rel_path or not isinstance(rel_path, str):
+    if not rel_path or not isinstance(rel_path, str) or isinstance(rel_path, bool):
+        return None
+    # Surucu harfleri (C:), URI semalari veya gecersiz karakterleri dogrudan reddet
+    if ":" in rel_path:
         return None
     try:
+        # Cross-platform separator normalizasyonu (Windows \ -> POSIX /)
+        clean_rel = rel_path.replace("\\", "/").strip()
+        if clean_rel.startswith("/") or clean_rel.startswith("\\"):
+            return None
+        parts = [p for p in clean_rel.split("/") if p]
+        if not parts or any(p in (".", "..") for p in parts):
+            return None
+
         base_resolved = base_dir.resolve()
         if use_filename_only:
-            clean_name = Path(rel_path).name
+            clean_name = parts[-1]
             if not clean_name or clean_name in (".", ".."):
                 return None
             target = (base_resolved / clean_name).resolve()
         else:
-            stripped = rel_path.lstrip("/\\")
-            normalized = Path(stripped)
-            if normalized.is_absolute() or normalized.drive or ".." in normalized.parts:
-                return None
-            target = (base_resolved / normalized).resolve()
+            target = (base_resolved / "/".join(parts)).resolve()
+
         target.relative_to(base_resolved)
         return target
     except (ValueError, OSError):
