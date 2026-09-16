@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from app.api.housing import router as housing_router
+
 
 APP_VERSION = "0.1.0"
 
@@ -20,6 +22,7 @@ def create_app() -> FastAPI:
         ),
         version=APP_VERSION,
     )
+    application.include_router(housing_router)
 
     @application.get(
         "/health",
