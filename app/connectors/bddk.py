@@ -8,6 +8,7 @@ from __future__ import annotations
 import calendar
 import hashlib
 import json
+import math
 import re
 import ssl
 import time
@@ -369,11 +370,18 @@ def extract_housing_loan_data(payload: dict) -> dict:
         )
 
     row_cell = matched[0]
+    tp = float(row_cell[tp_idx])
+    yp = float(row_cell[yp_idx])
+    toplam = float(row_cell[toplam_idx])
+    if not (math.isfinite(tp) and math.isfinite(yp) and math.isfinite(toplam)):
+        raise ValueError(
+            f"'{target_label}' gosterge degerleri sonlu sayisal degerler olmalidir: tp={tp}, yp={yp}, toplam={toplam}"
+        )
     return {
         "label": target_label,
-        "tp": float(row_cell[tp_idx]),
-        "yp": float(row_cell[yp_idx]),
-        "toplam": float(row_cell[toplam_idx]),
+        "tp": tp,
+        "yp": yp,
+        "toplam": toplam,
         "caption": report.get("caption", ""),
     }
 

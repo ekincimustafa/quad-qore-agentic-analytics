@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from app.connectors.bddk import Page
@@ -94,8 +96,17 @@ def inspect_gunluk(receipts_dir: Path | None = None, raw_dir: Path | None = None
     for r in receipt_files:
         try:
             d = json.loads(r.read_text("utf-8"))
+            if not isinstance(d, dict):
+                raise ValueError("Makbuz JSON koku bir dictionary (object) olmali")
+            req_key = d.get("request_key")
+            if not isinstance(req_key, str) or not req_key.strip():
+                raise ValueError("Makbuzda request_key alani bos olmayan bir string olmali")
+            params = d.get("parameters")
+            if params is not None and not isinstance(params, dict):
+                raise ValueError("Makbuzda parameters alani dictionary veya null olmali")
+
             receipts.append(d)
-            v = d.get("validation", {})
+            v = d.get("validation", {}) if isinstance(d.get("validation"), dict) else {}
             for dt in v.get("dates", []):
                 unique_dates.add(dt)
             historical_coverages.add(v.get("historical_coverage", "unverified"))
@@ -201,6 +212,14 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
     for r in receipt_files:
         try:
             d = json.loads(r.read_text("utf-8"))
+            if not isinstance(d, dict):
+                raise ValueError("Makbuz JSON koku bir dictionary (object) olmali")
+            req_key = d.get("request_key")
+            if not isinstance(req_key, str) or not req_key.strip():
+                raise ValueError("Makbuzda request_key alani bos olmayan bir string olmali")
+            params = d.get("parameters")
+            if params is not None and not isinstance(params, dict):
+                raise ValueError("Makbuzda parameters alani dictionary veya null olmali")
             all_raw_receipts.append(d)
         except Exception as e:
             okuma_hatalari.append((r.name, str(e)))
@@ -218,9 +237,7 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
     # -----------------------------------------------------------------------
     deduped_by_key: dict[str, dict] = {}
     for r in all_raw_receipts:
-        key = r.get("request_key")
-        if not key:
-            continue
+        key = r["request_key"]
         ts = r.get("downloaded_at", "")
         if key not in deduped_by_key or ts > deduped_by_key[key].get("downloaded_at", ""):
             deduped_by_key[key] = r
@@ -231,8 +248,8 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
     veri_istekleri = []
     katalog_istekleri = []
     for d in unique_receipts:
-        p = d.get("parameters") or {}
-        if p.get("Kalemler"):
+        p = d.get("parameters")
+        if p and p.get("Kalemler"):
             veri_istekleri.append(d)
         else:
             katalog_istekleri.append(d)
@@ -262,19 +279,24 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
         v = d.get("validation", {})
         kalemler = p.get("Kalemler", [])
 
-        bas = p.get("BaslangicTarihi", "")[:10]  # "01.01.2021"
+        bas = p.get("BaslangicTarihi")
         ay_key = None
-        try:
-            parts = bas.split(".")
-            if len(parts) == 3:
-                ay_key = f"{parts[2]}-{parts[1].zfill(2)}"
+        if isinstance(bas, str):
+            bas_str = bas.strip()[:10]
+            try:
+                dt = datetime.strptime(bas_str, "%d.%m.%Y").date()
+                ay_key = f"{dt.year:04d}-{dt.month:02d}"
                 ay_seti_genel.add(ay_key)
-        except Exception:
-            pass
+            except ValueError:
+                ay_key = None
 
         # Set 1: 5690 istekte mevcut mu?
-        if "5690" in kalemler and ay_key:
-            ay_seti_5690_istekte.add(ay_key)
+        if "5690" in kalemler:
+            if ay_key:
+                ay_seti_5690_istekte.add(ay_key)
+            else:
+                # 5690 istek parametresinde gecersiz takvim tarihi
+                is_valid = False
 
         para_birimleri.add(p.get("SeciliParalar", "?"))
         taraf_gruplari.add(len(p.get("Taraflar", [])))
@@ -336,40 +358,46 @@ def inspect_haftalik(receipts_dir: Path | None = None, raw_dir: Path | None = No
                 # Dinamik Baslik Taramasi: Tarihli veri satirlarina kadar olan tum satirlarda "konut" sutunlarini tespit et
                 konut_cols = []
                 for r in table_rows:
-                    if r and r[0] and re.fullmatch(r"\d{1,2}\.\d{1,2}\.\d{4}", r[0].strip()):
-                        break
+                    if r and r[0]:
+                        try:
+                            datetime.strptime(r[0].strip(), "%d.%m.%Y")
+                            break
+                        except ValueError:
+                            pass
                     for i, cell in enumerate(r):
                         if cell and "konut" in cell.lower() and i not in konut_cols:
                             konut_cols.append(i)
 
                 if konut_cols:
-                    # Yalnizca tarihi istek donemi (ay_key) ile eslesen satirlari filtrele
+                    # Yalnizca tarihi gercek takvim tarihi olan ve istek donemi (ay_key) ile eslesen satirlari filtrele
                     has_matching_numeric = False
                     for row in table_rows:
                         if not row:
                             continue
                         first_cell = row[0].strip() if row[0] else ""
-                        match = re.fullmatch(r"(\d{1,2})\.(\d{1,2})\.(\d{4})", first_cell)
-                        if match:
-                            row_month = match.group(2).zfill(2)
-                            row_year = match.group(3)
-                            row_ay_key = f"{row_year}-{row_month}"
-                            if row_ay_key == ay_key:
-                                for col_idx in konut_cols:
-                                    if col_idx < len(row):
-                                        cell_val = (
-                                            row[col_idx]
-                                            .replace(" ", "")
-                                            .replace("\xa0", "")
-                                            .replace(".", "")
-                                            .replace(",", ".")
-                                        )
-                                        try:
-                                            float(cell_val)
+                        try:
+                            row_dt = datetime.strptime(first_cell, "%d.%m.%Y").date()
+                            row_ay_key = f"{row_dt.year:04d}-{row_dt.month:02d}"
+                        except ValueError:
+                            continue
+
+                        if row_ay_key == ay_key:
+                            for col_idx in konut_cols:
+                                if col_idx < len(row):
+                                    cell_val = (
+                                        row[col_idx]
+                                        .replace(" ", "")
+                                        .replace("\xa0", "")
+                                        .replace(".", "")
+                                        .replace(",", ".")
+                                    )
+                                    try:
+                                        val = float(cell_val)
+                                        if math.isfinite(val):
                                             has_matching_numeric = True
                                             break
-                                        except ValueError:
-                                            pass
+                                    except ValueError:
+                                        pass
                         if has_matching_numeric:
                             break
                     if has_matching_numeric:
@@ -494,11 +522,8 @@ def main(
     if haftalik_res.get("is_valid") and gunluk_res.get("is_valid"):
         print("\n[BASARILI] Haftalik veri seti 67 ay boyunca Kalem 5690 ozelinde eksiksiz ve gunluk dosyalar tam.")
         return 0
-    elif haftalik_res.get("is_valid"):
-        print("\n[BASARILI] Haftalik veri seti 67 ay boyunca Kalem 5690 ozelinde eksiksiz ve dosyalari tam.")
-        return 0
     else:
-        print("\n[HATA] Haftalik veri denetimi basarisiz oldu.")
+        print("\n[HATA] BDDK veri denetimi basarisiz oldu (haftalik veya gunluk kontrollerden gecilemedi).")
         return 1
 
 

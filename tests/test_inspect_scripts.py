@@ -17,6 +17,7 @@ from scripts.bddk.inspect_weekly_daily import (
     generate_expected_months as gen_weekly_months,
     inspect_haftalik,
     inspect_gunluk,
+    main as weekly_daily_main,
     resolve_secure_raw_path as weekly_resolve_secure_raw_path,
 )
 
@@ -1364,6 +1365,358 @@ class SHA256AndHtmlTests(unittest.TestCase):
                 code = bronze_main(receipts_dir=receipts_dir, raw_dir=raw_dir)
             self.assertEqual(code, 1)
             self.assertIn("gecersiz size_bytes", buf.getvalue())
+
+    def test_inspect_weekly_rejects_nan_and_inf_numeric_values(self):
+        """HTML hucrelerindeki NaN, inf veya -inf degerleri gecerli sayisal veri sayilmamali."""
+        for bad_val in ["NaN", "nan", "Inf", "inf", "-Inf", "-infinity"]:
+            with tempfile.TemporaryDirectory() as td:
+                base = Path(td)
+                receipts_dir = base / "receipts"
+                raw_dir = base / "raw"
+                receipts_dir.mkdir()
+                raw_dir.mkdir()
+
+                expected_months = gen_weekly_months(2021, 1, 2026, 7)
+                for month_str in expected_months:
+                    y, m = map(int, month_str.split("-"))
+                    val = bad_val if month_str == "2024-03" else "100,00"
+                    html_content = (
+                        "<html><body>"
+                        '<table id="TabloExcelGelismis">'
+                        "<tr></tr>"
+                        "<tr><td></td><td>Krediler / a) Konut</td><td></td><td></td></tr>"
+                        "<tr><td></td><td>TP</td><td>YP</td><td>TOPLAM</td></tr>"
+                        "<tr><td>Sektor</td></tr>"
+                        f"<tr><td>01.{m:02d}.{y}</td><td>{val}</td><td>5,00</td><td>105,00</td></tr>"
+                        "</table></body></html>"
+                    ).encode("utf-8")
+                    html_file = raw_dir / f"sample_{month_str}.html"
+                    html_file.write_bytes(html_content)
+
+                    rec = {
+                        "request_key": f"haftalik_{y}_{m}",
+                        "downloaded_at": "2026-09-11T12:00:00",
+                        "parameters": {
+                            "BaslangicTarihi": f"01.{m:02d}.{y}",
+                            "Kalemler": ["5690"],
+                            "SeciliParalar": "TL",
+                            "Taraflar": ["10001"],
+                        },
+                        "validation": {"data_rows": 1},
+                        "path": f"sample_{month_str}.html",
+                        "size_bytes": len(html_content),
+                        "sha256": hashlib.sha256(html_content).hexdigest(),
+                    }
+                    (receipts_dir / f"receipt_{month_str}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    res = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+                self.assertFalse(res["is_valid"])
+                self.assertIn("2024-03", res["eksik_5690_html"])
+
+    def test_inspect_weekly_rejects_invalid_calendar_request_date(self):
+        """BaslangicTarihi 31.02.2021 veya 32.01.2021 gibi takvimde olmayan bir tarihse is_valid=False olmali."""
+        for bad_date in ["31.02.2021", "32.01.2021", "29.02.2021"]:
+            with tempfile.TemporaryDirectory() as td:
+                base = Path(td)
+                receipts_dir = base / "receipts"
+                raw_dir = base / "raw"
+                receipts_dir.mkdir()
+                raw_dir.mkdir()
+
+                expected_months = gen_weekly_months(2021, 1, 2026, 7)
+                for month_str in expected_months:
+                    y, m = map(int, month_str.split("-"))
+                    if month_str == "2021-02" and "02" in bad_date:
+                        start_date = bad_date
+                    elif month_str == "2021-01" and "01" in bad_date:
+                        start_date = bad_date
+                    else:
+                        start_date = f"01.{m:02d}.{y}"
+                    html_content = _make_weekly_html_with_konut(f"01.{m:02d}.{y}")
+                    html_file = raw_dir / f"sample_{month_str}.html"
+                    html_file.write_bytes(html_content)
+
+                    rec = {
+                        "request_key": f"haftalik_{y}_{m}",
+                        "downloaded_at": "2026-09-11T12:00:00",
+                        "parameters": {
+                            "BaslangicTarihi": start_date,
+                            "Kalemler": ["5690"],
+                            "SeciliParalar": "TL",
+                            "Taraflar": ["10001"],
+                        },
+                        "validation": {"data_rows": 1},
+                        "path": f"sample_{month_str}.html",
+                        "size_bytes": len(html_content),
+                        "sha256": hashlib.sha256(html_content).hexdigest(),
+                    }
+                    (receipts_dir / f"receipt_{month_str}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    res = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+                self.assertFalse(res["is_valid"])
+
+    def test_inspect_weekly_rejects_invalid_calendar_html_row_date(self):
+        """HTML satiri 31.02.2021 gibi gercek olmayan bir takvim tarihi icerdiginde o aya eslesmemeli."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            expected_months = gen_weekly_months(2021, 1, 2026, 7)
+            for month_str in expected_months:
+                y, m = map(int, month_str.split("-"))
+                row_date = "31.02.2021" if month_str == "2021-02" else f"01.{m:02d}.{y}"
+                html_content = (
+                    "<html><body>"
+                    '<table id="TabloExcelGelismis">'
+                    "<tr></tr>"
+                    "<tr><td></td><td>Krediler / a) Konut</td><td></td><td></td></tr>"
+                    "<tr><td></td><td>TP</td><td>YP</td><td>TOPLAM</td></tr>"
+                    "<tr><td>Sektor</td></tr>"
+                    f"<tr><td>{row_date}</td><td>100,00</td><td>5,00</td><td>105,00</td></tr>"
+                    "</table></body></html>"
+                ).encode("utf-8")
+                html_file = raw_dir / f"sample_{month_str}.html"
+                html_file.write_bytes(html_content)
+
+                rec = {
+                    "request_key": f"haftalik_{y}_{m}",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {
+                        "BaslangicTarihi": f"01.{m:02d}.{y}",
+                        "Kalemler": ["5690"],
+                        "SeciliParalar": "TL",
+                        "Taraflar": ["10001"],
+                    },
+                    "validation": {"data_rows": 1},
+                    "path": f"sample_{month_str}.html",
+                    "size_bytes": len(html_content),
+                    "sha256": hashlib.sha256(html_content).hexdigest(),
+                }
+                (receipts_dir / f"receipt_{month_str}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                res = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+            self.assertFalse(res["is_valid"])
+            self.assertIn("2021-02", res["eksik_5690_html"])
+
+    def test_inspect_scripts_fail_on_non_dict_receipt_json(self):
+        """Makbuz JSON'i dict disinda bir tur (liste, string, int) oldugunda fail-closed olmali."""
+        bad_receipts = ["[1, 2, 3]", '"just a string"', "12345"]
+        for bad_content in bad_receipts:
+            with tempfile.TemporaryDirectory() as td:
+                base = Path(td)
+                receipts_dir = base / "receipts"
+                raw_dir = base / "raw"
+                receipts_dir.mkdir()
+                raw_dir.mkdir()
+
+                # 1. Bronze test
+                (receipts_dir / "bad_rec.json").write_text(bad_content, encoding="utf-8")
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    code = bronze_main(receipts_dir=receipts_dir, raw_dir=raw_dir)
+                self.assertEqual(code, 1)
+                self.assertIn("dictionary (object) olmali", buf.getvalue())
+
+                # 2. Haftalik test
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    res_h = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+                self.assertFalse(res_h["is_valid"])
+
+                # 3. Gunluk test
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    res_g = inspect_gunluk(receipts_dir=receipts_dir, raw_dir=raw_dir)
+                self.assertFalse(res_g["is_valid"])
+
+    def test_inspect_scripts_fail_on_missing_or_empty_request_key(self):
+        """Makbuzda request_key eksik, bos veya string disi oldugunda sessizce yutulmamali, fail-closed olmali."""
+        bad_keys = [None, "", "   ", 12345, True, []]
+        for bad_key in bad_keys:
+            with tempfile.TemporaryDirectory() as td:
+                base = Path(td)
+                receipts_dir = base / "receipts"
+                raw_dir = base / "raw"
+                receipts_dir.mkdir()
+                raw_dir.mkdir()
+
+                rec = {
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {"tabloNo": "4"},
+                    "path": "dummy.html",
+                    "size_bytes": 10,
+                    "sha256": "a" * 64,
+                }
+                if bad_key is not None:
+                    rec["request_key"] = bad_key
+
+                (receipts_dir / "bad_rk.json").write_text(json.dumps(rec), encoding="utf-8")
+
+                # 1. Bronze test
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    code = bronze_main(receipts_dir=receipts_dir, raw_dir=raw_dir)
+                self.assertEqual(code, 1)
+                self.assertIn("request_key alani bos olmayan bir string olmali", buf.getvalue())
+
+                # 2. Haftalik test
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    res_h = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+                self.assertFalse(res_h["is_valid"])
+
+                # 3. Gunluk test
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    res_g = inspect_gunluk(receipts_dir=receipts_dir, raw_dir=raw_dir)
+                self.assertFalse(res_g["is_valid"])
+
+    def test_inspect_scripts_fail_on_non_dict_parameters(self):
+        """Makbuzda parameters alani string, liste vb. dict disi bir deger oldugunda hata vermeli."""
+        for bad_params in ["not_a_dict", [1, 2, 3], 1234]:
+            with tempfile.TemporaryDirectory() as td:
+                base = Path(td)
+                receipts_dir = base / "receipts"
+                raw_dir = base / "raw"
+                receipts_dir.mkdir()
+                raw_dir.mkdir()
+
+                rec = {
+                    "request_key": "valid_key_123",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": bad_params,
+                    "path": "dummy.html",
+                    "size_bytes": 10,
+                    "sha256": "a" * 64,
+                }
+                (receipts_dir / "bad_params.json").write_text(json.dumps(rec), encoding="utf-8")
+
+                # 1. Bronze test
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    code = bronze_main(receipts_dir=receipts_dir, raw_dir=raw_dir)
+                self.assertEqual(code, 1)
+                self.assertIn("parameters alani dictionary veya null olmali", buf.getvalue())
+
+                # 2. Haftalik test
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    res_h = inspect_haftalik(receipts_dir=receipts_dir, raw_dir=raw_dir)
+                self.assertFalse(res_h["is_valid"])
+
+                # 3. Gunluk test
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    res_g = inspect_gunluk(receipts_dir=receipts_dir, raw_dir=raw_dir)
+                self.assertFalse(res_g["is_valid"])
+
+    def test_weekly_daily_main_fails_when_daily_has_physical_errors(self):
+        """Haftalik seri 100% basarili olsa dahi gunluk seride fiziksel/hash hatasi varsa main() exit code 1 dondurmeli."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            h_receipts = base / "h_receipts"
+            h_raw = base / "h_raw"
+            g_receipts = base / "g_receipts"
+            g_raw = base / "g_raw"
+            h_receipts.mkdir()
+            h_raw.mkdir()
+            g_receipts.mkdir()
+            g_raw.mkdir()
+
+            expected_months = gen_weekly_months(2021, 1, 2026, 7)
+            for month_str in expected_months:
+                y, m = map(int, month_str.split("-"))
+                html_content = _make_weekly_html_with_konut(f"01.{m:02d}.{y}")
+                (h_raw / f"sample_{month_str}.html").write_bytes(html_content)
+                rec = {
+                    "request_key": f"haftalik_{y}_{m}",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {
+                        "BaslangicTarihi": f"01.{m:02d}.{y}",
+                        "Kalemler": ["5690"],
+                        "SeciliParalar": "TL",
+                        "Taraflar": ["10001"],
+                    },
+                    "validation": {"data_rows": 1},
+                    "path": f"sample_{month_str}.html",
+                    "size_bytes": len(html_content),
+                    "sha256": hashlib.sha256(html_content).hexdigest(),
+                }
+                (h_receipts / f"rec_{month_str}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+            # Gunluk seride fiziksel dosya eksik
+            g_rec = {
+                "request_key": "gunluk_bad_1",
+                "downloaded_at": "2026-09-11T12:00:00",
+                "path": "non_existent_gunluk.html",
+                "size_bytes": 100,
+                "sha256": "b" * 64,
+                "validation": {"dates": ["2026-09-07"], "historical_coverage": "unverified"},
+            }
+            (g_receipts / "g_rec.json").write_text(json.dumps(g_rec), encoding="utf-8")
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                exit_code = weekly_daily_main(
+                    gunluk_receipts_dir=g_receipts,
+                    gunluk_raw_dir=g_raw,
+                    haftalik_receipts_dir=h_receipts,
+                    haftalik_raw_dir=h_raw,
+                )
+
+            self.assertEqual(exit_code, 1)
+            self.assertIn("BDDK veri denetimi basarisiz oldu", buf.getvalue())
+
+    def test_inspect_bronze_fails_on_non_finite_numeric_values(self):
+        """Aylik JSON verisindeki NaN/inf degerleri extract_housing_loan_data ve inspect_bronze tarafindan reddedilmeli."""
+        with tempfile.TemporaryDirectory() as td:
+            base = Path(td)
+            receipts_dir = base / "receipts"
+            raw_dir = base / "raw"
+            receipts_dir.mkdir()
+            raw_dir.mkdir()
+
+            bad_payload = json.dumps({
+                "Json": {
+                    "caption": "Krediler",
+                    "colModels": [{"name": "ad"}, {"name": "tp"}, {"name": "yp"}, {"name": "toplam"}],
+                    "data": {
+                        "rows": [{"cell": ["Tüketici Kredileri - Konut", float("nan"), 0.0, 1000.0]}]
+                    },
+                }
+            }).encode("utf-8")
+            (raw_dir / "bad_raw.json").write_bytes(bad_payload)
+
+            expected_months = gen_bronze_months(2021, 1, 2026, 7)
+            for y, m in expected_months:
+                rec = {
+                    "request_key": f"tablo4_10001_TL_{y}_{m}",
+                    "downloaded_at": "2026-09-11T12:00:00",
+                    "parameters": {"tabloNo": "4", "taraf": ["10001"], "paraBirimi": "TL", "yil": y, "ay": m},
+                    "validation": {"rows": 41, "period_confirmation": "response_caption"},
+                    "path": "bad_raw.json",
+                    "size_bytes": len(bad_payload),
+                    "sha256": hashlib.sha256(bad_payload).hexdigest(),
+                }
+                (receipts_dir / f"rec_{y}_{m:02d}.json").write_text(json.dumps(rec), encoding="utf-8")
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                exit_code = bronze_main(receipts_dir=receipts_dir, raw_dir=raw_dir)
+
+            self.assertEqual(exit_code, 1)
 
 
 if __name__ == "__main__":

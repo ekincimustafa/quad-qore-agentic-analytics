@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -92,6 +93,14 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
     for r in receipt_files:
         try:
             data = json.loads(r.read_text("utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("Makbuz JSON koku bir dictionary (object) olmali")
+            req_key = data.get("request_key")
+            if not isinstance(req_key, str) or not req_key.strip():
+                raise ValueError("Makbuzda request_key alani bos olmayan bir string olmali")
+            params = data.get("parameters")
+            if params is not None and not isinstance(params, dict):
+                raise ValueError("Makbuzda parameters alani dictionary veya null olmali")
             all_raw_receipts.append(data)
         except Exception as exc:
             okuma_hatalari.append((r.name, str(exc)))
@@ -109,9 +118,7 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
     # -----------------------------------------------------------------------
     deduped_by_key: dict[str, dict] = {}
     for r in all_raw_receipts:
-        key = r.get("request_key")
-        if not key:
-            continue
+        key = r["request_key"]
         ts = r.get("downloaded_at", "")
         if key not in deduped_by_key or ts > deduped_by_key[key].get("downloaded_at", ""):
             deduped_by_key[key] = r
@@ -260,6 +267,8 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
             tp = parsed["tp"]
             yp = parsed["yp"]
             toplam = parsed["toplam"]
+            if not (math.isfinite(tp) and math.isfinite(yp) and math.isfinite(toplam)):
+                raise ValueError(f"Sayisal degerler sonlu degil: tp={tp}, yp={yp}, toplam={toplam}")
 
             degisim_str = "-"
             if onceki_toplam is not None and onceki_toplam > 0:
