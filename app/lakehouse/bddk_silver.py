@@ -234,8 +234,15 @@ def build_bddk_monthly_silver_table(
         except ValueError as e:
             raise SilverDataError(f"Failed to extract housing loan data from {rec['receipt_name']}: {e}")
             
+        tp = parsed.get("tp")
+        yp = parsed.get("yp")
         toplam = parsed.get("toplam")
-        if not isinstance(toplam, (int, float)) or not math.isfinite(toplam) or toplam <= 0:
+        
+        for val, name in [(tp, "tp"), (yp, "yp"), (toplam, "toplam")]:
+            if not isinstance(val, (int, float)) or not math.isfinite(val):
+                raise SilverDataError(f"Invalid housing loan {name} in {rec['receipt_name']}: {val}")
+
+        if toplam <= 0:
             raise SilverDataError(f"Invalid housing loan total in {rec['receipt_name']}: {toplam}")
 
         caption = parsed.get("caption", "")
