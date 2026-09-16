@@ -1,18 +1,3 @@
-Altı aracın sorumluluklarını birbirinden ayır.
-Her araç için giriş ve çıkış sözleşmesi hazırla.
-Sonuçlarda kaynak ve kanıt bilgisinin nasıl taşınacağını belirle.
-Araçların hata formatını ortaklaştır.
-Örnek JSON istek ve cevapları hazırla.
-Tanımları docs/tool_contracts.md dosyasında belgele.
-Kloudeks ve model kısıtları netleştiğinde sözleşmeleri gözden geçir.
-
-
-
-
-Altı aracın sorumluluklarını birbirinden ayır.
-
-
-
 ## 1. Amaç
 
 Bu belge, Quad-Qore sisteminde Agent Orchestrator tarafından kullanılacak araçların (tools) sorumluluklarını, giriş ve çıkış sözleşmelerini, kaynak/kanıt taşıma biçimlerini ve hata yönetimini tanımlar.
