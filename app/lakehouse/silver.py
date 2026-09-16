@@ -10,7 +10,58 @@ EVDS_MONTHLY_VALUE_COLUMNS = (
     "housing_loan_interest_rate_pct",
     "cpi_index",
     "housing_price_index",
+    "weekly_observation_count",
 )
+
+
+def _parse_monthly_period(
+    value: object,
+    *,
+    field_name: str,
+) -> pd.Period:
+    """Parse a strict YYYY-MM value as a real monthly period."""
+
+    value_text = str(value).strip()
+
+    if (
+        len(value_text) != 7
+        or value_text[4] != "-"
+        or not value_text[:4].isdigit()
+        or not value_text[5:].isdigit()
+    ):
+        raise ValueError(
+            f"Invalid monthly period for {field_name}: {value}"
+        )
+
+    try:
+        return pd.Period(value_text, freq="M")
+    except ValueError as exc:
+        raise ValueError(
+            f"Invalid monthly period for {field_name}: {value}"
+        ) from exc
+
+
+def _monthly_period_bounds(
+    start_period: str,
+    end_period: str,
+) -> tuple[pd.Period, pd.Period]:
+    """Validate an inclusive monthly period range."""
+
+    start = _parse_monthly_period(
+        start_period,
+        field_name="start_period",
+    )
+    end = _parse_monthly_period(
+        end_period,
+        field_name="end_period",
+    )
+
+    if start > end:
+        raise ValueError(
+            "start_period must be less than or equal to end_period."
+        )
+
+    return start, end
 
 
 def monthly_housing_loan_interest_rate(
@@ -47,18 +98,30 @@ def monthly_housing_loan_interest_rate(
     raw_dates = data[EVDS_DATE_COLUMN]
     date_text = raw_dates.astype("string").str.strip()
 
-    date_like_mask = date_text.str.fullmatch(
-        r"\d{1,2}-\d{1,2}-\d{4}",
-        na=False,
-    )
-
     parsed_dates = pd.to_datetime(
         raw_dates,
         dayfirst=True,
+        format="mixed",
         errors="coerce",
     )
 
-    invalid_date_mask = date_like_mask & parsed_dates.isna()
+    numeric_observation_values = pd.to_numeric(
+        data[EVDS_HOUSING_RATE_COLUMN],
+        errors="coerce",
+    )
+
+    date_like_mask = date_text.str.fullmatch(
+        r"\d{1,4}\D+\d{1,2}\D+\d{1,4}",
+        na=False,
+    )
+
+    invalid_date_mask = (
+        parsed_dates.isna()
+        & (
+            numeric_observation_values.notna()
+            | date_like_mask
+        )
+    )
 
     if invalid_date_mask.any():
         invalid_dates = date_text.loc[invalid_date_mask].tolist()
@@ -154,6 +217,12 @@ def monthly_cpi_index(
     if not month_columns:
         raise ValueError("No monthly CPI columns were found.")
 
+    for column in month_columns:
+        _parse_monthly_period(
+            column,
+            field_name="CPI period",
+        )
+
     cpi_row = cpi_rows.iloc[0]
 
     monthly = pd.DataFrame(
@@ -169,9 +238,21 @@ def monthly_cpi_index(
     if monthly["cpi_index"].isna().any():
         raise ValueError("CPI observations contain missing or non-numeric values.")
 
+    start, end = _monthly_period_bounds(
+        start_period,
+        end_period,
+    )
+
+    period_values = monthly["period"].map(
+        lambda value: _parse_monthly_period(
+            value,
+            field_name="CPI period",
+        )
+    )
+
     monthly = monthly[
-        (monthly["period"] >= start_period)
-        & (monthly["period"] <= end_period)
+        (period_values >= start)
+        & (period_values <= end)
     ].copy()
 
     if monthly.empty:
@@ -210,8 +291,16 @@ def monthly_housing_price_index(
 
     valid_period_mask = periods.str.fullmatch(r"\d{4}-\d{2}")
 
+    period_values = periods.loc[valid_period_mask]
+
+    for value in period_values:
+        _parse_monthly_period(
+            value,
+            field_name="KFE period",
+        )
+
     data = data.loc[valid_period_mask].copy()
-    data["period"] = periods.loc[valid_period_mask]
+    data["period"] = period_values
 
     data["housing_price_index"] = pd.to_numeric(
         data["TP_KFE_TR"],
@@ -223,9 +312,21 @@ def monthly_housing_price_index(
             "KFE observations contain missing or non-numeric values."
         )
 
+    start, end = _monthly_period_bounds(
+        start_period,
+        end_period,
+    )
+
+    parsed_periods = data["period"].map(
+        lambda value: _parse_monthly_period(
+            value,
+            field_name="KFE period",
+        )
+    )
+
     data = data[
-        (data["period"] >= start_period)
-        & (data["period"] <= end_period)
+        (parsed_periods >= start)
+        & (parsed_periods <= end)
     ].copy()
 
     if data.empty:
@@ -286,78 +387,135 @@ def merge_monthly_evds_series(
 
     return merged
 
+
 def validate_monthly_evds_data(
     monthly_data: pd.DataFrame,
     *,
     start_period: str = "2021-01",
     end_period: str = "2026-06",
 ) -> None:
-    """Validate completeness of standardized monthly EVDS data."""
+    """Validate the standardized monthly EVDS Silver contract."""
 
     required_columns = {
         "period",
         *EVDS_MONTHLY_VALUE_COLUMNS,
     }
 
-    missing_columns = required_columns.difference(monthly_data.columns)
+    missing_columns = required_columns.difference(
+        monthly_data.columns
+    )
 
     if missing_columns:
         raise ValueError(
-            f"Missing required monthly EVDS columns: {sorted(missing_columns)}"
+            "Missing required monthly EVDS columns: "
+            f"{sorted(missing_columns)}"
         )
 
-    expected_periods = pd.period_range(
-        start=start_period,
-        end=end_period,
-        freq="M",
-    ).astype(str)
+    start, end = _monthly_period_bounds(
+        start_period,
+        end_period,
+    )
 
-    target = monthly_data[
-        (monthly_data["period"] >= start_period)
-        & (monthly_data["period"] <= end_period)
-    ].copy()
+    parsed_periods = pd.Series(
+        [
+            _parse_monthly_period(
+                value,
+                field_name="period",
+            )
+            for value in monthly_data["period"]
+        ],
+        index=monthly_data.index,
+    )
 
     duplicate_periods = (
-        target.loc[
-            target["period"].duplicated(keep=False),
-            "period",
+        parsed_periods[
+            parsed_periods.duplicated(keep=False)
         ]
+        .astype(str)
         .drop_duplicates()
         .tolist()
     )
 
     if duplicate_periods:
         raise ValueError(
-            f"Duplicate EVDS periods detected: {duplicate_periods}"
+            "Duplicate EVDS periods detected: "
+            f"{duplicate_periods}"
         )
 
-    actual_periods = set(target["period"])
+    expected_periods = set(
+        pd.period_range(
+            start=start,
+            end=end,
+            freq="M",
+        )
+    )
 
-    missing_periods = [
-        period
-        for period in expected_periods
-        if period not in actual_periods
-    ]
+    actual_periods = set(parsed_periods)
+
+    missing_periods = sorted(
+        expected_periods - actual_periods
+    )
 
     if missing_periods:
         raise ValueError(
-            f"Missing expected EVDS periods: {missing_periods}"
+            "Missing expected EVDS periods: "
+            f"{[str(period) for period in missing_periods]}"
         )
 
-    missing_value_counts = (
-        target[list(EVDS_MONTHLY_VALUE_COLUMNS)]
-        .isna()
-        .sum()
+    unexpected_periods = sorted(
+        actual_periods - expected_periods
     )
 
-    columns_with_missing_values = {
-        column: int(count)
-        for column, count in missing_value_counts.items()
-        if count > 0
-    }
-
-    if columns_with_missing_values:
+    if unexpected_periods:
         raise ValueError(
-            "Missing EVDS values detected: "
-            f"{columns_with_missing_values}"
+            "Unexpected EVDS periods detected: "
+            f"{[str(period) for period in unexpected_periods]}"
+        )
+
+    numeric_values = {}
+
+    for column in EVDS_MONTHLY_VALUE_COLUMNS:
+        values = pd.to_numeric(
+            monthly_data[column],
+            errors="coerce",
+        )
+
+        if values.isna().any():
+            raise ValueError(
+                "Non-numeric or missing EVDS values detected "
+                f"in {column}."
+            )
+
+        finite_mask = values.map(
+            lambda value: (
+                float("-inf")
+                < float(value)
+                < float("inf")
+            )
+        )
+
+        if not finite_mask.all():
+            raise ValueError(
+                f"Non-finite EVDS values detected in {column}."
+            )
+
+        numeric_values[column] = values
+
+    for column in (
+        "cpi_index",
+        "housing_price_index",
+        "weekly_observation_count",
+    ):
+        if (numeric_values[column] <= 0).any():
+            raise ValueError(
+                f"{column} must contain only positive values."
+            )
+
+    weekly_counts = numeric_values[
+        "weekly_observation_count"
+    ]
+
+    if (weekly_counts % 1 != 0).any():
+        raise ValueError(
+            "weekly_observation_count must contain only integer values."
         )

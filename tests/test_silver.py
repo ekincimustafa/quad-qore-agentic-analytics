@@ -285,6 +285,7 @@ def test_validates_complete_66_month_evds_range() -> None:
             "housing_loan_interest_rate_pct": [20.0] * len(periods),
             "cpi_index": [50.0] * len(periods),
             "housing_price_index": [80.0] * len(periods),
+            "weekly_observation_count": [4] * len(periods),
         }
     )
 
@@ -306,6 +307,7 @@ def test_validates_60_month_demo_range() -> None:
             "housing_loan_interest_rate_pct": [20.0] * len(periods),
             "cpi_index": [50.0] * len(periods),
             "housing_price_index": [80.0] * len(periods),
+            "weekly_observation_count": [4] * len(periods),
         }
     )
 
@@ -323,6 +325,7 @@ def test_validation_detects_one_source_missing_month() -> None:
         {
             "period": ["2021-01", "2021-02", "2021-03"],
             "housing_loan_interest_rate_pct": [18.0, 17.5, 17.0],
+            "weekly_observation_count": [4, 4, 4],
         }
     )
 
@@ -348,7 +351,7 @@ def test_validation_detects_one_source_missing_month() -> None:
 
     with pytest.raises(
         ValueError,
-        match="Missing EVDS values",
+        match="Non-numeric or missing EVDS values",
     ):
         validate_monthly_evds_data(
             merged,
@@ -362,6 +365,7 @@ def test_validation_detects_month_missing_from_all_sources() -> None:
         {
             "period": ["2021-01", "2021-03"],
             "housing_loan_interest_rate_pct": [18.0, 17.0],
+            "weekly_observation_count": [4, 4],
         }
     )
 
@@ -401,6 +405,7 @@ def test_validation_rejects_duplicate_periods() -> None:
         {
             "period": ["2021-01", "2021-02", "2021-02"],
             "housing_loan_interest_rate_pct": [18.0, 17.5, 17.4],
+            "weekly_observation_count": [4, 4, 4],
             "cpi_index": [16.1, 16.2, 16.2],
             "housing_price_index": [16.5, 17.0, 17.0],
         }
@@ -415,3 +420,238 @@ def test_validation_rejects_duplicate_periods() -> None:
             start_period="2021-01",
             end_period="2021-02",
         )
+
+
+def _valid_monthly_evds_row() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "period": ["2021-01"],
+            "housing_loan_interest_rate_pct": [18.0],
+            "cpi_index": [16.1],
+            "housing_price_index": [16.5],
+            "weekly_observation_count": [4],
+        }
+    )
+
+
+def test_validation_requires_weekly_observation_count() -> None:
+    monthly_data = _valid_monthly_evds_row().drop(
+        columns=["weekly_observation_count"]
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Missing required monthly EVDS columns",
+    ):
+        validate_monthly_evds_data(
+            monthly_data,
+            start_period="2021-01",
+            end_period="2021-01",
+        )
+
+
+@pytest.mark.parametrize(
+    "column",
+    [
+        "cpi_index",
+        "housing_price_index",
+        "weekly_observation_count",
+    ],
+)
+def test_validation_rejects_non_positive_values(
+    column: str,
+) -> None:
+    monthly_data = _valid_monthly_evds_row()
+    monthly_data.loc[0, column] = 0
+
+    with pytest.raises(
+        ValueError,
+        match="must contain only positive values",
+    ):
+        validate_monthly_evds_data(
+            monthly_data,
+            start_period="2021-01",
+            end_period="2021-01",
+        )
+
+
+def test_validation_rejects_fractional_weekly_observation_count() -> None:
+    monthly_data = _valid_monthly_evds_row()
+    monthly_data["weekly_observation_count"] = (
+        monthly_data["weekly_observation_count"].astype(float)
+    )
+    monthly_data.loc[0, "weekly_observation_count"] = 2.5
+
+    with pytest.raises(
+        ValueError,
+        match="weekly_observation_count must contain only integer values",
+    ):
+        validate_monthly_evds_data(
+            monthly_data,
+            start_period="2021-01",
+            end_period="2021-01",
+        )
+
+
+@pytest.mark.parametrize(
+    "column",
+    [
+        "housing_loan_interest_rate_pct",
+        "cpi_index",
+        "housing_price_index",
+        "weekly_observation_count",
+    ],
+)
+def test_validation_rejects_non_numeric_values(
+    column: str,
+) -> None:
+    monthly_data = _valid_monthly_evds_row()
+    monthly_data[column] = monthly_data[column].astype(object)
+    monthly_data.loc[0, column] = "not-a-number"
+
+    with pytest.raises(
+        ValueError,
+        match="Non-numeric or missing EVDS values",
+    ):
+        validate_monthly_evds_data(
+            monthly_data,
+            start_period="2021-01",
+            end_period="2021-01",
+        )
+
+
+@pytest.mark.parametrize(
+    "column",
+    [
+        "housing_loan_interest_rate_pct",
+        "cpi_index",
+        "housing_price_index",
+        "weekly_observation_count",
+    ],
+)
+def test_validation_rejects_infinite_values(
+    column: str,
+) -> None:
+    monthly_data = _valid_monthly_evds_row()
+    monthly_data[column] = monthly_data[column].astype(float)
+    monthly_data.loc[0, column] = float("inf")
+
+    with pytest.raises(
+        ValueError,
+        match="Non-finite EVDS values",
+    ):
+        validate_monthly_evds_data(
+            monthly_data,
+            start_period="2021-01",
+            end_period="2021-01",
+        )
+
+
+def test_cpi_rejects_invalid_calendar_month() -> None:
+    raw_data = pd.DataFrame(
+        {
+            "Unnamed: 0": ["Genel Endeks"],
+            "2021-13": [16.1],
+        }
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Invalid monthly period for CPI period",
+    ):
+        monthly_cpi_index(raw_data)
+
+
+def test_kfe_rejects_invalid_calendar_month() -> None:
+    raw_data = pd.DataFrame(
+        {
+            "Tarih": ["2021-13"],
+            "TP_KFE_TR": [16.5],
+        }
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Invalid monthly period for KFE period",
+    ):
+        monthly_housing_price_index(raw_data)
+
+
+def test_validation_rejects_invalid_calendar_month() -> None:
+    monthly_data = _valid_monthly_evds_row()
+    monthly_data.loc[0, "period"] = "2021-13"
+
+    with pytest.raises(
+        ValueError,
+        match="Invalid monthly period for period",
+    ):
+        validate_monthly_evds_data(
+            monthly_data,
+            start_period="2021-01",
+            end_period="2021-01",
+        )
+
+
+def test_validation_rejects_unexpected_period() -> None:
+    monthly_data = pd.concat(
+        [
+            _valid_monthly_evds_row(),
+            pd.DataFrame(
+                {
+                    "period": ["2021-02"],
+                    "housing_loan_interest_rate_pct": [17.5],
+                    "cpi_index": [16.2],
+                    "housing_price_index": [17.0],
+                    "weekly_observation_count": [4],
+                }
+            ),
+        ],
+        ignore_index=True,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Unexpected EVDS periods detected",
+    ):
+        validate_monthly_evds_data(
+            monthly_data,
+            start_period="2021-01",
+            end_period="2021-01",
+        )
+
+
+def test_validation_rejects_reversed_period_range() -> None:
+    monthly_data = _valid_monthly_evds_row()
+
+    with pytest.raises(
+        ValueError,
+        match="start_period must be less than or equal to end_period",
+    ):
+        validate_monthly_evds_data(
+            monthly_data,
+            start_period="2021-02",
+            end_period="2021-01",
+        )
+
+
+def test_rejects_invalid_slash_date_with_observation() -> None:
+    weekly_data = pd.DataFrame(
+        {
+            "Tarih": [
+                "01/01/2021",
+                "31/02/2021",
+                "Seri Açıklamaları",
+            ],
+            "TP_KTF12": [
+                18.61,
+                18.40,
+                None,
+            ],
+        }
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Invalid EVDS observation dates",
+    ):
+        monthly_housing_loan_interest_rate(weekly_data)
