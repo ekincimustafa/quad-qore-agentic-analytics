@@ -10,9 +10,14 @@ Exit Code:
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import math
+import re
 import sys
 from pathlib import Path
+
+from app.connectors.bddk import extract_housing_loan_data
 
 
 def generate_expected_months(start_year: int, start_month: int, end_year: int, end_month: int) -> list[tuple[int, int]]:
@@ -27,6 +32,37 @@ def generate_expected_months(start_year: int, start_month: int, end_year: int, e
         else:
             m += 1
     return months
+
+
+def resolve_secure_raw_path(base_dir: Path, rel_path: str, use_filename_only: bool = False) -> Path | None:
+    """Path traversal ve guvensiz dosya erisimini onleyen guvenli yol cozucu."""
+    if not rel_path or not isinstance(rel_path, str) or isinstance(rel_path, bool):
+        return None
+    # Surucu harfleri (C:), URI semalari veya gecersiz karakterleri dogrudan reddet
+    if ":" in rel_path:
+        return None
+    try:
+        # Cross-platform separator normalizasyonu (Windows \ -> POSIX /)
+        clean_rel = rel_path.replace("\\", "/").strip()
+        if clean_rel.startswith("/") or clean_rel.startswith("\\"):
+            return None
+        parts = [p for p in clean_rel.split("/") if p]
+        if not parts or any(p in (".", "..") for p in parts):
+            return None
+
+        base_resolved = base_dir.resolve()
+        if use_filename_only:
+            clean_name = parts[-1]
+            if not clean_name or clean_name in (".", ".."):
+                return None
+            target = (base_resolved / clean_name).resolve()
+        else:
+            target = (base_resolved / "/".join(parts)).resolve()
+
+        target.relative_to(base_resolved)
+        return target
+    except (ValueError, OSError):
+        return None
 
 
 def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
@@ -57,6 +93,14 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
     for r in receipt_files:
         try:
             data = json.loads(r.read_text("utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("Makbuz JSON koku bir dictionary (object) olmali")
+            req_key = data.get("request_key")
+            if not isinstance(req_key, str) or not req_key.strip():
+                raise ValueError("Makbuzda request_key alani bos olmayan bir string olmali")
+            params = data.get("parameters")
+            if params is not None and not isinstance(params, dict):
+                raise ValueError("Makbuzda parameters alani dictionary veya null olmali")
             all_raw_receipts.append(data)
         except Exception as exc:
             okuma_hatalari.append((r.name, str(exc)))
@@ -74,9 +118,7 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
     # -----------------------------------------------------------------------
     deduped_by_key: dict[str, dict] = {}
     for r in all_raw_receipts:
-        key = r.get("request_key")
-        if not key:
-            continue
+        key = r["request_key"]
         ts = r.get("downloaded_at", "")
         if key not in deduped_by_key or ts > deduped_by_key[key].get("downloaded_at", ""):
             deduped_by_key[key] = r
@@ -162,8 +204,6 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
     # -----------------------------------------------------------------------
     # Dinamik Sema-Duyarli Veri Ayristirma ve Fiziksel Dosya Dogrulamasi
     # -----------------------------------------------------------------------
-    from app.connectors.bddk import extract_housing_loan_data
-
     print()
     print("=" * 65)
     print("SERI ANALIZI (Dinamik colModels & Gosterge Etiketiyle)")
@@ -180,30 +220,55 @@ def main(receipts_dir: Path | None = None, raw_dir: Path | None = None) -> int:
         donem_str = f"{p['yil']}-{p['ay']:02d}"
         rel_path = r.get("path", "")
         # Raw file path resolution
-        if raw_dir:
-            raw_file = base_raw / Path(rel_path).name
-        else:
-            raw_file = Path("data/bronze/bddk") / rel_path
+        base_dir = base_raw if raw_dir else Path("data/bronze/bddk")
+        raw_file = resolve_secure_raw_path(base_dir, rel_path, use_filename_only=bool(raw_dir))
 
-        if not raw_file.is_file():
-            parse_hatalari.append((donem_str, f"Fiziksel ham dosya bulunamadi: {raw_file}"))
+        if raw_file is None or not raw_file.is_file():
+            parse_hatalari.append((donem_str, f"Fiziksel ham dosya bulunamadi veya guvensiz yol: {rel_path}"))
             is_valid = False
             continue
 
-        actual_size = raw_file.stat().st_size
+        try:
+            actual_size = raw_file.stat().st_size
+            raw_bytes = raw_file.read_bytes()
+        except OSError as exc:
+            parse_hatalari.append((donem_str, f"Fiziksel dosya okuma hatasi: {exc}"))
+            is_valid = False
+            continue
+
         expected_size = r.get("size_bytes")
-        if expected_size is not None and actual_size != expected_size:
+        if expected_size is None or type(expected_size) is not int or expected_size <= 0 or actual_size != expected_size:
             parse_hatalari.append(
-                (donem_str, f"Boyut uyusmazligi: diskte {actual_size} bayt, makbuzda {expected_size} bayt")
+                (donem_str, f"Boyut uyusmazligi veya gecersiz size_bytes: diskte {actual_size} bayt, makbuzda {expected_size}")
             )
             is_valid = False
+            continue
+
+        expected_sha = r.get("sha256")
+        if not expected_sha or not isinstance(expected_sha, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", expected_sha):
+            parse_hatalari.append(
+                (donem_str, f"Gecersiz veya eksik SHA-256 metadata: {expected_sha!r}")
+            )
+            is_valid = False
+            continue
+
+        actual_sha = hashlib.sha256(raw_bytes).hexdigest()
+        if actual_sha != expected_sha.lower():
+            parse_hatalari.append(
+                (donem_str,
+                 f"SHA-256 uyusmazligi: diskte {actual_sha[:16]}..., makbuzda {expected_sha[:16]}...")
+            )
+            is_valid = False
+            continue
 
         try:
-            raw_payload = json.loads(raw_file.read_text("utf-8"))
+            raw_payload = json.loads(raw_bytes.decode("utf-8"))
             parsed = extract_housing_loan_data(raw_payload)
             tp = parsed["tp"]
             yp = parsed["yp"]
             toplam = parsed["toplam"]
+            if not (math.isfinite(tp) and math.isfinite(yp) and math.isfinite(toplam)):
+                raise ValueError(f"Sayisal degerler sonlu degil: tp={tp}, yp={yp}, toplam={toplam}")
 
             degisim_str = "-"
             if onceki_toplam is not None and onceki_toplam > 0:
