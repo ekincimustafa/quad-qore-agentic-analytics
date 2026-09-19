@@ -1,7 +1,9 @@
 import json
+
+import httpx
 from datetime import datetime, timezone
 
-from app.connectors.evds import EvdsRawResponse
+from app.connectors.evds import EvdsClient, EvdsRawResponse
 from scripts.download_evds import (
     _parse_period,
     run,
@@ -181,3 +183,50 @@ def test_download_cli_output_does_not_leak_api_key(
 
     assert exit_code == 0
     assert secret not in output
+
+
+def test_invalid_evds_schema_returns_nonzero_without_bronze_write(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("EVDS_API_KEY", "test-key")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            request=request,
+            headers={"Content-Type": "application/json"},
+            json={
+                "items": [
+                    {
+                        "Tarih": "2021-1",
+                        "YANLIS_ALAN": "100",
+                    }
+                ]
+            },
+        )
+
+    client = EvdsClient(
+        transport=httpx.MockTransport(handler)
+    )
+
+    data_root = tmp_path / "data"
+
+    exit_code = run(
+        start_period=_parse_period("2021-01"),
+        end_period=_parse_period("2021-01"),
+        data_root=data_root,
+        client=client,
+    )
+
+    assert exit_code == 1
+
+    bronze_root = (
+        data_root
+        / "bronze"
+        / "evds"
+    )
+
+    assert list(
+        bronze_root.rglob("*.json")
+    ) == []

@@ -21,7 +21,7 @@ def _json_response(request: httpx.Request) -> httpx.Response:
             "items": [
                 {
                     "Tarih": "01-01-2021",
-                    "VALUE": "18.61",
+                    "TP_KTF12": "18.61",
                 }
             ]
         },
@@ -193,7 +193,7 @@ def test_empty_response_is_rejected(monkeypatch) -> None:
         {"items": []},
         {"items": "not-a-list"},
         {"items": [123]},
-        {"items": [{"VALUE": "18.61"}]},
+        {"items": [{"TP_KTF12": "18.61"}]},
     ],
 )
 def test_unexpected_response_schema_is_rejected(
@@ -428,3 +428,100 @@ def test_client_configures_connect_and_read_timeouts(
         date(2021, 1, 1),
         date(2021, 1, 31),
     )
+
+
+@pytest.mark.parametrize(
+    ("series_code", "tarih"),
+    [
+        ("TP.KTF12", "01-01-2021"),
+        ("TP.TUKFIY2025.GENEL", "2021-1"),
+        ("TP.KFE.TR", "2021-1"),
+    ],
+)
+@pytest.mark.parametrize(
+    "invalid_field",
+    [
+        None,
+        "YANLIS_ALAN",
+    ],
+)
+def test_series_specific_value_field_is_required(
+    monkeypatch,
+    series_code,
+    tarih,
+    invalid_field,
+) -> None:
+    monkeypatch.setenv("EVDS_API_KEY", "test-key")
+
+    item = {
+        "Tarih": tarih,
+    }
+
+    if invalid_field is not None:
+        item[invalid_field] = "100"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            request=request,
+            headers={"Content-Type": "application/json"},
+            json={"items": [item]},
+        )
+
+    client = EvdsClient(
+        transport=httpx.MockTransport(handler)
+    )
+
+    with pytest.raises(
+        EvdsResponseError,
+        match="expected value field",
+    ):
+        client.download_series(
+            series_code,
+            date(2021, 1, 1),
+            date(2021, 1, 31),
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_tarih",
+    [
+        "",
+        "   ",
+        None,
+    ],
+)
+def test_empty_tarih_is_rejected(
+    monkeypatch,
+    invalid_tarih,
+) -> None:
+    monkeypatch.setenv("EVDS_API_KEY", "test-key")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            request=request,
+            headers={"Content-Type": "application/json"},
+            json={
+                "items": [
+                    {
+                        "Tarih": invalid_tarih,
+                        "TP_KTF12": "18.61",
+                    }
+                ]
+            },
+        )
+
+    client = EvdsClient(
+        transport=httpx.MockTransport(handler)
+    )
+
+    with pytest.raises(
+        EvdsResponseError,
+        match="Tarih",
+    ):
+        client.download_series(
+            "TP.KTF12",
+            date(2021, 1, 1),
+            date(2021, 1, 31),
+        )

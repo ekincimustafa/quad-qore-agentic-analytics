@@ -25,6 +25,13 @@ EVDS_SERIES_FREQUENCIES = {
     "TP.KFE.TR": "monthly",
 }
 
+EVDS_SERIES_VALUE_FIELDS = {
+    "TP.KTF12": "TP_KTF12",
+    "TP.TUKFIY2025.GENEL": "TP_TUKFIY2025_GENEL",
+    "TP.KFE.TR": "TP_KFE_TR",
+}
+
+
 
 class EvdsError(RuntimeError):
     """Base error for EVDS acquisition."""
@@ -91,6 +98,7 @@ def _build_source_url(
 
 def _validate_json_response(
     response: httpx.Response,
+    series_code: str,
 ) -> None:
     if not response.content.strip():
         raise EvdsResponseError(
@@ -126,15 +134,34 @@ def _validate_json_response(
             "EVDS JSON response does not contain observations."
         )
 
+    expected_value_field = EVDS_SERIES_VALUE_FIELDS.get(
+        series_code
+    )
+
+    if expected_value_field is None:
+        raise EvdsResponseError(
+            f"Unsupported EVDS response series: {series_code}"
+        )
+
     for item in items:
         if not isinstance(item, dict):
             raise EvdsResponseError(
                 "EVDS observation schema is invalid."
             )
 
-        if "Tarih" not in item:
+        if (
+            "Tarih" not in item
+            or item["Tarih"] is None
+            or not str(item["Tarih"]).strip()
+        ):
             raise EvdsResponseError(
-                "EVDS observation is missing Tarih."
+                "EVDS observation is missing or has empty Tarih."
+            )
+
+        if expected_value_field not in item:
+            raise EvdsResponseError(
+                "EVDS observation is missing expected value field "
+                f"{expected_value_field} for series {series_code}."
             )
 
 
@@ -217,7 +244,7 @@ class EvdsClient:
                 f"{response.status_code} for series {series_code}."
             ) from exc
 
-        _validate_json_response(response)
+        _validate_json_response(response, series_code)
 
         return EvdsRawResponse(
             series_code=series_code,
