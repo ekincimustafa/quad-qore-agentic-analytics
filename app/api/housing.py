@@ -1,4 +1,4 @@
-"""FastAPI contract for the first housing-loan analysis."""
+"""FastAPI contracts for verified housing-loan analysis."""
 
 from __future__ import annotations
 
@@ -17,6 +17,11 @@ from app.services.housing_analysis import (
     HousingNarrationError,
     HousingNarrator,
     run_housing_analysis,
+)
+from app.services.housing_demo import (
+    HousingDemoDataError,
+    HousingDemoPaths,
+    run_file_backed_housing_demo,
 )
 from app.tools.housing_chart import HousingChartError
 from app.tools.housing_evidence import EvidenceBuildError, HousingAnalysisEvidence
@@ -53,7 +58,7 @@ class EvdsMonthlyRow(BaseModel):
 
 
 class HousingAnalysisRequest(BaseModel):
-    """Controlled input contract for the first demo analysis."""
+    """Controlled input contract for the first housing analysis."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -72,6 +77,16 @@ class HousingAnalysisRequest(BaseModel):
     include_narration: bool = False
 
 
+class HousingDemoRequest(BaseModel):
+    """Small request contract for the server-side Silver demo."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start_period: str = Field(default=DEFAULT_START_PERIOD, pattern=PERIOD_PATTERN)
+    end_period: str = Field(default=DEFAULT_END_PERIOD, pattern=PERIOD_PATTERN)
+    include_narration: bool = False
+
+
 class HousingAnalysisResponse(BaseModel):
     """Evidence-first API response; narration is present only when requested."""
 
@@ -85,6 +100,40 @@ def get_housing_narrator() -> HousingNarrator:
     """Provide the configured MIA narrator; replaceable in offline tests."""
 
     return narrate_housing_evidence_with_mia
+
+
+def get_housing_demo_paths() -> HousingDemoPaths:
+    """Provide server-controlled demo inputs; replaceable in offline tests."""
+
+    return HousingDemoPaths()
+
+
+def _analysis_response(result: Any) -> HousingAnalysisResponse:
+    return HousingAnalysisResponse(
+        evidence=result.evidence,
+        chart=result.chart,
+        narration=result.narration,
+    )
+
+
+def _raise_invalid_input(exc: Exception) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail={
+            "code": "invalid_analysis_input",
+            "message": str(exc),
+        },
+    ) from exc
+
+
+def _raise_narration_error(exc: HousingNarrationError) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail={
+            "code": "narration_failed",
+            "message": str(exc),
+        },
+    ) from exc
 
 
 @router.post(
@@ -117,24 +166,44 @@ def analyze_housing(
             narrator=selected_narrator,
         )
     except (GoldAnalysisError, EvidenceBuildError, HousingChartError) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail={
-                "code": "invalid_analysis_input",
-                "message": str(exc),
-            },
-        ) from exc
+        _raise_invalid_input(exc)
     except HousingNarrationError as exc:
+        _raise_narration_error(exc)
+
+    return _analysis_response(result)
+
+
+@router.post(
+    "/housing/demo",
+    response_model=HousingAnalysisResponse,
+    summary="Run the first demo from server-side Silver artifacts",
+)
+def analyze_file_backed_housing_demo(
+    request: HousingDemoRequest,
+    paths: HousingDemoPaths = Depends(get_housing_demo_paths),
+    narrator: HousingNarrator = Depends(get_housing_narrator),
+) -> HousingAnalysisResponse:
+    """Run the demo without accepting analytical rows from the caller."""
+
+    selected_narrator = narrator if request.include_narration else None
+    try:
+        result = run_file_backed_housing_demo(
+            paths,
+            start_period=request.start_period,
+            end_period=request.end_period,
+            narrator=selected_narrator,
+        )
+    except HousingDemoDataError as exc:
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail={
-                "code": "narration_failed",
+                "code": "demo_data_unavailable",
                 "message": str(exc),
             },
         ) from exc
+    except (GoldAnalysisError, EvidenceBuildError, HousingChartError) as exc:
+        _raise_invalid_input(exc)
+    except HousingNarrationError as exc:
+        _raise_narration_error(exc)
 
-    return HousingAnalysisResponse(
-        evidence=result.evidence,
-        chart=result.chart,
-        narration=result.narration,
-    )
+    return _analysis_response(result)
