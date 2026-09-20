@@ -1,3 +1,4 @@
+from typing import Optional
 from datetime import date
 import json
 
@@ -247,7 +248,7 @@ from app.lakehouse.layout import LakehouseLayout
 
 
 def _sample_raw_response(
-    body: bytes | None = None,
+    body: Optional[bytes] = None,
 ) -> EvdsRawResponse:
     if body is None:
         body = (

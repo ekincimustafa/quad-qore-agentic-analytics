@@ -71,19 +71,17 @@ def main() -> int:
         df.to_parquet(tmp_path, index=False)
 
         # Read-back verification: ensure the file is a valid Parquet with correct row count
+        # Read back to ensure flush and validity
         import pandas as _pd
         verified = _pd.read_parquet(tmp_path)
-        if len(verified) != len(df):
-            raise RuntimeError(
-                f"Parquet read-back row count mismatch: wrote {len(df)}, got {len(verified)}."
-            )
-        required = {"period", "housing_loan_amount", "nominal_housing_loan_mn_try",
-                    "housing_loan_unit", "bddk_source_ref", "data_quality_note"}
-        missing_cols = sorted(required - set(verified.columns))
-        if missing_cols:
-            raise RuntimeError(f"Parquet read-back missing required columns: {missing_cols}")
-
-        # Atomic replace: on success, move temp file over the final destination
+        
+        import pandas.testing as pdt
+        try:
+            pdt.assert_frame_equal(df, verified, check_dtype=True)
+        except AssertionError as e:
+            raise RuntimeError(f"Parquet read-back content mismatch: {e}")
+            
+        # If valid, replace atomically, move temp file over the final destination
         tmp_path.replace(output_path)
 
     except Exception as e:

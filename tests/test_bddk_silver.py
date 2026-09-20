@@ -16,7 +16,9 @@ from app.lakehouse.bddk_silver import (
 from app.lakehouse.core_validators import parse_period_to_date, resolve_secure_raw_path
 
 
-def _make_mock_raw_json(toplam=1000.0, caption="Tüketici Kredileri (milyon TL)", include_target_row=True, tp=1000.0, yp=0.0):
+def _make_mock_raw_json(toplam=1000.0, caption=None, include_target_row=True, tp=1000.0, yp=0.0, year=2021, month=1):
+    if caption is None:
+        caption = f"Tüketici Kredileri (milyon TL), Dönem:{year}/{month}"
     rows = []
     if include_target_row:
         rows.append({"cell": ["Tüketici Kredileri - Konut", tp, yp, toplam]})
@@ -49,9 +51,9 @@ def bronze_env():
 
 
 def create_receipt_and_raw(receipts_dir, raw_dir, year, month, raw_content,
-                          request_key=None, tabloNo="4", taraf="10001", paraBirimi="TL",
-                          downloaded_at="2026-09-11T12:00:00", corrupt_receipt=False,
-                          modify_size=None, modify_sha=None):
+                           request_key=None, tabloNo="4", taraf="10001", paraBirimi="TL",
+                           downloaded_at="2026-09-11T12:00:00Z", corrupt_receipt=False,
+                           modify_size=None, modify_sha=None):
     if request_key is None:
         request_key = f"mock_req_{year}_{month}"
 
@@ -119,7 +121,7 @@ def test_size_bytes_bool_true_is_rejected(bronze_env):
     isinstance(True, int) == True, so a strict type() check is required."""
     _, receipts_dir, raw_dir = bronze_env
     # True == 1 in Python; a file of 1 byte would pass naive isinstance check
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(),
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1),
                            modify_size=True)
     with pytest.raises(SilverDataError, match="Invalid expected size"):
         build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
@@ -128,7 +130,7 @@ def test_size_bytes_bool_true_is_rejected(bronze_env):
 def test_size_bytes_bool_false_is_rejected(bronze_env):
     """size_bytes=False (== 0) must also be rejected."""
     _, receipts_dir, raw_dir = bronze_env
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(),
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1),
                            modify_size=False)
     with pytest.raises(SilverDataError, match="Invalid expected size"):
         build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
@@ -141,14 +143,14 @@ def test_catalog_receipt_without_parameters_skipped_silently(bronze_env):
     # Catalog receipt: has request_key but no parameters key at all
     catalog = {
         "request_key": "catalog_req",
-        "downloaded_at": "2026-09-11T12:00:00",
+        "downloaded_at": "2026-09-11T12:00:00Z",
         "path": "aylik/raw/does_not_matter.json",
         "size_bytes": 100,
         "sha256": "a" * 64,
     }
     (receipts_dir / "catalog.json").write_text(json.dumps(catalog), encoding="utf-8")
     # Also write one valid monthly receipt so Silver can produce 1 row
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json())
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1))
 
     df = build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
     assert len(df) == 1
@@ -160,7 +162,7 @@ def test_broken_parameters_type_fails_closed(bronze_env):
     _, receipts_dir, raw_dir = bronze_env
     broken = {
         "request_key": "broken_req",
-        "downloaded_at": "2026-09-11T12:00:00",
+        "downloaded_at": "2026-09-11T12:00:00Z",
         "parameters": "this-should-be-a-dict",   # string instead of dict
         "path": "aylik/raw/x.json",
         "size_bytes": 100,
@@ -176,7 +178,7 @@ def test_broken_parameters_as_list_fails_closed(bronze_env):
     _, receipts_dir, raw_dir = bronze_env
     broken = {
         "request_key": "broken_list_req",
-        "downloaded_at": "2026-09-11T12:00:00",
+        "downloaded_at": "2026-09-11T12:00:00Z",
         "parameters": [{"tabloNo": "4"}],         # list instead of dict
         "path": "aylik/raw/x.json",
         "size_bytes": 100,
@@ -212,9 +214,27 @@ def test_invalid_downloaded_at_fails_closed(bronze_env):
     """'zzz' or other garbage in downloaded_at must be rejected,
     not silently win deduplication due to lexicographic string comparison."""
     _, receipts_dir, raw_dir = bronze_env
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(),
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1),
                            downloaded_at="zzz-not-a-timestamp")
     with pytest.raises(SilverDataError, match="downloaded_at"):
+        build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
+
+
+def test_naive_downloaded_at_fails_closed(bronze_env):
+    """Timestamps without timezone information must be rejected."""
+    _, receipts_dir, raw_dir = bronze_env
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1),
+                           downloaded_at="2026-09-11T12:00:00")
+    with pytest.raises(SilverDataError, match="must include timezone information"):
+        build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
+
+
+def test_date_only_downloaded_at_fails_closed(bronze_env):
+    """Dates without time/timezone must be rejected."""
+    _, receipts_dir, raw_dir = bronze_env
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1),
+                           downloaded_at="2026-09-11")
+    with pytest.raises(SilverDataError, match="must include timezone information"):
         build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
 
 
@@ -252,7 +272,7 @@ def test_validate_silver_happy_path():
 
 def _make_receipt_dict(receipts_dir, raw_dir, year, month, raw_content,
                        validation_period=None, period_confirmation="response_caption",
-                       raw_path_override=None, request_key=None, downloaded_at="2026-09-11T12:00:00"):
+                       raw_path_override=None, request_key=None, downloaded_at="2026-09-11T12:00:00Z"):
     """Helper: tam kontrol edilebilir bir receipt yazar."""
     if request_key is None:
         request_key = f"req_{year}_{month}"
@@ -288,7 +308,7 @@ def test_period_mismatch_fails_closed(bronze_env):
     """Receipt parameters diyor Ocak, ama validation.period diyor Şubat.
     Bu, raw dosyanın farklı bir aya ait olduğuna işaret eder — fail-closed."""
     _, receipts_dir, raw_dir = bronze_env
-    _make_receipt_dict(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(),
+    _make_receipt_dict(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1),
                        validation_period="2021-02")  # ← kasıtlı uyuşmazlık
     with pytest.raises(SilverDataError, match="Period mismatch"):
         build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
@@ -305,7 +325,7 @@ def test_missing_validation_block_fails_closed(bronze_env):
         "request_key": "no_val_req",
         "parameters": {"tabloNo": "4", "taraf": ["10001"], "paraBirimi": "TL",
                        "yil": 2021, "ay": 1},
-        "downloaded_at": "2026-09-11T12:00:00",
+        "downloaded_at": "2026-09-11T12:00:00Z",
         "path": f"aylik/raw/{raw_filename}",
         "size_bytes": len(content),
         "sha256": raw_hash,
@@ -322,7 +342,7 @@ def test_period_confirmation_not_response_caption_fails_closed(bronze_env):
     """validation.period_confirmation 'response_caption' değilse (örn. 'manual' veya None)
     period güvenilmez — fail-closed."""
     _, receipts_dir, raw_dir = bronze_env
-    _make_receipt_dict(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(),
+    _make_receipt_dict(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1),
                        period_confirmation="manual")
     with pytest.raises(SilverDataError, match="period_confirmation"):
         build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
@@ -332,7 +352,7 @@ def test_raw_path_outside_aylik_raw_fails_closed(bronze_env):
     """path alanı 'aylik/raw/' dışında bir konuma işaret ediyorsa fail-closed.
     BDDK kökü içinde kalmak yeterli değil; tam olarak doğru alt klasörde olmalı."""
     _, receipts_dir, raw_dir = bronze_env
-    _make_receipt_dict(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(),
+    _make_receipt_dict(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1),
                        raw_path_override="aylik/haftalik/some_file.json")
     with pytest.raises(SilverDataError, match="outside expected 'aylik/raw/'"):
         build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
@@ -341,7 +361,7 @@ def test_raw_path_outside_aylik_raw_fails_closed(bronze_env):
 def test_valid_receipt_with_all_checks_passes(bronze_env):
     """Tüm Hata 2 kontrolleri geçen, tam geçerli bir receipt başarılı Silver üretmeli."""
     _, receipts_dir, raw_dir = bronze_env
-    _make_receipt_dict(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json())
+    _make_receipt_dict(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1))
     df = build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
     assert len(df) == 1
     assert df["period"].iloc[0] == "2021-01"
@@ -515,9 +535,9 @@ def test_build_silver_deduplication(bronze_env):
     _, receipts_dir, raw_dir = bronze_env
     content = _make_mock_raw_json()
     # Create old receipt
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, content, downloaded_at="2026-09-10T12:00:00", request_key="req1")
-    # Create newer receipt for same period
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, content, downloaded_at="2026-09-11T12:00:00", request_key="req1_new")
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, content, downloaded_at="2026-09-10T12:00:00Z", request_key="req1")
+    # newer downloaded_at for the same period
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, content, downloaded_at="2026-09-11T12:00:00Z", request_key="req1_new")
 
     df = build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
     assert len(df) == 1
@@ -526,7 +546,7 @@ def test_build_silver_deduplication(bronze_env):
 
 def test_build_silver_missing_raw_file(bronze_env):
     _, receipts_dir, raw_dir = bronze_env
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json())
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1))
     # Delete the raw file
     for f in raw_dir.glob("*.json"):
         f.unlink()
@@ -537,14 +557,14 @@ def test_build_silver_missing_raw_file(bronze_env):
 
 def test_build_silver_sha_mismatch(bronze_env):
     _, receipts_dir, raw_dir = bronze_env
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(), modify_sha="a"*64)
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1), modify_sha="a"*64)
     with pytest.raises(SilverDataError, match="SHA-256 mismatch"):
         build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
 
 
 def test_build_silver_size_mismatch(bronze_env):
     _, receipts_dir, raw_dir = bronze_env
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(), modify_size=9999)
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1), modify_size=9999)
     with pytest.raises(SilverDataError, match="File size mismatch"):
         build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
 
@@ -562,9 +582,9 @@ def test_gold_compatibility(bronze_env):
     _, receipts_dir, raw_dir = bronze_env
 
     # 3 periods
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(toplam=100.0))
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 2, _make_mock_raw_json(toplam=110.0))
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 3, _make_mock_raw_json(toplam=120.0))
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(toplam=100.0, year=2021, month=1))
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 2, _make_mock_raw_json(toplam=110.0, year=2021, month=2))
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 3, _make_mock_raw_json(toplam=120.0, year=2021, month=3))
 
     silver_df = build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-03")
 
@@ -591,8 +611,8 @@ def test_cli_success(bronze_env):
     from scripts.build_bddk_silver import main
 
     base, receipts_dir, raw_dir = bronze_env
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json())
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 2, _make_mock_raw_json())
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1))
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 2, _make_mock_raw_json(year=2021, month=2))
     out_path = base / "out.parquet"
 
     # Route build function to fixture dirs
@@ -626,7 +646,7 @@ def test_parquet_real_round_trip(bronze_env):
     birebir eşleşmeli. to_parquet mock'lansa bu test hiçbir şey doğrulamaz."""
     import tempfile
     _, receipts_dir, raw_dir = bronze_env
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(toplam=1234.5))
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(toplam=1234.5, year=2021, month=1))
 
     df = build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
 
@@ -647,6 +667,46 @@ def test_parquet_real_round_trip(bronze_env):
         parquet_path.unlink(missing_ok=True)
 
 
+def test_atomic_write_failure_content_mismatch_preserves_old_output(bronze_env):
+    """Parquet yazma sonrasi read-back check (icerik uyusmazligi) hata firlatirsa eski gecerli cikti korunmali."""
+    import scripts.build_bddk_silver
+    from scripts.build_bddk_silver import main
+    import pandas as pd
+
+    base, receipts_dir, raw_dir = bronze_env
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(toplam=999.0, year=2021, month=1))
+    out_path = base / "out.parquet"
+
+    # Gecerli eski veri
+    old_df = pd.DataFrame({"period": ["2020-12"], "housing_loan_amount": [10.0]})
+    old_df.to_parquet(out_path)
+    old_mtime = out_path.stat().st_mtime
+
+    original_to_parquet = pd.DataFrame.to_parquet
+
+    def corrupted_to_parquet(self, path, index=False):
+        # Write corrupted/different data to simulate serialization issue
+        corrupted_df = pd.DataFrame({"period": ["wrong_period"], "housing_loan_amount": [9999.9]})
+        original_to_parquet(corrupted_df, path, index=False)
+
+    original_build = scripts.build_bddk_silver.build_bddk_monthly_silver_table
+    base_receipts, base_raw = receipts_dir, raw_dir
+
+    def redirected_build(receipts_dir=None, raw_dir=None, start_period=None, end_period=None):
+        return original_build(base_receipts, base_raw, start_period, end_period)
+
+    with mock.patch.object(scripts.build_bddk_silver, "build_bddk_monthly_silver_table", redirected_build):
+        with mock.patch("sys.argv", ["build_bddk_silver", "--start-period", "2021-01",
+                                     "--end-period", "2021-01", "--output", str(out_path)]):
+            with mock.patch.object(pd.DataFrame, "to_parquet", corrupted_to_parquet):
+                exit_code = main()
+
+    assert exit_code != 0
+    assert out_path.exists()
+    assert out_path.stat().st_mtime == old_mtime
+    assert not out_path.with_suffix(".part").exists()
+
+
 def test_atomic_write_failure_preserves_old_output(bronze_env):
     """Parquet yazma sırasında hata olursa eski geçerli çıktı korunmalı.
     .part geçici dosyası temizlenmeli; nihai hedef bozulmamalı."""
@@ -654,7 +714,7 @@ def test_atomic_write_failure_preserves_old_output(bronze_env):
     from scripts.build_bddk_silver import main
 
     base, receipts_dir, raw_dir = bronze_env
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(toplam=999.0))
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(toplam=999.0, year=2021, month=1))
 
     out_path = base / "safe.parquet"
     # Pre-populate with a valid "old" Parquet so we can verify it is preserved
@@ -692,7 +752,7 @@ def test_atomic_write_failure_preserves_old_output(bronze_env):
 def test_cli_main_success(bronze_env, monkeypatch, capsys):
     from scripts.build_bddk_silver import main
     base, receipts_dir, raw_dir = bronze_env
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json())
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1))
     out_path = base / "out.parquet"
 
     monkeypatch.setattr("sys.argv", ["scripts.build_bddk_silver", "--start-period", "2021-01",
@@ -724,7 +784,7 @@ def test_cli_main_failure(bronze_env, monkeypatch, capsys):
     from scripts.build_bddk_silver import main
     base, receipts_dir, raw_dir = bronze_env
     # Missing gap
-    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json())
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(year=2021, month=1))
     out_path = base / "out.parquet"
 
     monkeypatch.setattr("sys.argv", ["scripts.build_bddk_silver", "--start-period", "2021-01",
@@ -759,7 +819,7 @@ def test_cli_default_scope(bronze_env, monkeypatch):
         for month in range(1, 13):
             if year == 2026 and month > 7:
                 break
-            create_receipt_and_raw(receipts_dir, raw_dir, year, month, _make_mock_raw_json())
+            create_receipt_and_raw(receipts_dir, raw_dir, year, month, _make_mock_raw_json(year=year, month=month))
 
     out_path = base / "out.parquet"
 
@@ -798,7 +858,7 @@ def test_cli_demo_scope(bronze_env, monkeypatch):
         for month in range(1, 13):
             if year == 2026 and month > 7:
                 break
-            create_receipt_and_raw(receipts_dir, raw_dir, year, month, _make_mock_raw_json())
+            create_receipt_and_raw(receipts_dir, raw_dir, year, month, _make_mock_raw_json(year=year, month=month))
 
     out_path = base / "out.parquet"
 

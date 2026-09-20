@@ -329,16 +329,24 @@ def build_bddk_monthly_silver_table(
         if "milyon tl" not in caption.lower():
             raise SilverDataError(f"Missing or unrecognized unit in caption for {rec['receipt_name']}: {caption}")
 
-        # Cross-check period in raw payload caption if present (e.g. 'Dönem:2023/4')
+        # Cross-check period in raw payload caption (e.g. 'Dönem:2023/4')
+        # Since period_confirmation == 'response_caption' is strictly verified in load_and_verify,
+        # the caption MUST contain the period. Missing period is a contract violation.
         caption_match = re.search(r"Dönem:\s*(\d{4})/(\d{1,2})(?!\d)", caption, re.IGNORECASE)
-        if caption_match:
-            c_y, c_m = int(caption_match.group(1)), int(caption_match.group(2))
-            rec_y, rec_m = map(int, rec["period"].split("-"))
-            if (c_y, c_m) != (rec_y, rec_m):
-                raise SilverDataError(
-                    f"Raw payload caption period mismatch in {rec['receipt_name']}: "
-                    f"receipt period is {rec['period']} but raw content caption indicates {c_y:04d}-{c_m:02d} ({caption!r})."
-                )
+        if not caption_match:
+            raise SilverDataError(f"Raw payload caption missing expected period information in {rec['receipt_name']}: {caption!r}")
+            
+        c_y, c_m = int(caption_match.group(1)), int(caption_match.group(2))
+        
+        if not (1 <= c_m <= 12):
+            raise SilverDataError(f"Raw payload caption has invalid month {c_m} in {rec['receipt_name']}")
+            
+        rec_y, rec_m = map(int, rec["period"].split("-"))
+        if (c_y, c_m) != (rec_y, rec_m):
+            raise SilverDataError(
+                f"Raw payload caption period mismatch in {rec['receipt_name']}: "
+                f"receipt period is {rec['period']} but raw content caption indicates {c_y:04d}-{c_m:02d} ({caption!r})."
+            )
 
         unit = "Milyon TL"
 

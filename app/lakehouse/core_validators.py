@@ -129,8 +129,10 @@ def parse_iso8601_timestamp(raw: object, field_name: str = "timestamp") -> datet
         )
 
     # Ensure timezone-aware so comparisons across receipts are always unambiguous.
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=datetime.timezone.utc)
+    if dt.tzinfo is None or dt.utcoffset() is None:
+        raise IntegrityError(
+            f"'{field_name}' must include timezone information, got naive datetime: {raw!r}."
+        )
     return dt
 
 
