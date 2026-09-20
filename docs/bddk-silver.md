@@ -6,7 +6,7 @@ Bu belge, Quad-Qore Agentic Analytics projesindeki BDDK konut kredisi **Silver**
 
 - **Hedef Gösterge:** BDDK Aylık Bülten > Tablo 4 (Tüketici Kredileri) > Sektör (10001) > TL > `Tüketici Kredileri - Konut`
 - **Kullanılan Değer (`toplam`):** Tüketici kredileri tablosunda TP (Türk Parası) ve YP (Yabancı Para) ayrımı yapılsa da hanehalkına (bireylere) yönelik döviz kredisi yasal olarak kısıtlandığı için konut kredisindeki asıl büyüklüğü ifade eden metrik `toplam` sütunudur.
-- **Kapsam:** 
+- **Kapsam:**
   - **Varsayılan Silver Kapsamı:** `2021-01` ile `2026-06` (Toplam 66 ay)
   - **Demo (Analiz) Kapsamı:** `2021-01` ile `2025-12` (Toplam 60 ay)
 - **2026-07 Bronze İstisnası:** Bronze katmanında 2026-07 ayına ait veri saklanmakta olup, bu veri Bronze varlıkları arasında korunur; ancak, Afra tarafından yönetilen EVDS Silver veri setiyle çakışmaması ve Gold katmanında uyumsuzluk yaratmaması için Silver ve Demo katmanlarında 2026-07 analize dahil edilmez.

@@ -28,7 +28,7 @@ def main() -> int:
     parser.add_argument("--end-period", type=str, default=DEFAULT_END_PERIOD, help="End period (YYYY-MM)")
     parser.add_argument("--output", type=Path, default=Path("data/silver/bddk/housing_loans.parquet"), help="Output parquet path")
     parser.add_argument("--demo", action="store_true", help="Use demo scope (ends at 2025-12)")
-    
+
     args = parser.parse_args()
 
     start_period = args.start_period
@@ -62,10 +62,40 @@ def main() -> int:
 
     # Ensure output directory exists
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Write parquet
-    df.to_parquet(output_path, index=False)
-    
+
+    # --- Atomic Parquet write (Hata 4 fix) ---
+    # Pattern: write to temp .part file → read-back verify → atomically replace.
+    # If anything fails mid-write, the existing valid output is never touched.
+    tmp_path = output_path.with_suffix(".part")
+    try:
+        df.to_parquet(tmp_path, index=False)
+
+        # Read-back verification: ensure the file is a valid Parquet with correct row count
+        import pandas as _pd
+        verified = _pd.read_parquet(tmp_path)
+        if len(verified) != len(df):
+            raise RuntimeError(
+                f"Parquet read-back row count mismatch: wrote {len(df)}, got {len(verified)}."
+            )
+        required = {"period", "housing_loan_amount", "nominal_housing_loan_mn_try",
+                    "housing_loan_unit", "bddk_source_ref", "data_quality_note"}
+        missing_cols = sorted(required - set(verified.columns))
+        if missing_cols:
+            raise RuntimeError(f"Parquet read-back missing required columns: {missing_cols}")
+
+        # Atomic replace: on success, move temp file over the final destination
+        tmp_path.replace(output_path)
+
+    except Exception as e:
+        # Clean up temp file if it exists, leave old output untouched
+        if tmp_path.exists():
+            try:
+                tmp_path.unlink()
+            except OSError:
+                pass
+        print(f"\n[FAIL-CLOSED ERROR] Parquet write/verify failed:\n{e}", file=sys.stderr)
+        return 1
+
     # Calculate SHA-256 of the generated parquet
     file_bytes = output_path.read_bytes()
     sha256_hash = hashlib.sha256(file_bytes).hexdigest()

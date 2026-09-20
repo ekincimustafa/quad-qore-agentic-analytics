@@ -1,8 +1,8 @@
 # Quad-Qore: BDDK Silver Katmanı Dönüşümü Detaylı Uygulama ve Doğrulama Planı (Issue #33)
 
-**İlgili Görev:** [ekincimustafa/quad-qore-agentic-analytics#33](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/33)  
-**Sorumlu:** Osman (BDDK Veri Mühendisliği & Lakehouse Silver Hattı)  
-**Tarih:** 2026-09-16  
+**İlgili Görev:** [ekincimustafa/quad-qore-agentic-analytics#33](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/33)
+**Sorumlu:** Osman (BDDK Veri Mühendisliği & Lakehouse Silver Hattı)
+**Tarih:** 2026-09-16
 
 ---
 
