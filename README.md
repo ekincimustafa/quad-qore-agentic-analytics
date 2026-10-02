@@ -60,6 +60,11 @@ The `openai` Python package is used only as an OpenAI-compatible client library.
 
 The API key is loaded from a local `.env` file and must never be included in the source code.
 
+## Requirements
+
+- Python 3.9 or higher
+- Windows (PowerShell) or Linux environment
+
 ## Local Setup
 
 BDDK bulletin acquisition: see [BDDK ingestion guide](docs/bddk-ingestion.md) for monthly/weekly downloads, raw data storage, validation, and the daily history limitation.
