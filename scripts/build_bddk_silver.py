@@ -61,27 +61,36 @@ def main() -> int:
         return 1
 
     # Ensure output directory exists
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        print(f"\n[FAIL-CLOSED ERROR] Cannot create output directory {output_path.parent}: {e}", file=sys.stderr)
+        return 1
 
-    # --- Atomic Parquet write (Hata 4 fix) ---
-    # Pattern: write to temp .part file → read-back verify → atomically replace.
+    # --- Atomic Parquet write ---
+    # Pattern: write to temp .part file → read-back verify → SHA-256 → atomically replace.
     # If anything fails mid-write, the existing valid output is never touched.
     tmp_path = output_path.with_suffix(".part")
     try:
         df.to_parquet(tmp_path, index=False)
 
-        # Read-back verification: ensure the file is a valid Parquet with correct row count
-        # Read back to ensure flush and validity
         import pandas as _pd
-        verified = _pd.read_parquet(tmp_path)
-        
         import pandas.testing as pdt
+        verified = _pd.read_parquet(tmp_path)
         try:
-            pdt.assert_frame_equal(df, verified, check_dtype=True)
+            # check_exact=True: financial values must match exactly — approximate equality not acceptable.
+            pdt.assert_frame_equal(df, verified, check_dtype=True, check_exact=True)
         except AssertionError as e:
             raise RuntimeError(f"Parquet read-back content mismatch: {e}")
-            
-        # If valid, replace atomically, move temp file over the final destination
+
+        # Compute SHA-256 from the temp file *before* replacing the destination.
+        # This ensures the hash reflects what was actually written, not a stale read.
+        try:
+            sha256_hash = hashlib.sha256(tmp_path.read_bytes()).hexdigest()
+        except OSError as e:
+            raise RuntimeError(f"Failed to compute SHA-256 of temp file: {e}")
+
+        # If all checks pass, atomically move temp file to final destination.
         tmp_path.replace(output_path)
 
     except Exception as e:
@@ -93,10 +102,6 @@ def main() -> int:
                 pass
         print(f"\n[FAIL-CLOSED ERROR] Parquet write/verify failed:\n{e}", file=sys.stderr)
         return 1
-
-    # Calculate SHA-256 of the generated parquet
-    file_bytes = output_path.read_bytes()
-    sha256_hash = hashlib.sha256(file_bytes).hexdigest()
 
     print("[SUCCESS] Built Silver dataset.")
     print(f"Rows        : {len(df)}")

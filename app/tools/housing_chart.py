@@ -82,7 +82,7 @@ def _validated_chart_frame(gold_table: pd.DataFrame) -> pd.DataFrame:
     for period, value in zip(
         frame["period"],
         frame["rate_down_real_credit_not_up"],
-        
+
     ):
         if pd.isna(value):
             flags.append(False)

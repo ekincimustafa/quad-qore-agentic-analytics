@@ -259,6 +259,17 @@ def load_and_verify_bronze_receipts(
 
         try:
             raw_file_path = resolve_secure_raw_path(raw_dir.parent.parent, rel_path)
+            # String-level prefix check above is necessary but not sufficient:
+            # a symlink can pass the string check while pointing outside aylik/raw/.
+            # We must also verify the *resolved* (symlink-followed) physical path
+            # sits within raw_dir itself, not just the broader BDDK root.
+            try:
+                raw_file_path.resolve().relative_to(raw_dir.resolve())
+            except ValueError:
+                raise SilverDataError(
+                    f"Receipt raw path resolves outside the expected 'aylik/raw/' directory "
+                    f"(possible symlink escape): {rel_path!r} in {receipt_path.name}"
+                )
             verify_file_integrity(raw_file_path, data.get("size_bytes"), data.get("sha256"))
         except IntegrityError as e:
             raise SilverDataError(str(e))
@@ -335,12 +346,12 @@ def build_bddk_monthly_silver_table(
         caption_match = re.search(r"Dönem:\s*(\d{4})/(\d{1,2})(?!\d)", caption, re.IGNORECASE)
         if not caption_match:
             raise SilverDataError(f"Raw payload caption missing expected period information in {rec['receipt_name']}: {caption!r}")
-            
+
         c_y, c_m = int(caption_match.group(1)), int(caption_match.group(2))
-        
+
         if not (1 <= c_m <= 12):
             raise SilverDataError(f"Raw payload caption has invalid month {c_m} in {rec['receipt_name']}")
-            
+
         rec_y, rec_m = map(int, rec["period"].split("-"))
         if (c_y, c_m) != (rec_y, rec_m):
             raise SilverDataError(

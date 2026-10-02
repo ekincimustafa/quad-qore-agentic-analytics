@@ -749,6 +749,89 @@ def test_atomic_write_failure_preserves_old_output(bronze_env):
     assert not out_path.with_suffix(".part").exists(), ".part temp file must be cleaned up on failure"
 
 
+
+def test_atomic_write_exact_float_mismatch_preserves_old_output(bronze_env):
+    """check_exact=True must catch small numeric differences (e.g. 1_000_000 vs 1_000_001).
+    Old output must be preserved and .part cleaned up."""
+    import scripts.build_bddk_silver
+    from scripts.build_bddk_silver import main
+
+    base, receipts_dir, raw_dir = bronze_env
+    create_receipt_and_raw(receipts_dir, raw_dir, 2021, 1, _make_mock_raw_json(toplam=1_000_000.0, year=2021, month=1))
+    out_path = base / "exact.parquet"
+
+    old_df = pd.DataFrame({"period": ["2020-12"], "housing_loan_amount": [10.0]})
+    old_df.to_parquet(out_path)
+    old_mtime = out_path.stat().st_mtime
+
+    original_to_parquet = pd.DataFrame.to_parquet
+
+    def slightly_altered_to_parquet(self, path, index=False):
+        # Write a df where one float value differs by exactly 1 — same shape/dtype, different value
+        altered = self.copy()
+        if "housing_loan_amount" in altered.columns:
+            altered["housing_loan_amount"] = altered["housing_loan_amount"] + 1.0
+        original_to_parquet(altered, path, index=False)
+
+    original_build = scripts.build_bddk_silver.build_bddk_monthly_silver_table
+    base_receipts, base_raw = receipts_dir, raw_dir
+
+    def redirected_build(receipts_dir=None, raw_dir=None, start_period=None, end_period=None):
+        return original_build(base_receipts, base_raw, start_period, end_period)
+
+    with mock.patch.object(scripts.build_bddk_silver, "build_bddk_monthly_silver_table", redirected_build):
+        with mock.patch("sys.argv", ["build_bddk_silver", "--start-period", "2021-01",
+                                     "--end-period", "2021-01", "--output", str(out_path)]):
+            with mock.patch.object(pd.DataFrame, "to_parquet", slightly_altered_to_parquet):
+                exit_code = main()
+
+    assert exit_code == 1, "CLI must fail when read-back value differs (exact comparison)"
+    assert out_path.exists(), "Old output must be preserved"
+    assert out_path.stat().st_mtime == old_mtime, "Old output must not be modified"
+    assert not out_path.with_suffix(".part").exists(), ".part must be cleaned up"
+
+
+def test_symlink_outside_raw_dir_rejected(bronze_env):
+    """A symlink whose text path starts with aylik/raw/ but resolves outside raw_dir
+    must be rejected with SilverDataError (symlink escape)."""
+    import os
+    _, receipts_dir, raw_dir = bronze_env
+
+    # Create a real file OUTSIDE raw_dir (in a sibling directory)
+    escape_dir = raw_dir.parent.parent / "escape"
+    escape_dir.mkdir(parents=True, exist_ok=True)
+    real_file = escape_dir / "secret.json"
+    content = _make_mock_raw_json(year=2021, month=1)
+    real_file.write_bytes(content)
+
+    # Place a symlink inside raw_dir that points to the file outside
+    symlink_name = f"raw_escape_{hashlib.sha256(content).hexdigest()}.json"
+    symlink_path = raw_dir / symlink_name
+    try:
+        symlink_path.symlink_to(real_file)
+    except (OSError, NotImplementedError):
+        pytest.skip("Symlinks not supported on this OS/filesystem")
+
+    import hashlib as _hl
+    raw_hash = _hl.sha256(content).hexdigest()
+    receipt = {
+        "request_key": "symlink_req",
+        "parameters": {"tabloNo": "4", "taraf": ["10001"], "paraBirimi": "TL",
+                       "yil": 2021, "ay": 1},
+        "downloaded_at": "2026-09-11T12:00:00Z",
+        "path": f"aylik/raw/{symlink_name}",
+        "size_bytes": len(content),
+        "sha256": raw_hash,
+        "validation": {"period": "2021-01", "period_confirmation": "response_caption"},
+    }
+    (receipts_dir / "rec_symlink.json").write_text(
+        __import__("json").dumps(receipt), encoding="utf-8"
+    )
+
+    with pytest.raises(SilverDataError, match="resolves outside"):
+        build_bddk_monthly_silver_table(receipts_dir, raw_dir, "2021-01", "2021-01")
+
+
 def test_cli_main_success(bronze_env, monkeypatch, capsys):
     from scripts.build_bddk_silver import main
     base, receipts_dir, raw_dir = bronze_env
