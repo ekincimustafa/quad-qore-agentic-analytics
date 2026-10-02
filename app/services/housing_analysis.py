@@ -23,7 +23,7 @@ class HousingNarrationError(RuntimeError):
     """Raised when the external narration boundary cannot return a response."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class HousingAnalysisRun:
     """Validated result returned by the application service."""
 

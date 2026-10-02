@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Optional
 from typing import Annotated, Any, Literal
 
 import pandas as pd
@@ -93,7 +94,7 @@ class HousingAnalysisResponse(BaseModel):
     status: Literal["ok"] = "ok"
     evidence: HousingAnalysisEvidence
     chart: dict[str, Any]
-    narration: str | None
+    narration: Optional[str]
 
 
 def get_housing_narrator() -> HousingNarrator:
@@ -118,7 +119,7 @@ def _analysis_response(result: Any) -> HousingAnalysisResponse:
 
 def _raise_invalid_input(exc: Exception) -> None:
     raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail={
             "code": "invalid_analysis_input",
             "message": str(exc),
