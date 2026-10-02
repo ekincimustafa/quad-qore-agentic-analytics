@@ -18,12 +18,9 @@ concurrency:
 
 jobs:
   pytest:
-    name: Pytest - Python ${{ matrix.python-version }}
+    name: Pytest - Python 3.12
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.12"]
 
     steps:
       - name: Check out repository
@@ -32,7 +29,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |

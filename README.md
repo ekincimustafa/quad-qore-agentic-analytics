@@ -62,7 +62,7 @@ The API key is loaded from a local `.env` file and must never be included in the
 
 ## Requirements
 
-- Python 3.9 or higher
+- Python 3.12 or higher
 - Windows (PowerShell) or Linux environment
 
 ## Local Setup
