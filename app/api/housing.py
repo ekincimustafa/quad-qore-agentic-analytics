@@ -44,6 +44,8 @@ class BddkMonthlyRow(BaseModel):
 
     period: str = Field(pattern=PERIOD_PATTERN)
     nominal_housing_loan_mn_try: NonNegativeFiniteFloat
+    bddk_source_ref: Optional[str] = None
+    data_quality_note: Optional[str] = None
 
 
 class EvdsMonthlyRow(BaseModel):
@@ -67,10 +69,6 @@ class HousingAnalysisRequest(BaseModel):
     evds_monthly: list[EvdsMonthlyRow] = Field(min_length=1)
     start_period: str = Field(default=DEFAULT_START_PERIOD, pattern=PERIOD_PATTERN)
     end_period: str = Field(default=DEFAULT_END_PERIOD, pattern=PERIOD_PATTERN)
-    bddk_source_ref: str = Field(
-        default="BDDK monthly bulletin, Table 4, sector 10001, TL",
-        min_length=1,
-    )
     evds_source_refs: str = Field(
         default="TP.KTF12; TP.TUKFIY2025.GENEL; TP.KFE.TR",
         min_length=1,
@@ -162,7 +160,6 @@ def analyze_housing(
             evds_monthly,
             start_period=request.start_period,
             end_period=request.end_period,
-            bddk_source_ref=request.bddk_source_ref,
             evds_source_refs=request.evds_source_refs,
             narrator=selected_narrator,
         )

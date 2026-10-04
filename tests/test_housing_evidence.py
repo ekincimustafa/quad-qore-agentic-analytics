@@ -118,9 +118,13 @@ def test_rejects_duplicate_period() -> None:
     "column",
     ["bddk_source_ref", "evds_source_refs", "data_quality_note"],
 )
-def test_rejects_missing_provenance(column: str) -> None:
+@pytest.mark.parametrize(
+    "invalid_val",
+    ["", "None", "nan", "<NA>"],
+)
+def test_rejects_missing_provenance(column: str, invalid_val: str) -> None:
     gold = _gold()
-    gold.loc[1, column] = ""
+    gold.loc[1, column] = invalid_val
 
     with pytest.raises(EvidenceBuildError, match=column):
         _build(gold)

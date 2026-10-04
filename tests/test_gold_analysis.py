@@ -136,3 +136,23 @@ def test_rejects_invalid_period_range() -> None:
             start_period="2021-03",
             end_period="2021-01",
         )
+
+def test_rejects_single_ref_column() -> None:
+    bddk = _bddk()
+    bddk["bddk_source_ref"] = "some_ref"
+    with pytest.raises(GoldAnalysisError, match="must have either both 'bddk_source_ref' and 'data_quality_note' columns, or neither"):
+        _build(bddk=bddk)
+
+    bddk = _bddk()
+    bddk["data_quality_note"] = "some_note"
+    with pytest.raises(GoldAnalysisError, match="must have either both 'bddk_source_ref' and 'data_quality_note' columns, or neither"):
+        _build(bddk=bddk)
+
+def test_passes_through_ref_columns() -> None:
+    bddk = _bddk()
+    bddk["bddk_source_ref"] = "custom_ref"
+    bddk["data_quality_note"] = "custom_note"
+    result = _build(bddk=bddk)
+    assert (result["bddk_source_ref"] == "custom_ref").all()
+    # It appends the global validation note
+    assert (result["data_quality_note"] == "custom_note; validated: complete, unique, non-null").all()

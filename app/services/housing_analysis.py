@@ -38,8 +38,7 @@ def run_housing_analysis(
     *,
     start_period: str,
     end_period: str,
-    bddk_source_ref: str,
-    evds_source_refs: str,
+    evds_source_refs: Any,
     narrator: HousingNarrator | None = None,
 ) -> HousingAnalysisRun:
     """Build Gold data, validate evidence, and optionally request narration."""
@@ -49,7 +48,6 @@ def run_housing_analysis(
         evds_monthly,
         start_period=start_period,
         end_period=end_period,
-        bddk_source_ref=bddk_source_ref,
         evds_source_refs=evds_source_refs,
     )
     evidence = build_housing_analysis_evidence(
