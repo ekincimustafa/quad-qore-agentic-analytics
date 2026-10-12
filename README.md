@@ -122,3 +122,5 @@ The automated tests verify configuration validation, empty prompt handling, mode
 * `.env.example` must contain variable names and safe default values only.
 * Secrets must not appear in source code, logs, screenshots, issues, or pull requests.
 * Repository changes must be reviewed before merging into the `main` branch.
+
+Housing narration: see [the structured response contract](docs/housing-narration.md) for JSON validation, Turkish rendering, and offline tests.
