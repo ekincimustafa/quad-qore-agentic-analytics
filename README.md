@@ -124,3 +124,5 @@ The automated tests verify configuration validation, empty prompt handling, mode
 * Repository changes must be reviewed before merging into the `main` branch.
 
 Housing narration: see [the structured response contract](docs/housing-narration.md) for JSON validation, Turkish rendering, and offline tests.
+
+Offline HTML report: see [the housing report guide](docs/housing-report.md) for the explicitly synthetic, key-free example.
