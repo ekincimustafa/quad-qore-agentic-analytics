@@ -116,10 +116,12 @@ Orchestrator yalnızca `enabled` durumundaki tool'ları çağrılabilir araç li
 | `app/tools/housing_evidence.py` — `HousingAnalysisEvidence`, `build_housing_analysis_evidence` | Gold tablosunu tekrar doğrular ve LLM'ye verilebilecek JSON-safe kanıt payload'ını üretir. | Gelecekteki tool adapter'ının ortak response/evidence zarfına saracağı mevcut kanıt kaynağıdır. |
 | `app/services/housing_analysis.py` — `run_housing_analysis` | Gold tabloyu, evidence payload'ını ve doğrulanmış grafiği tek servis çağrısında üretir; narration isteğe bağlıdır. | İlk generic tool adapter'ı yeni business logic yazmak yerine bu servisi veya onun ürettiği evidence'ı kullanmalıdır. |
 | `app/services/housing_demo.py` — `run_file_backed_housing_demo` | Sunucu kontrollü BDDK/EVDS Silver dosyalarını yükler ve mevcut `run_housing_analysis` servisini çağırır. | Güncel ilk-demo orchestrator akışıdır; generic tool registry'nin yerini şimdilik bu servis akışı alır. |
-| `app/tools/housing_narrator.py` — `narrate_housing_evidence_with_mia`, `validate_housing_narration` | Yalnızca doğrulanmış evidence üzerinden MIA anlatımı üretir; kanıtta bulunmayan sayı/kaynak iddialarını reddeder. | Evidence Package sonrasındaki açıklama katmanıdır; hesaplama tool'u değildir. |
+| `app/tools/housing_narrator.py` — `narrate_housing_evidence_with_mia`, `validate_housing_narration` | MIA anlatımında BDDK/EVDS adlarının, evidence içindeki EVDS seri referanslarının, eşleşen dönemlerin, desteklenen sayısal değerlerin ve nedensellik sınırlamasının bulunmasını/uyumunu kontrol eder. Ancak metindeki **her yeni kaynak iddiasını** doğrulamaz veya reddetmez. | Evidence Package sonrasındaki sınırlı doğrulama katmanıdır; hesaplama tool'u ya da genel kaynak-iddia doğrulayıcısı değildir. |
 | `app/tools/housing_chart.py` — `build_housing_chart` | Gold tablodan doğrulanmış Plotly chart specification üretir. | Görselleştirme katmanıdır; ikinci bir sayısal doğruluk kaynağı değildir. |
 | `app/api/housing.py` — `/analysis/housing`, `/analysis/housing/demo` | Doğrulanmış Housing Analysis servisini FastAPI üzerinden sunar ve domain hatalarını kontrollü HTTP hatalarına çevirir. | Tool değildir; mevcut servis sonucunun HTTP yüzeyidir. |
 | `app/api/main.py` — `create_app` | Housing router'ını uygulamaya bağlar ve API uygulamasını oluşturur. | Orchestrator/tool sözleşmesinin hesaplama katmanı değildir. |
+
+**Narrator doğrulamasının sınırı:** `validate_housing_narration()` mevcut kanıttaki sayıları, beklenen EVDS seri kodlarını, eşleşen dönemleri ve nedensellik uyarısını denetler; ayrıca yanıtta BDDK ve EVDS adlarının geçmesini zorunlu tutar. Buna karşılık serbest metindeki **ek kaynak/rapor atıflarını kapsamlı biçimde karşılaştırmaz**. Örneğin kanıtta olmayan bir Dünya Bankası raporuna dair sayısal olmayan bir atıf, diğer kontrolleri karşılayan bir yanıtta doğrulamadan geçebilir. Bu kod davranışı değiştirilmedi; gelecekte genel kaynak-iddia doğrulaması eklenene kadar tam kaynak doğrulaması garantisi verilmez.
 
 Güncel ilk-demo akışı şu şekildedir:
 
@@ -156,6 +158,28 @@ app/api/housing.py
 İlk demo akışında `detect_changes` çağrılmaz. Çünkü `app/lakehouse/gold.py` zaten `nominal_housing_loan_change_pct`, `real_housing_loan_change_pct`, `interest_rate_change_pp` ve `rate_down_real_credit_not_up` alanlarını deterministik olarak üretmektedir. `detect_changes` bu değerleri yeniden hesaplayıp ikinci bir doğruluk kaynağı oluşturmamalıdır. Araç ancak Gold tarafından sağlanmayan genel amaçlı bir değişim analizi ihtiyacı için, ayrı testlerle etkinleştirilebilir.
 
 Aynı şekilde `detect_anomalies`, `web_search` ve `web_url_reader` ilk demo runtime akışında kullanılmaz; `analyze_causality` ise açıkça `disabled` durumundadır.
+
+### 3.4 Tool Timeout ve Retry Sözleşmesi (Issue #6)
+
+Aşağıdaki değerler **gelecekte etkinleştirilecek generic tool adapter'ları için sözleşme sınırlarıdır**; mevcut MVP kodunda uygulanmış runtime timeout/retry mekanizmaları oldukları iddia edilmez. `planned` araçlar şu an dispatch edilmez. Bir tool `enabled` statüsüne alındığında bu sınırlar orchestrator seviyesinde kod ve offline testlerle enforce edilmelidir.
+
+| Tool | MVP durumu | Toplam çağrı süresi üst sınırı (tüm denemeler dâhil) | Maksimum deneme | Yeniden denenebilir hata |
+| --- | --- | --- | --- | --- |
+| `lakehouse_query` | `planned` | `10 sn` | `1` | Yok; yerel/deterministik hesapta otomatik retry yapılmaz. |
+| `web_search` | `planned` | `30 sn` | `2` | `TOOL_TIMEOUT` veya geçici `SOURCE_UNAVAILABLE`: network kesintisi / bağlantı sıfırlanması, HTTP `429`, `500`, `502`, `503`, `504`. |
+| `web_url_reader` | `planned` | `60 sn` | `2` | `TOOL_TIMEOUT` veya geçici `SOURCE_UNAVAILABLE`: network kesintisi / bağlantı sıfırlanması, HTTP `429`, `500`, `502`, `503`, `504`; yalnızca güvenli, yan etkisiz `GET` ve henüz çıktı yayımlanmamışsa. |
+| `detect_anomalies` | `planned` | `10 sn` | `1` | Yok; aynı girdide deterministik analizi otomatik tekrarlamaz. |
+| `detect_changes` | `planned` | `10 sn` | `1` | Yok; mevcut Gold hesabını tekrarlamaz. |
+| `analyze_causality` | `disabled` | Uygulanmaz; anında ret | `0` (hiç çalıştırılmaz) | Yok; **doğrudan `UNSUPPORTED_OPERATION`, retry yok**. |
+
+**Uygulama kuralları:**
+
+* Maksimum deneme sayısı **ilk çağrıyı içerir**: `2` en fazla bir retry demektir. Tekrar denemeyi tool değil orchestrator yönetir; katmanlı/nested retry yapılmaz.
+* `planned` ve `disabled` araçlara dispatch girişimi, network/disk/hesaplama başlatılmadan `UNSUPPORTED_OPERATION` ile reddedilir; **0 yürütme denemesi, 0 retry**. Tablodaki süre/deneme değerleri `planned` araçlar için ancak `enabled` olduklarında geçerlidir.
+* `web_search` için **tek deneme en fazla `12 sn`**; `web_url_reader` için **tek deneme en fazla `25 sn`** sürer. `web_url_reader` içinde her HTTP bağlantısına `5 sn` connect ve `15 sn` read timeout üst sınırı uygulanır; yönlendirmeler tek denemenin süresini sıfırlamaz. Tabloya yazılan toplam süre, tüm denemeler, yönlendirmeler ve beklemeler dahil **hard deadline**'dır.
+* Yeniden deneme sadece **geçici** hatalara ve süre bütçesi yeterliyse izinlidir. İki deneme arasında en fazla `1 sn` beklenir; sunucunun `Retry-After` önerisi kalan bütçeye sığmıyorsa tekrar denenmez. Sonuç `TOOL_TIMEOUT` (süre aşımı) veya `SOURCE_UNAVAILABLE` (geçici kaynak hatası) ile kontrollü `error` döner; süre bütçesi aşılmaz.
+* `INVALID_INPUT`, `INVALID_DATE_RANGE`, `UNSUPPORTED_OPERATION`, `UNSAFE_URL`, `UNSUPPORTED_FORMAT`, `RESPONSE_TOO_LARGE`, `DATA_QUALITY_ERROR`, `INSUFFICIENT_DATA`, `DATASET_NOT_FOUND`, `SERIES_NOT_FOUND` ve kimlik doğrulama/yetkilendirme hataları (**HTTP `401`/`403`**) **retry edilmez**. Diğer HTTP `4xx` hataları da `429` hariç retry edilmez. Bilinmeyen `TOOL_EXECUTION_ERROR` varsayılan olarak retry edilmez.
+* Retry her denemede URL/redirect/IP güvenlik kontrolünü yeniden uygular; hassas URL değerleri hata mesajına, response'a veya loga yansıtılmaz. Yeniden deneme kaynakların güvenilirliğini veya çıktının doğruluğunu garanti etmez.
 
 ---
 
@@ -245,7 +269,7 @@ Arama sonucu bulunması, kaynağın otomatik olarak güvenilir olduğu anlamına
 
 * Yalnızca `http` ve `https` şemaları kabul edilir.
 * `file://`, `ftp://`, `data:`, `javascript:` ve diğer desteklenmeyen şemalar `UNSAFE_URL` veya `UNSUPPORTED_FORMAT` ile reddedilir.
-* URL içinde `user:password@host` biçiminde credential/user-info bulunması reddedilir.
+* URL otorite bölümünde `user:password@host`, `user@host` veya herhangi bir user-info (yüzde kodlanmış biçimleri dâhil) bulunması **kesin olarak `UNSAFE_URL` ile reddedilir**; yalnızca gizleyip işleme devam etmek kabul edilmez. Ret kararı URL loglanmadan önce verilir.
 * DNS çözümlemesi sonrasında loopback/localhost, private IP, link-local, unspecified ve bilinen metadata adreslerine erişim engellenir. Bu kontrol IPv4 ve IPv6 için uygulanır.
 * `169.254.169.254` gibi cloud metadata adresleri ve bunlara çözümlenen hostname'ler engellenir.
 * Her HTTP yönlendirmesinden sonra yeni hedef URL ve çözümlenen IP adresi baştan doğrulanır. İlk URL'nin güvenli olması sonraki redirect hedefini otomatik olarak güvenli yapmaz.
@@ -254,7 +278,7 @@ Arama sonucu bulunması, kaynağın otomatik olarak güvenilir olduğu anlamına
 * Decompress edilmiş response body için maksimum boyut MVP'de `10 MiB` olarak sınırlandırılır. Limit aşılırsa işlem `RESPONSE_TOO_LARGE` ile fail-closed sonlandırılır.
 * İzin verilen MIME türleri MVP'de `text/html`, `text/plain` ve `application/pdf` ile sınırlıdır. Destek listesi genişletilecekse kod ve testlerle açıkça güncellenmelidir.
 * Content-Type eksik veya izin verilen listeyle uyumsuzsa içerik güvenli biçimde reddedilir; uzantıya bakılarak MIME varsayımı yapılmaz.
-* URL query parametrelerinde credential/API key/token taşıyan değerler loglara, `metadata.sources[].url` alanına veya tool response'una ham biçimde yazılmaz. Hassas parametreler redakte edilir.
+* **Ayrı kural — query redaksiyonu:** URL query parametrelerindeki hassas değerler (`key`, `api_key`, `apikey`, `token`, `access_token`, `password`, `secret`, `signature`, `auth` gibi anahtar adları; büyük/küçük harf duyarsız) log, exception mesajı, tool response ve `metadata.sources[].url` içinde `[REDACTED]` olarak gizlenir. Redaksiyon, user-info içeren URL'nin kabul edildiği anlamına gelmez; böyle URL'ler yukarıdaki kurala göre reddedilir. Redirect hedefleri için de aynı ayrı kontroller uygulanır.
 * Beklenmeyen network/parser exception'ları ortak hata sözleşmesine göre normalize edilir; raw exception ve stack trace kullanıcıya dönmez.
 
 Bu güvenlik kontrolleri uygulanıp çevrimdışı testlerle doğrulanmadan `web_url_reader` MVP'de `enabled` durumuna getirilemez.
@@ -590,6 +614,7 @@ Analiz yapan tool'lar, kullanılan yöntemi mümkün olduğunca açıkça belirt
 | `UNSAFE_URL`            | Güvenlik politikası nedeniyle URL reddedildi |
 | `RESPONSE_TOO_LARGE`    | Kaynak response boyutu izin verilen limiti aştı |
 | `TOOL_EXECUTION_ERROR`  | Beklenmeyen tool çalışma hatası     |
+| `TOOL_TIMEOUT`          | Tanımlı tool/deneme/toplam süre sınırının aşılması |
 
 Bu kodlar ilk taslak içindir. Uygulama sırasında hata kodları tek bir ortak Python modeli veya enum üzerinden standardize edilmelidir.
 
@@ -867,9 +892,10 @@ MVP implementasyonu aşağıdaki sabit güvenlik sınırlarını uygulamalıdır
 | Maksimum response | Decompress edilmiş body için `10 MiB` |
 | İzin verilen MIME | `text/html`, `text/plain`, `application/pdf` |
 | Network hedefleri | localhost/loopback, private IP, link-local, metadata ve diğer unsafe adresler yasak |
-| Credential içeren URL | Reddedilir veya response/log metadata'sına girmeden redakte edilir |
+| URL user-info (`user:password@host`, `user@host`) | Kesin `UNSAFE_URL` ile reddedilir; yalnızca redaksiyon yeterli değildir |
+| Query içindeki hassas değerler | Log/exception/response/`metadata.sources[].url` içinde `[REDACTED]` ile gizlenir; user-info reddinden bağımsızdır |
 
-Bu kurallardan biri ihlal edilirse tool içerik parse etmeye devam etmez; `UNSAFE_URL`, `UNSUPPORTED_FORMAT`, `RESPONSE_TOO_LARGE` veya uygun ortak hata koduyla fail-closed response döndürür.
+Reddetme gerektiren güvenlik kuralları ihlal edilirse tool içerik parse etmeye devam etmez; `UNSAFE_URL`, `UNSUPPORTED_FORMAT`, `RESPONSE_TOO_LARGE` veya uygun ortak hata koduyla fail-closed response döndürür. **Query parametreleri için redaksiyon ise ret gerekçesi değildir:** desteklenen bir URL işlenebilir, ancak hassas query değerleri hiçbir log, exception veya tool metadata/response alanına ham biçimde yansıtılmaz.
 
 ### Başarılı Output
 
