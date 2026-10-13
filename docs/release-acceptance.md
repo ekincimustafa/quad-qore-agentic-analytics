@@ -78,4 +78,6 @@ Kişisel katkılar ilgili PR'ların kod farklarıyla değerlendirilir.
 Açık görevler tamamlanmış katkı olarak raporlanmaz. Tag/release yayınlama,
 bu kabul kapıları tamamlandıktan sonraki ayrı teslim adımıdır.
 
+| Sentetik API örneği | README curl komutu ve housing-api-example.json | HTTP 200; 3 ay, 1 eşleşme: 2021-02; 6 trace; narration null |
 | Windows API örneği | Kullanıcının mevcut venv ortamı, README PowerShell komutları | Health ve analiz HTTP 200; 3 ay, 1 eşleşme: 2021-02 |
+| Eksik Silver dosyaları | `/analysis/housing/demo`, anlatım kapalı | HTTP 503, demo_data_unavailable |
