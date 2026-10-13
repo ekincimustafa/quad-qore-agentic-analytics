@@ -74,10 +74,9 @@ Kişisel katkılar ilgili PR'ların kod farklarıyla değerlendirilir.
 | Mustafa / ekincimustafa | [#27 Gold](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/27), [#30 API](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/30), [#47 anlatım doğrulaması](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/47), [#48 HTML raporu](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/48) | #46 kurulum, kabul kaydı ve sürüm teslimi |
 | Osman / OsmanerdemDutar | [#36 BDDK Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/36) | #40 / PR #43 kaynak zinciri ve offline demo |
 | Afra / afratopcu | [#23 EVDS Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/23), [#35 EVDS ingestion](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/35) | #39 veri/manifest, #45 zaman/kapsam, #6 / PR #38 sözleşme |
-
-Açık görevler tamamlanmış katkı olarak raporlanmaz. Tag/release yayınlama,
-bu kabul kapıları tamamlandıktan sonraki ayrı teslim adımıdır.
-
 | Sentetik API örneği | README curl komutu ve housing-api-example.json | HTTP 200; 3 ay, 1 eşleşme: 2021-02; 6 trace; narration null |
 | Windows API örneği | Kullanıcının mevcut venv ortamı, README PowerShell komutları | Health ve analiz HTTP 200; 3 ay, 1 eşleşme: 2021-02 |
 | Eksik Silver dosyaları | `/analysis/housing/demo`, anlatım kapalı | HTTP 503, demo_data_unavailable |
+
+Açık görevler tamamlanmış katkı olarak raporlanmaz. Tag/release yayınlama,
+bu kabul kapıları tamamlandıktan sonraki ayrı teslim adımıdır.
