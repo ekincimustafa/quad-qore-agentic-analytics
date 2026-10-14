@@ -69,6 +69,10 @@ class HousingAnalysisRequest(BaseModel):
     evds_monthly: list[EvdsMonthlyRow] = Field(min_length=1)
     start_period: str = Field(default=DEFAULT_START_PERIOD, pattern=PERIOD_PATTERN)
     end_period: str = Field(default=DEFAULT_END_PERIOD, pattern=PERIOD_PATTERN)
+    bddk_source_ref: str = Field(
+        default="BDDK monthly bulletin, Table 4, sector 10001, TL",
+        min_length=1,
+    )
     evds_source_refs: str = Field(
         default="TP.KTF12; TP.TUKFIY2025.GENEL; TP.KFE.TR",
         min_length=1,
@@ -117,7 +121,7 @@ def _analysis_response(result: Any) -> HousingAnalysisResponse:
 
 def _raise_invalid_input(exc: Exception) -> None:
     raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail={
             "code": "invalid_analysis_input",
             "message": str(exc),
@@ -160,6 +164,7 @@ def analyze_housing(
             evds_monthly,
             start_period=request.start_period,
             end_period=request.end_period,
+            bddk_source_ref=request.bddk_source_ref,
             evds_source_refs=request.evds_source_refs,
             narrator=selected_narrator,
         )

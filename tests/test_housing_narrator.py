@@ -235,7 +235,7 @@ def test_mia_wrapper_uses_the_same_validation(monkeypatch):
 
 def test_rejects_non_callable_model():
     with pytest.raises(TypeError, match="model_call must be callable"):
-        narrate_housing_evidence(_evidence(), "not-callable")
+        narrate_housing_evidence(_evidence(), "not-callable")  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(

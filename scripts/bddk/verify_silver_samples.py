@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
@@ -19,7 +20,7 @@ def verify_samples(silver_path: Path, periods: List[str], receipts_dir: Path, ra
     if not silver_path.exists():
         print(f"[FAIL] Silver dosyasi bulunamadi: {silver_path}")
         return 1
-        
+
     try:
         df = pd.read_parquet(silver_path)
     except Exception as e:
@@ -51,7 +52,7 @@ def verify_samples(silver_path: Path, periods: List[str], receipts_dir: Path, ra
             print(f"{p:<10} {'-':>15} {'-':>15} {'Eksik/Silver':>15}")
             all_passed = False
             continue
-            
+
         if len(row) > 1:
             print(f"{p:<10} {'-':>15} {'-':>15} {'Tekrar/Silver':>15}")
             all_passed = False
@@ -60,7 +61,7 @@ def verify_samples(silver_path: Path, periods: List[str], receipts_dir: Path, ra
         row_dict = row.iloc[0].to_dict()
         silver_val = row_dict["nominal_housing_loan_mn_try"]
         source_ref = row_dict["bddk_source_ref"]
-        
+
         receipt = receipts_map.get(source_ref)
         if not receipt:
             print(f"{p:<10} {silver_val:>15,.0f} {'-':>15} {'Eksik/Makbuz':>15}")
@@ -74,7 +75,7 @@ def verify_samples(silver_path: Path, periods: List[str], receipts_dir: Path, ra
             continue
 
         raw_file_path = (raw_dir.parent.parent / rel_path).resolve()
-        
+
         if not raw_file_path.exists():
             print(f"{p:<10} {silver_val:>15,.0f} {'-':>15} {'Eksik/Raw':>15}")
             all_passed = False
@@ -97,21 +98,49 @@ def verify_samples(silver_path: Path, periods: List[str], receipts_dir: Path, ra
                 all_passed = False
                 continue
 
+        # Unit check on Silver row
+        silver_unit = row_dict.get("housing_loan_unit")
+        if silver_unit != "Milyon TL":
+            print(f"{p:<10} {silver_val:>15,.0f} {'-':>15} {'Silver Birim Hata':>15}")
+            all_passed = False
+            continue
+
         try:
             raw_payload = json.loads(raw_bytes.decode("utf-8"))
             parsed = extract_housing_loan_data(raw_payload)
             raw_val = parsed["toplam"]
+            caption = parsed.get("caption", "")
         except Exception:
             print(f"{p:<10} {silver_val:>15,.0f} {'-':>15} {'Parse Hata':>15}")
             all_passed = False
             continue
 
-        # Check exact equality. If they are floats, check exact, but we use strict == as per rules?
+        # Unit check on raw payload caption
+        if "milyon tl" not in caption.lower():
+            print(f"{p:<10} {silver_val:>15,.0f} {'-':>15} {'Ham Birim Hata':>15}")
+            all_passed = False
+            continue
+
+        # Period check on raw payload caption (e.g. 'Dönem:2023/6')
+        caption_match = re.search(r"Dönem:\s*(\d{4})/(\d{1,2})(?!\d)", caption, re.IGNORECASE)
+        if not caption_match:
+            print(f"{p:<10} {silver_val:>15,.0f} {'-':>15} {'Baslik Donem Yok':>15}")
+            all_passed = False
+            continue
+
+        c_y, c_m = int(caption_match.group(1)), int(caption_match.group(2))
+        caption_period = f"{c_y:04d}-{c_m:02d}"
+        if caption_period != p:
+            print(f"{p:<10} {silver_val:>15,.0f} {'-':>15} {'Baslik Uyumsuz':>15}")
+            all_passed = False
+            continue
+
+        # Check numeric equality
         if not math.isclose(silver_val, raw_val):
             print(f"{p:<10} {silver_val:>15,.0f} {raw_val:>15,.0f} {'Farkli':>15}")
             all_passed = False
             continue
-            
+
         print(f"{p:<10} {silver_val:>15,.0f} {raw_val:>15,.0f} {'TAM Eşleşme':>15}")
 
     print("-" * 58)

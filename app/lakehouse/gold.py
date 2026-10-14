@@ -179,7 +179,7 @@ def build_housing_gold_table(
         raise GoldAnalysisError(
             "must have either both 'bddk_source_ref' and 'data_quality_note' columns, or neither"
         )
-        
+
     extra_cols = bddk_monthly[["period", "bddk_source_ref", "data_quality_note"]] if has_bddk_ref else None
 
     bddk = _prepare_period_frame(
@@ -188,10 +188,10 @@ def build_housing_gold_table(
         required_columns=BDDK_REQUIRED_COLUMNS,
         expected_periods=expected_periods,
     )
-    
+
     if extra_cols is not None:
         bddk = bddk.merge(extra_cols, on="period", how="left")
-        
+
     evds = _prepare_period_frame(
         evds_monthly,
         frame_name="evds_monthly",

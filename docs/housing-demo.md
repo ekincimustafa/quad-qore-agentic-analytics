@@ -17,7 +17,7 @@ pip install -r requirements.txt
 First, run the BDDK transformation script to process Bronze receipts into the strictly validated Silver parquet artifact:
 
 ```powershell
-python -m scripts.bddk.build_bddk_silver
+python -m scripts.build_bddk_silver
 ```
 This generates `data/silver/bddk/housing_loans.parquet`. (Note: Existing missing parameters files must be cleaned up as per Lesson 3).
 
@@ -58,6 +58,6 @@ python -m scripts.run_housing_demo --evds-manifest data/silver/evds/monthly/mani
 
 ## 7. Limitations & Constraints
 
-- **No Causality:** The analysis identifies periods where both nominal loan volume decreased and real loan volume did not increase, concurrent with an interest rate increase. It does not establish mathematical causality.
+- **No Causality:** The analysis identifies months where the interest rate decreased and the real housing loan stock did not increase (faiz düşerken reel konut kredisi stokunun artmadığı aylar). It does not establish mathematical causality.
 - **Stock vs Flow:** Housing loan data represents total outstanding stock at period end, not monthly origination flow. Therefore, decreases represent net contraction (repayments exceeding new loans).
 - **Deterministic:** The demo runs completely offline without LLM network access.
