@@ -19,6 +19,7 @@ analysis window is January 2021 to December 2025: 60 months.
 | FastAPI | Health, normalized-row analysis, and server-side Silver analysis endpoints | [housing.py](app/api/housing.py) |
 | Guarded narration | Model JSON checked against the same month/metric; Turkish text rendered from evidence | [Narration contract](docs/housing-narration.md) |
 | LLM client | Configured OpenAI-compatible Chat Completions, bounded SDK timeout, one attempt and safe application errors | [LLM guide](docs/llm-client.md) |
+| Question execution core | Typed question decisions, one allowed Housing analysis, server-supplied period bounds; Python service only | [Question guide](docs/housing-question.md) |
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
 | CI | Offline pytest suite on pull requests and pushes to main, using Python 3.12 | [Workflow](.github/workflows/tests.yml) |
 
@@ -29,11 +30,12 @@ work in [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issue
 [#45](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/45).
 See the [acceptance record](docs/release-acceptance.md) for verified checks and open gates.
 
-Natural-language question routing, a general agent/tool registry, data catalog,
-general web/anomaly/causality tools and deployment are planned work. Live LLM
-acceptance and the question-routing stage are tracked in
-[#41](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/41) and
-[#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42).
+Question routing has a bounded Python service core with offline behavior tests.
+Its HTTP endpoint, file-backed integration and live semantic evaluation remain
+open in [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42).
+A general agent/tool registry, data catalog, general web/anomaly/causality tools
+and deployment are planned work. A live Gemini narration contract check passed;
+see the [LLM acceptance record](docs/llm-client.md#canlı-kabul-kaydı--15-ekim-2026).
 The draft golden cases currently have schema checks; they are not a measured
 end-to-end model-accuracy benchmark.
 
@@ -168,8 +170,9 @@ python -m scripts.smoke_test_llm
 ```
 
 This sends a small synthetic Housing evidence package to the selected live model
-and validates its JSON using the real narration contract. Live compatibility
-remains unverified until this check is run with an accessible provider/model.
+and validates its JSON using the real narration contract. A single live check
+passed with `gemini-3.5-flash-lite` on October 15, 2026; this is not a model
+accuracy or availability benchmark. Verify access for your own provider/model.
 Invalid narration is rejected with HTTP 502 (`narration_failed`). The HTML sample
 and `include_narration=false` path do not read LLM settings or call a model.
 The old `MIA_*` helper and `scripts.smoke_test_mia` remain a separate legacy path;
