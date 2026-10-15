@@ -18,6 +18,7 @@ analysis window is January 2021 to December 2025: 60 months.
 | Evidence and chart | Typed evidence and a six-trace, three-panel Plotly chart | [Evidence](app/tools/housing_evidence.py), [chart](app/tools/housing_chart.py) |
 | FastAPI | Health, normalized-row analysis, and server-side Silver analysis endpoints | [housing.py](app/api/housing.py) |
 | Guarded narration | Model JSON checked against the same month/metric; Turkish text rendered from evidence | [Narration contract](docs/housing-narration.md) |
+| LLM client | Configured OpenAI-compatible Chat Completions, bounded SDK timeout, one attempt and safe application errors | [LLM guide](docs/llm-client.md) |
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
 | CI | Offline pytest suite on pull requests and pushes to main, using Python 3.12 | [Workflow](.github/workflows/tests.yml) |
 
@@ -29,8 +30,8 @@ work in [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issue
 See the [acceptance record](docs/release-acceptance.md) for verified checks and open gates.
 
 Natural-language question routing, a general agent/tool registry, data catalog,
-general web/anomaly/causality tools and deployment are planned work. The next LLM
-and question-routing stages are tracked in
+general web/anomaly/causality tools and deployment are planned work. Live LLM
+acceptance and the question-routing stage are tracked in
 [#41](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/41) and
 [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42).
 The draft golden cases currently have schema checks; they are not a measured
@@ -152,22 +153,27 @@ The intended Silver scope is 66 months; the first analysis selects 60 months.
 Real-data hashes, three sample-month comparisons and complete source binding
 remain release acceptance gates. See the BDDK and EVDS guides above.
 
-## Optional MIA connection
+## Optional LLM narration
 
-Copy `.env.example` to a local `.env` and configure `MIA_API_KEY`, `MIA_BASE_URL`
-and `MIA_CHAT_MODEL` for an account/model you can access. The `openai` package
-is used as an OpenAI-compatible client; requests use the configured MIA URL.
+Copy `.env.example` to a local `.env` and configure `LLM_API_KEY`, `LLM_BASE_URL`
+and `LLM_CHAT_MODEL` for a Chat Completions-compatible endpoint/model you can
+access. There is no default provider/model or automatic MIA fallback.
+`LLM_TIMEOUT_SECONDS` defaults to 30; retries are disabled. See the
+[LLM guide](docs/llm-client.md) for configuration and controlled errors.
 
 With the virtual environment activated:
 
 ```bash
-python -m scripts.smoke_test_mia
+python -m scripts.smoke_test_llm
 ```
 
-This checks basic model connectivity. It does not test the structured Housing
-narration contract. Live compatibility with that JSON contract remains unverified.
-Invalid model narration is rejected with HTTP 502 (`narration_failed`). The HTML
-sample does not call MIA. A provider-independent client is tracked in #41.
+This sends a small synthetic Housing evidence package to the selected live model
+and validates its JSON using the real narration contract. Live compatibility
+remains unverified until this check is run with an accessible provider/model.
+Invalid narration is rejected with HTTP 502 (`narration_failed`). The HTML sample
+and `include_narration=false` path do not read LLM settings or call a model.
+The old `MIA_*` helper and `scripts.smoke_test_mia` remain a separate legacy path;
+that older smoke command only checks basic connectivity.
 
 ## Analysis rule and limitations
 

@@ -29,5 +29,8 @@ JSON çıktısını da kapsayacak şekilde 16000 karakterdir.
 Offline test komutu:
 python -m pytest tests/test_housing_narrator.py -q
 
-MIA modelinin JSON formatına uyumu için ayrıca gerçek, anahtar içermeyen bir
-smoke test sonucu gereklidir; offline mock testler canlı model uyumunu ölçmez.
+API, yapılandırılabilir `LLM_*` istemcisini kullanır; eski MIA yardımcı fonksiyonu
+ayrı uyumluluk yolu olarak korunur. Seçilen canlı modelin JSON formatına uyumu
+için ayrıca anahtar içermeyen bir smoke test sonucu gereklidir; offline mock
+testler canlı model uyumunu ölçmez. Kurulum ve `scripts.smoke_test_llm` komutu:
+[LLM istemci rehberi](llm-client.md).
