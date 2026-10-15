@@ -1,4 +1,5 @@
 import json
+import hashlib
 
 import pytest
 
@@ -8,7 +9,10 @@ from app.connectors.evds import (
 )
 from app.lakehouse.bronze import BronzeStore
 from app.lakehouse.layout import LakehouseLayout
-from scripts.build_evds_silver import run
+from scripts.build_evds_silver import (
+    _find_bronze_for_request,
+    run,
+)
 from scripts.download_evds import _parse_period
 
 
@@ -277,3 +281,197 @@ def test_build_downloads_when_exact_bronze_is_missing(
             )
         )
     ) == 3
+
+
+def test_evds_receipt_selection_uses_real_utc_time(tmp_path):
+    data_root = tmp_path / "data"
+    dataset_dir = data_root / "bronze" / "evds" / "tp_ktf12"
+    receipts_dir = dataset_dir / "receipts"
+    receipts_dir.mkdir(parents=True)
+
+    cases = [
+        ("older", "2026-10-02T10:00:00+03:00", "10"),
+        ("newer", "2026-10-02T08:00:00Z", "20"),
+    ]
+
+    for name, timestamp, value in cases:
+        body = _body([
+            {
+                "Tarih": "01-01-2021",
+                "TP_KTF12": value,
+            }
+        ])
+
+        raw_path = dataset_dir / f"{name}.json"
+        raw_path.write_bytes(body)
+
+        receipt = {
+            "series_code": "TP.KTF12",
+            "frequency": "weekly",
+            "request_start": "2021-01-01",
+            "request_end": "2021-02-28",
+            "downloaded_at": timestamp,
+            "sha256": hashlib.sha256(body).hexdigest(),
+            "size_bytes": len(body),
+            "raw_path": str(raw_path.relative_to(data_root)),
+        }
+
+        (receipts_dir / f"{name}.json").write_text(
+            json.dumps(receipt),
+            encoding="utf-8",
+        )
+
+    selected = _find_bronze_for_request(
+        data_root=data_root,
+        series_code="TP.KTF12",
+        request_start="2021-01-01",
+        request_end="2021-02-28",
+    )
+
+    assert selected == dataset_dir / "newer.json"
+
+def _create_receipt_for_selection(
+    data_root,
+    name,
+    timestamp,
+    value="10",
+):
+    dataset_dir = data_root / "bronze" / "evds" / "tp_ktf12"
+    receipts_dir = dataset_dir / "receipts"
+    receipts_dir.mkdir(parents=True, exist_ok=True)
+
+    body = _body([
+        {
+            "Tarih": "01-01-2021",
+            "TP_KTF12": value,
+        }
+    ])
+
+    raw_path = dataset_dir / f"{name}.json"
+    raw_path.write_bytes(body)
+
+    receipt = {
+        "series_code": "TP.KTF12",
+        "frequency": "weekly",
+        "request_start": "2021-01-01",
+        "request_end": "2021-02-28",
+        "sha256": hashlib.sha256(body).hexdigest(),
+        "size_bytes": len(body),
+        "raw_path": str(raw_path.relative_to(data_root)),
+    }
+
+    if timestamp != "__MISSING__":
+        receipt["downloaded_at"] = timestamp
+
+    (receipts_dir / f"{name}.json").write_text(
+        json.dumps(receipt),
+        encoding="utf-8",
+    )
+
+    return raw_path
+
+
+@pytest.mark.parametrize(
+    "timestamp",
+    [
+        "__MISSING__",
+        None,
+        "",
+        "invalid-date",
+        "2026-10-02T08:00:00",
+    ],
+)
+def test_evds_receipt_rejects_invalid_timestamp(
+    tmp_path,
+    timestamp,
+):
+    data_root = tmp_path / "data"
+
+    _create_receipt_for_selection(
+        data_root,
+        "invalid",
+        timestamp,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="timestamp|missing fields",
+    ):
+        _find_bronze_for_request(
+            data_root=data_root,
+            series_code="TP.KTF12",
+            request_start="2021-01-01",
+            request_end="2021-02-28",
+        )
+
+
+def test_evds_receipt_equal_utc_time_uses_filename_tiebreak(
+    tmp_path,
+):
+    data_root = tmp_path / "data"
+
+    _create_receipt_for_selection(
+        data_root,
+        "alpha",
+        "2026-10-02T11:00:00+03:00",
+    )
+
+    expected = _create_receipt_for_selection(
+        data_root,
+        "zeta",
+        "2026-10-02T08:00:00Z",
+    )
+
+    selected = _find_bronze_for_request(
+        data_root=data_root,
+        series_code="TP.KTF12",
+        request_start="2021-01-01",
+        request_end="2021-02-28",
+    )
+
+    assert selected == expected
+
+def test_cli_reports_weekly_coverage_without_network(
+    tmp_path,
+    capsys,
+):
+    data_root, _, _, _ = _prepare_bronze(tmp_path)
+
+    class NetworkMustNotBeUsed:
+        def download_series(self, *args, **kwargs):
+            raise AssertionError(
+                "Network should not be used."
+            )
+
+    output = tmp_path / "silver.csv"
+
+    exit_code = run(
+        start_period=_parse_period("2021-01"),
+        end_period=_parse_period("2021-02"),
+        data_root=data_root,
+        output_path=output,
+        client=NetworkMustNotBeUsed(),
+    )
+
+    assert exit_code == 0
+
+    # Terminale yazdırılan JSON çıktısını oku.
+    cli_output = json.loads(capsys.readouterr().out)
+
+    report_path = output.with_suffix(".coverage.json")
+
+    # CLI doğru rapor yolunu göstermeli.
+    assert cli_output["coverage_report"] == str(report_path)
+    assert report_path.exists()
+
+    # Rapor üretilen Silver CSV'ye ait olmalı.
+    coverage = json.loads(
+        report_path.read_text(encoding="utf-8")
+    )
+
+    assert coverage["silver_sha256"] == cli_output["sha256"]
+    assert coverage["overall_status"] == "unverified"
+
+    assert [
+        month["period"] for month in coverage["months"]
+    ] == ["2021-01", "2021-02"]
