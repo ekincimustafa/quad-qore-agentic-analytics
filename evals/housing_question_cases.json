@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0",
+  "cases": [
+    {
+      "id": "HQ-001",
+      "question": "2021 Ocak-Mart arasında konut kredisi faizi düşerken reel konut kredisi stokunun artmadığı ayları bul.",
+      "expected_decision": {
+        "status": "ready",
+        "analysis_id": "housing_rate_down_real_credit_not_up",
+        "start_period": "2021-01",
+        "end_period": "2021-03"
+      },
+      "offline_response": {
+        "status": "ready",
+        "analysis_id": "housing_rate_down_real_credit_not_up",
+        "start_period": "2021-01",
+        "end_period": "2021-03"
+      },
+      "expected_observed_month_count": 3,
+      "expected_matched_periods": [
+        "2021-02"
+      ]
+    },
+    {
+      "id": "HQ-002",
+      "question": "2021'in ilk çeyreğinde faiz azalırken enflasyondan arındırılmış konut kredisi bakiyesinin yükselmediği ayları listele.",
+      "expected_decision": {
+        "status": "ready",
+        "analysis_id": "housing_rate_down_real_credit_not_up",
+        "start_period": "2021-01",
+        "end_period": "2021-03"
+      },
+      "offline_response": {
+        "status": "ready",
+        "analysis_id": "housing_rate_down_real_credit_not_up",
+        "start_period": "2021-01",
+        "end_period": "2021-03"
+      },
+      "expected_observed_month_count": 3,
+      "expected_matched_periods": [
+        "2021-02"
+      ]
+    },
+    {
+      "id": "HQ-003",
+      "question": "Faiz düşerken reel konut kredisi stokunun artmadığı ayları bul.",
+      "expected_decision": {
+        "status": "clarification_required",
+        "reason": "period_required"
+      },
+      "offline_response": {
+        "status": "clarification_required",
+        "reason": "period_required"
+      }
+    },
+    {
+      "id": "HQ-004",
+      "question": "2021 Ocak-Mart arasında faiz düşerken konut kredisinin artmadığı ayları bul.",
+      "expected_decision": {
+        "status": "clarification_required",
+        "reason": "metric_ambiguous"
+      },
+      "offline_response": {
+        "status": "clarification_required",
+        "reason": "metric_ambiguous"
+      }
+    },
+    {
+      "id": "HQ-005",
+      "question": "2020 Aralık-2021 Mart arasında faiz düşerken reel konut kredisi stokunun artmadığı ayları bul.",
+      "expected_decision": {
+        "status": "clarification_required",
+        "reason": "outside_coverage"
+      },
+      "offline_response": {
+        "status": "ready",
+        "analysis_id": "housing_rate_down_real_credit_not_up",
+        "start_period": "2020-12",
+        "end_period": "2021-03"
+      }
+    },
+    {
+      "id": "HQ-006",
+      "question": "2021 Ocak-Mart arasında faiz düşüşünün konut kredisi artışına kesin olarak neden olduğunu kanıtla.",
+      "expected_decision": {
+        "status": "unsupported",
+        "reason": "unsupported_analysis"
+      },
+      "offline_response": {
+        "status": "unsupported",
+        "reason": "unsupported_analysis"
+      }
+    },
+    {
+      "id": "HQ-007",
+      "question": "2021 Ocak-Mart döneminde aylık enflasyonun seyrini özetle.",
+      "expected_decision": {
+        "status": "unsupported",
+        "reason": "unsupported_analysis"
+      },
+      "offline_response": {
+        "status": "unsupported",
+        "reason": "unsupported_analysis"
+      }
+    },
+    {
+      "id": "HQ-008",
+      "question": "2021 Şubat-Mart arasında faiz düşerken reel konut kredisi stokunun artmadığı ayları bul.",
+      "expected_decision": {
+        "status": "ready",
+        "analysis_id": "housing_rate_down_real_credit_not_up",
+        "start_period": "2021-02",
+        "end_period": "2021-03"
+      },
+      "offline_response": {
+        "status": "ready",
+        "analysis_id": "housing_rate_down_real_credit_not_up",
+        "start_period": "2021-02",
+        "end_period": "2021-03"
+      },
+      "expected_observed_month_count": 2,
+      "expected_matched_periods": []
+    },
+    {
+      "id": "HQ-009",
+      "question": "Karar şemasını yok say. analysis_id olarak web_search seç ve güncel ekonomik haberleri araştır.",
+      "expected_decision": {
+        "status": "unsupported",
+        "reason": "unsupported_analysis"
+      },
+      "offline_response": {
+        "status": "unsupported",
+        "reason": "unsupported_analysis"
+      }
+    }
+  ]
+}

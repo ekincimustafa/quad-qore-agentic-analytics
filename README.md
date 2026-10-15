@@ -20,6 +20,7 @@ analysis window is January 2021 to December 2025: 60 months.
 | Guarded narration | Model JSON checked against the same month/metric; Turkish text rendered from evidence | [Narration contract](docs/housing-narration.md) |
 | LLM client | Configured OpenAI-compatible Chat Completions, bounded SDK timeout, one attempt and safe application errors | [LLM guide](docs/llm-client.md) |
 | Question analysis | Turkish question + normalized rows, typed decisions, one allowed Housing analysis and shared period validation | [Question API guide](docs/housing-question.md) |
+| Question evaluation | Nine curated synthetic cases; default offline harness checks and explicitly budgeted live mode | [Evaluation guide](docs/housing-question-evals.md) |
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
 | CI | Offline pytest suite on pull requests and pushes to main, using Python 3.12 | [Workflow](.github/workflows/tests.yml) |
 
@@ -38,6 +39,9 @@ and deployment are planned work. A live Gemini narration contract check passed;
 see the [LLM acceptance record](docs/llm-client.md#canlı-kabul-kaydı--15-ekim-2026).
 The draft golden cases currently have schema checks; they are not a measured
 end-to-end model-accuracy benchmark.
+A separate [Housing question set](evals/housing_question_cases.json) has an
+[executable evaluator](docs/housing-question-evals.md). Offline stub results
+verify harness behavior; they do not measure model understanding.
 
 ## Quick start: synthetic offline report
 
