@@ -169,6 +169,12 @@ def narrate_housing_evidence(
     return validate_housing_narration(response, evidence)
 
 
+def narrate_housing_evidence_with_llm(evidence: HousingAnalysisEvidence) -> str:
+    from app.connectors.llm_client import ask_llm
+
+    return narrate_housing_evidence(evidence, ask_llm)
+
+
 def narrate_housing_evidence_with_mia(evidence: HousingAnalysisEvidence) -> str:
     from app.connectors.mia_client import ask_mia
 

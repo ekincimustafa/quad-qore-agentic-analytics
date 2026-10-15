@@ -288,7 +288,7 @@ def test_default_api_narrator_validates_model_output(monkeypatch, rate, expected
     from fastapi.testclient import TestClient
 
     from app.api.main import create_app
-    from app.connectors import mia_client
+    from app.connectors import llm_client
     from tests.test_housing_analysis_api import _payload as api_payload
 
     response = _json({
@@ -299,7 +299,7 @@ def test_default_api_narrator_validates_model_output(monkeypatch, rate, expected
             "real_housing_loan_change_pct": -9.0909,
         }],
     })
-    monkeypatch.setattr(mia_client, "ask_mia", lambda prompt: response)
+    monkeypatch.setattr(llm_client, "ask_llm", lambda prompt: response)
     request = api_payload()
     request["include_narration"] = True
     result = TestClient(create_app()).post("/analysis/housing", json=request)
