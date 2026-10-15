@@ -19,7 +19,7 @@ analysis window is January 2021 to December 2025: 60 months.
 | FastAPI | Health, normalized-row analysis, and server-side Silver analysis endpoints | [housing.py](app/api/housing.py) |
 | Guarded narration | Model JSON checked against the same month/metric; Turkish text rendered from evidence | [Narration contract](docs/housing-narration.md) |
 | LLM client | Configured OpenAI-compatible Chat Completions, bounded SDK timeout, one attempt and safe application errors | [LLM guide](docs/llm-client.md) |
-| Question execution core | Typed question decisions, one allowed Housing analysis, server-supplied period bounds; Python service only | [Question guide](docs/housing-question.md) |
+| Question analysis | Turkish question + normalized rows, typed decisions, one allowed Housing analysis and shared period validation | [Question API guide](docs/housing-question.md) |
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
 | CI | Offline pytest suite on pull requests and pushes to main, using Python 3.12 | [Workflow](.github/workflows/tests.yml) |
 
@@ -30,9 +30,9 @@ work in [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issue
 [#45](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/45).
 See the [acceptance record](docs/release-acceptance.md) for verified checks and open gates.
 
-Question routing has a bounded Python service core with offline behavior tests.
-Its HTTP endpoint, file-backed integration and live semantic evaluation remain
-open in [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42).
+Question routing has a bounded Python service and HTTP endpoint with offline
+behavior tests. File-backed integration and live semantic evaluation remain open
+in [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42).
 A general agent/tool registry, data catalog, general web/anomaly/causality tools
 and deployment are planned work. A live Gemini narration contract check passed;
 see the [LLM acceptance record](docs/llm-client.md#canlı-kabul-kaydı--15-ekim-2026).
@@ -99,6 +99,7 @@ Interactive API documentation: <http://127.0.0.1:8000/docs>.
 | `GET /health` | API health; does not verify real-data availability or model access |
 | `POST /analysis/housing` | Normalized BDDK/EVDS rows and period; returns evidence, chart and optional narration |
 | `POST /analysis/housing/demo` | Period and optional narration; reads server-controlled local Silver files |
+| `POST /analysis/housing/question` | Turkish question + normalized rows; validates the model plan before analysis, or returns clarification/unsupported |
 
 `include_narration` defaults to `false`, so normalized-row analysis needs no key.
 Try [the three-month synthetic request](docs/housing-api-example.json) in a second terminal.
@@ -121,6 +122,10 @@ curl -f -H 'Content-Type: application/json' --data-binary @docs/housing-api-exam
 
 The example has three observations and matches `2021-02`. It is independent of
 the 60-month HTML sample and does not create Silver files.
+
+For the question endpoint, use [the separate synthetic question request](docs/housing-question-api-example.json)
+and [question API instructions](docs/housing-question.md#soru-apisi). Question planning
+requires a configured live model even when `include_narration=false`.
 
 The file-backed endpoint expects these paths relative to the repository root:
 

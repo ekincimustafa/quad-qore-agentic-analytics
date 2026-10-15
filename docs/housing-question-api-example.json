@@ -1,0 +1,43 @@
+{
+  "question": "2021 Ocak-Mart arasında konut kredisi faizi düşerken reel konut kredisi stokunun artmadığı ayları bul.",
+  "include_narration": false,
+  "bddk_source_ref": "synthetic://api-example/bddk",
+  "evds_source_refs": "synthetic://api-example/interest; synthetic://api-example/cpi; synthetic://api-example/hpi",
+  "bddk_monthly": [
+    {
+      "period": "2021-01",
+      "nominal_housing_loan_mn_try": 100.0
+    },
+    {
+      "period": "2021-02",
+      "nominal_housing_loan_mn_try": 100.0
+    },
+    {
+      "period": "2021-03",
+      "nominal_housing_loan_mn_try": 100.0
+    }
+  ],
+  "evds_monthly": [
+    {
+      "period": "2021-01",
+      "housing_loan_interest_rate_pct": 10.0,
+      "weekly_observation_count": 4,
+      "cpi_index": 100.0,
+      "housing_price_index": 100.0
+    },
+    {
+      "period": "2021-02",
+      "housing_loan_interest_rate_pct": 9.0,
+      "weekly_observation_count": 4,
+      "cpi_index": 110.0,
+      "housing_price_index": 101.0
+    },
+    {
+      "period": "2021-03",
+      "housing_loan_interest_rate_pct": 11.0,
+      "weekly_observation_count": 5,
+      "cpi_index": 120.0,
+      "housing_price_index": 102.0
+    }
+  ]
+}
