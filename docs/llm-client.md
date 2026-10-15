@@ -65,5 +65,22 @@ Bu komut üç aylık sentetik fixture'dan deterministik evidence üretir; canlı
 tek istek gönderir ve gerçek narrator doğrulamasını çalıştırır. Beklenen sonuç
 üç ay ve yalnızca 2021-02 eşleşmesidir. Çıktı ham model metni değil, evidence'den
 üretilen Türkçe anlatımdır. Offline mock testler canlı sağlayıcı/model uyumunu
-ölçmez. Bu değişiklik hazırlanırken canlı sağlayıcı kontrolü yapılmadı;
-başarılı canlı kontrol olmadan #41'in bu ölçütü tamamlanmış sayılmaz.
+ölçmez.
+
+## Canlı kabul kaydı — 15 Ekim 2026
+
+Kullanıcının Windows PowerShell / mevcut venv ortamında Gemini API ve
+`gemini-3.5-flash-lite` ile `python -m scripts.smoke_test_llm` başarılı oldu.
+Son bildirilen çalışma tabanı `72836a9` idi. Üç sentetik ay incelendi;
+tek eşleşme `2021-02`, çıkış kodu `0`. Gerçek anahtar paylaşılmadı.
+
+Önceki `gemini-3.8-flash` isteği kontrollü `provider_unavailable` hatası verdi;
+uygulama çıktısı kesin HTTP kodunu göstermiyordu. Flash-Lite başarılı koşusunda
+`LLM_CHAT_MODEL` terminalde geçici değiştirildi ve sonra kaldırıldı. Kalıcı seçim
+yerel `.env` dosyasında yapılır; uygulamada otomatik model fallback'i eklenmedi.
+
+Bu tek başarılı sözleşme kontrolüdür; sağlayıcı kararlılığı, model başarı oranı,
+ekonomik yorum kalitesi veya gerçek veri kabulü ölçülmüş sayılmaz. Türkçe metni
+mevcut Python renderer üretir. Gerçek ekonomik veri kabulü #39/#40, soru planlama
+ve yorumlama çalışmaları ayrı teslimatlardır. Faturalandırma durumu ve model
+kotasının hesabın arayüzünden kontrolü gerekir; kod harcama sınırı uygulamaz.
