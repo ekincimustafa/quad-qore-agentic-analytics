@@ -1,13 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+import re
+from dataclasses import asdict, dataclass
 from hashlib import sha256
 from pathlib import Path
-import re
 
 import pandas as pd
 
 from app.lakehouse.evds_adapter import load_evds_bronze_file
+from app.lakehouse.evds_weekly_coverage import (
+    assess_monthly_weekly_coverage,
+)
 from app.lakehouse.silver import (
     merge_monthly_evds_series,
     monthly_cpi_index,
@@ -113,6 +117,61 @@ def build_evds_silver_from_bronze(
         end_period=end_period,
     )
 
+    try:
+        raw_dates = pd.to_datetime(
+            housing_rate_raw["Tarih"],
+            dayfirst=True,
+            format="mixed",
+            errors="raise",
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "Invalid weekly EVDS observation date."
+        ) from exc
+
+    if raw_dates.isna().any():
+        raise ValueError(
+            "Missing weekly EVDS observation date."
+        )
+
+    observed_by_period = {}
+
+    for observation_date in raw_dates:
+        if not (
+            pd.Timestamp(start_date)
+            <= observation_date
+            <= pd.Timestamp(end_date)
+        ):
+            continue
+
+        period = observation_date.strftime("%Y-%m")
+        date_text = observation_date.strftime("%Y-%m-%d")
+
+        observed_by_period.setdefault(
+            period, []
+        ).append(date_text)
+
+    coverage_months = []
+
+    for row in merged.itertuples(index=False):
+        period = row.period
+
+        coverage = assess_monthly_weekly_coverage(
+            period=period,
+            observed_dates=observed_by_period.get(period, []),
+        )
+
+        # Rapor ile Silver gözlem sayısı tutarlı olmalı.
+        if (
+            coverage.observed_count
+            != int(row.weekly_observation_count)
+        ):
+            raise ValueError(
+                f"Weekly coverage count mismatch: {period}"
+            )
+
+        coverage_months.append(asdict(coverage))
+
     output = Path(output_path)
     output.parent.mkdir(
         parents=True,
@@ -133,6 +192,37 @@ def build_evds_silver_from_bronze(
 
         temporary.write_bytes(csv_bytes)
         temporary.replace(output)
+
+            # Silver CSV'ye bağlı haftalık kapsam raporu.
+    coverage_report = {
+        "schema_version": "1.0",
+        "silver_sha256": digest,
+        "overall_status": "unverified",
+        "calendar_verification": "not_available",
+        "months": coverage_months,
+    }
+
+    report_path = output.with_suffix(".coverage.json")
+
+    report_bytes = (
+        json.dumps(
+            coverage_report,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        ) + "\n"
+    ).encode("utf-8")
+
+    if (
+        not report_path.exists()
+        or report_path.read_bytes() != report_bytes
+    ):
+        temporary_report = report_path.with_suffix(
+            report_path.suffix + ".part"
+        )
+
+        temporary_report.write_bytes(report_bytes)
+        temporary_report.replace(report_path)
 
     return EvdsSilverBuildResult(
         path=output,
