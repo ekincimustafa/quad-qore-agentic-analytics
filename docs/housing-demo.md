@@ -43,11 +43,12 @@ python -m scripts.run_housing_demo --evds-manifest data/silver/evds/monthly/mani
 - `--evds-silver`: Path to the EVDS Silver CSV file (default: `data/silver/evds/monthly/evds_monthly_2021-01_2026-06.csv`).
 - `--start-period`: Analysis start period (default: `2021-01`).
 - `--end-period`: Analysis end period (default: `2025-12`).
+- `--html`: Also render the offline HTML presentation (`report.html`) in the output directory using `render_housing_report`.
 
 ## 5. Exit Codes
 
-- `0`: Success. The output directory contains `evidence.json`, `chart.json`, and `run_summary.json`.
-- `1`: Data or integrity error (e.g., hash mismatch, missing periods, corrupt files).
+- `0`: Success. The output directory contains `evidence.json`, `chart.json`, `run_summary.json` (and `report.html` when `--html` is enabled).
+- `1`: Data or integrity error (e.g., hash mismatch, missing periods, corrupt files, or output/staging/backup path overlapping with source files).
 - `2`: CLI usage/argument error.
 
 ## 6. Output Files
@@ -55,6 +56,7 @@ python -m scripts.run_housing_demo --evds-manifest data/silver/evds/monthly/mani
 - `run_summary.json`: A deterministic trace of the run including input SHA-256 hashes, exact periods, matched periods, methodology rules, and output SHA-256 hashes.
 - `evidence.json`: The fully verified mathematical evidence containing cross-dataset references (traceability back to Bronze).
 - `chart.json`: Plotly JSON specification mapping precisely to the evidence traces.
+- `report.html` (optional, with `--html`): Self-contained offline HTML report rendered from the verified analysis run and summary.
 
 ## 7. Limitations & Constraints
 

@@ -19,6 +19,7 @@ from app.services.evds_manifest import load_and_validate_manifest, append_evds_s
 from app.services.housing_demo import HousingDemoPaths, run_file_backed_housing_demo
 from app.lakehouse.gold import GoldAnalysisError, build_housing_gold_table
 from app.tools.housing_evidence import EvidenceBuildError, HousingAnalysisEvidence
+from app.tools.housing_report import render_housing_report
 
 
 _CHART_SERIES = {
@@ -34,6 +35,111 @@ _CHART_DATE_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])-01$")
 
 def _calculate_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _all_resolution_stages(path: Path) -> set[Path]:
+    """Return lexical absolute path, fully resolved path, and all intermediate symlink resolution stages."""
+    abs_path = Path(os.path.abspath(path))
+    parts = abs_path.parts
+    stages: set[Path] = {abs_path}
+    try:
+        stages.add(path.resolve())
+    except OSError:
+        pass
+    for idx in range(1, len(parts) + 1):
+        prefix = Path(*parts[:idx])
+        suffix = parts[idx:]
+        try:
+            resolved_prefix = prefix.resolve()
+            stages.add(resolved_prefix.joinpath(*suffix))
+        except OSError:
+            pass
+    return stages
+
+
+def _collect_manifest_source_paths(manifest_path: Path, root_dir: Path) -> list[Path]:
+    """Extract declared Silver CSV and Bronze receipt/raw paths from manifest JSON before full validation."""
+    collected: list[Path] = []
+    if not manifest_path.is_file():
+        return collected
+    try:
+        raw_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return collected
+    if not isinstance(raw_data, dict):
+        return collected
+
+    silver = raw_data.get("silver")
+    if isinstance(silver, dict):
+        silver_path = silver.get("path")
+        if isinstance(silver_path, str) and silver_path.strip():
+            sp = silver_path.strip()
+            collected.append(root_dir / sp)
+            cand_rel = manifest_path.parent / sp
+            if cand_rel.exists() or cand_rel.is_symlink():
+                collected.append(cand_rel)
+
+    series_list = raw_data.get("series")
+    if isinstance(series_list, list):
+        for s_item in series_list:
+            if not isinstance(s_item, dict):
+                continue
+            bronze_list = s_item.get("bronze")
+            if not isinstance(bronze_list, list):
+                continue
+            for b_item in bronze_list:
+                if not isinstance(b_item, dict):
+                    continue
+                for key in ("receipt_path", "raw_path"):
+                    val = b_item.get(key)
+                    if not isinstance(val, str) or not val.strip():
+                        continue
+                    rel_str = val.strip()
+                    p_root = root_dir / rel_str
+                    collected.append(p_root)
+                    p_manifest = manifest_path.parent / rel_str
+                    if p_manifest.exists() or p_manifest.is_symlink():
+                        collected.append(p_manifest)
+                    if key == "receipt_path":
+                        for receipt_cand in (p_root, p_manifest):
+                            if receipt_cand.is_file():
+                                try:
+                                    r_data = json.loads(receipt_cand.read_text(encoding="utf-8"))
+                                except Exception:
+                                    r_data = None
+                                if isinstance(r_data, dict):
+                                    r_raw = r_data.get("raw_path")
+                                    if isinstance(r_raw, str) and r_raw.strip():
+                                        r_raw_str = r_raw.strip()
+                                        for cand in (
+                                            root_dir / r_raw_str,
+                                            root_dir / "data" / r_raw_str,
+                                            receipt_cand.parent / r_raw_str,
+                                        ):
+                                            if cand.exists() or cand.is_symlink():
+                                                collected.append(cand)
+    return collected
+
+
+def _ensure_output_dirs_disjoint_from_sources(
+    target_dirs: tuple[Path, ...],
+    source_paths: list[Path],
+) -> None:
+    """Ensure output, staging, and backup directories do not contain or overlap with any source path."""
+    target_stage_map = {td: _all_resolution_stages(td) for td in target_dirs}
+    for src in source_paths:
+        src_stages = _all_resolution_stages(src)
+        for td, td_stages in target_stage_map.items():
+            for t_stage in td_stages:
+                for s_stage in src_stages:
+                    if (
+                        s_stage == t_stage
+                        or s_stage.is_relative_to(t_stage)
+                        or t_stage.is_relative_to(s_stage)
+                    ):
+                        raise RuntimeError(
+                            f"Unsafe output/staging/backup directory ({td}): overlaps with source input ({src})."
+                        )
 
 
 def validate_chart(
@@ -201,11 +307,31 @@ def main(argv: list[str] | None = None) -> int:
     bddk_path = Path(args.bddk_silver)
     evds_path = Path(args.evds_silver)
     manifest_path = Path(args.evds_manifest)
-    out_dir = Path(args.output_dir)
-    staging_dir = out_dir.with_name(out_dir.name + ".part")
-    backup_dir = out_dir.with_name(f"{out_dir.name}.backup")
+    raw_out_dir = Path(args.output_dir)
+    out_dir = Path(os.path.abspath(raw_out_dir)) if raw_out_dir.name in ("", ".", "..") else raw_out_dir
+    staging_dir: Path | None = None
+    backup_dir: Path | None = None
+    paths_verified_safe = False
+    staging_touched = False
 
     try:
+        if not out_dir.name or out_dir.name in (".", ".."):
+            raise RuntimeError(f"Invalid output directory: {args.output_dir}")
+        staging_dir = out_dir.with_name(out_dir.name + ".part")
+        backup_dir = out_dir.with_name(f"{out_dir.name}.backup")
+
+        root_dir = Path.cwd()
+        target_dirs = (out_dir, staging_dir, backup_dir)
+
+        # Pre-check path disjointness before reading/validating or touching any directory
+        initial_sources = [
+            bddk_path,
+            evds_path,
+            manifest_path,
+            *_collect_manifest_source_paths(manifest_path, root_dir),
+        ]
+        _ensure_output_dirs_disjoint_from_sources(target_dirs, initial_sources)
+
         # Validate BDDK Silver
         if not bddk_path.is_file():
             raise RuntimeError(f"BDDK silver file not found: {bddk_path}")
@@ -213,8 +339,21 @@ def main(argv: list[str] | None = None) -> int:
         validate_bddk_monthly_silver(bddk_df, start_period=bddk_df["period"].min(), end_period=bddk_df["period"].max())
 
         # Validate EVDS Manifest
-        root_dir = Path.cwd()
         manifest = load_and_validate_manifest(manifest_path, root_dir)
+
+        # Verify all validated manifest paths are also disjoint from output/staging/backup
+        validated_sources = [
+            bddk_path,
+            evds_path,
+            manifest_path,
+            root_dir / manifest.silver.path,
+        ]
+        for series in manifest.series:
+            for b in series.bronze:
+                validated_sources.append(root_dir / b.receipt_path)
+                validated_sources.append(root_dir / b.raw_path)
+        _ensure_output_dirs_disjoint_from_sources(target_dirs, validated_sources)
+        paths_verified_safe = True
 
         # Verify --evds-silver resolves to the exact same file as declared in the manifest
         if not evds_path.is_file():
@@ -272,6 +411,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         # Staging
+        staging_touched = True
         if staging_dir.exists():
             shutil.rmtree(staging_dir)
         staging_dir.mkdir(parents=True)
@@ -331,6 +471,18 @@ def main(argv: list[str] | None = None) -> int:
         if read_summary_json != expected_summary_json:
             raise RuntimeError("Read-back verification failed for run_summary.json: content mismatch.")
 
+        if args.html:
+            report_file = staging_dir / "report.html"
+            html_content = render_housing_report(
+                run,
+                dataset_kind="local",
+                run_summary=summary,
+            )
+            report_file.write_text(html_content, encoding="utf-8")
+            read_html = report_file.read_text(encoding="utf-8")
+            if read_html != html_content:
+                raise RuntimeError("Read-back verification failed for report.html: content mismatch.")
+
         # Transactional publishing: never delete an intact backup before the new output is published
         if out_dir.exists():
             if backup_dir.exists():
@@ -356,16 +508,17 @@ def main(argv: list[str] | None = None) -> int:
                 shutil.rmtree(backup_dir, ignore_errors=True)
 
     except Exception as exc:
-        if staging_dir.exists():
-            shutil.rmtree(staging_dir, ignore_errors=True)
-        if backup_dir.exists() and not out_dir.exists():
-            try:
-                backup_dir.rename(out_dir)
-            except Exception:
+        if paths_verified_safe:
+            if staging_touched and staging_dir is not None and staging_dir.exists():
+                shutil.rmtree(staging_dir, ignore_errors=True)
+            if backup_dir is not None and backup_dir.exists() and not out_dir.exists():
                 try:
-                    os.replace(backup_dir, out_dir)
+                    backup_dir.rename(out_dir)
                 except Exception:
-                    pass
+                    try:
+                        os.replace(backup_dir, out_dir)
+                    except Exception:
+                        pass
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 

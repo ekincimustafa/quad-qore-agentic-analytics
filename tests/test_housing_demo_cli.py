@@ -746,3 +746,210 @@ def test_validate_chart_direct_unit_checks(synthetic_66_months):
             t["y"][idx] = 999.0
     with pytest.raises(RuntimeError, match="does not match evidence"):
         validate_chart(c5, run.evidence)
+
+
+def _snapshot_tree(root: Path) -> dict[str, bytes]:
+    return {
+        p.relative_to(root).as_posix(): p.read_bytes()
+        for p in sorted(root.rglob("*"))
+        if p.is_file()
+    }
+
+
+def _create_dir_link(link_path: Path, target_dir: Path) -> None:
+    try:
+        link_path.symlink_to(target_dir, target_is_directory=True)
+    except OSError:
+        import _winapi
+        _winapi.CreateJunction(str(target_dir.resolve()), str(link_path))
+
+
+@pytest.mark.parametrize(
+    "layout",
+    [
+        "output_dir_is_input_dir",
+        "output_dir_is_dot_cwd",
+        "inputs_in_staging_part",
+        "inputs_in_backup_dir",
+    ],
+)
+def test_cli_rejects_output_staging_backup_overlapping_inputs_and_preserves_bytes(
+    synthetic_66_months, tmp_path, monkeypatch, layout
+):
+    """[P1] All collision layouts (output, '.', .part, .backup) must exit 1 and preserve every input file byte-for-byte."""
+    import shutil
+
+    bddk_src, evds_src, manifest_src = synthetic_66_months
+    work_root = tmp_path / "isolated_run"
+    work_root.mkdir(parents=True, exist_ok=True)
+
+    out_dir = work_root / "target_out"
+    if layout in ("output_dir_is_input_dir", "output_dir_is_dot_cwd"):
+        input_dir = out_dir
+    elif layout == "inputs_in_staging_part":
+        input_dir = work_root / "target_out.part"
+    else:
+        input_dir = work_root / "target_out.backup"
+
+    input_dir.mkdir(parents=True, exist_ok=True)
+    bddk = input_dir / bddk_src.name
+    evds = input_dir / evds_src.name
+    manifest = input_dir / manifest_src.name
+    shutil.copy2(bddk_src, bddk)
+    shutil.copy2(evds_src, evds)
+    shutil.copy2(manifest_src, manifest)
+    shutil.copytree(tmp_path / "bronze", input_dir / "bronze")
+
+    before_bytes = _snapshot_tree(input_dir)
+    assert len(before_bytes) == 9  # bddk, evds, manifest + 3 receipts + 3 raw files
+
+    monkeypatch.chdir(input_dir)
+    out_arg = "." if layout == "output_dir_is_dot_cwd" else str(out_dir)
+    argv = [
+        "--bddk-silver", str(bddk),
+        "--evds-silver", str(evds),
+        "--evds-manifest", str(manifest),
+        "--output-dir", out_arg,
+    ]
+    assert main(argv) == 1
+    assert input_dir.is_dir()
+    after_bytes = _snapshot_tree(input_dir)
+    assert after_bytes == before_bytes
+
+
+@pytest.mark.parametrize("target_kind", ["out", "part", "backup"])
+def test_cli_rejects_when_only_bronze_files_reside_in_output_staging_or_backup(
+    synthetic_66_months, tmp_path, monkeypatch, target_kind
+):
+    """[P1] Even if BDDK, EVDS, and manifest are outside, having Bronze raw/receipt files inside output/.part/.backup must exit 1 and preserve bytes."""
+    import hashlib
+    import shutil
+
+    bddk, evds, manifest = synthetic_66_months
+    out_dir = tmp_path / "demo_out"
+    if target_kind == "out":
+        hazard_dir = out_dir
+    elif target_kind == "part":
+        hazard_dir = tmp_path / "demo_out.part"
+    else:
+        hazard_dir = tmp_path / "demo_out.backup"
+
+    bronze_dest = hazard_dir / "bronze"
+    bronze_dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(tmp_path / "bronze", bronze_dest)
+
+    rel_prefix = f"{hazard_dir.name}/bronze"
+    manifest_data = json.loads(manifest.read_text(encoding="utf-8"))
+    for s_entry in manifest_data["series"]:
+        for b_entry in s_entry["bronze"]:
+            old_rec_name = Path(b_entry["receipt_path"]).name
+            old_raw_name = Path(b_entry["raw_path"]).name
+            new_rec_rel = f"{rel_prefix}/{old_rec_name}"
+            new_raw_rel = f"{rel_prefix}/{old_raw_name}"
+            rec_file = tmp_path / new_rec_rel
+            rec_payload = json.loads(rec_file.read_text(encoding="utf-8"))
+            rec_payload["raw_path"] = new_raw_rel
+            rec_file.write_text(json.dumps(rec_payload, indent=2), encoding="utf-8")
+            b_entry["receipt_path"] = new_rec_rel
+            b_entry["raw_path"] = new_raw_rel
+
+    manifest.write_text(json.dumps(manifest_data, indent=2), encoding="utf-8")
+    before_hazard = _snapshot_tree(hazard_dir)
+    before_bddk = bddk.read_bytes()
+    before_evds = evds.read_bytes()
+    before_manifest = manifest.read_bytes()
+
+    monkeypatch.chdir(tmp_path)
+    argv = [
+        "--bddk-silver", str(bddk),
+        "--evds-silver", str(evds),
+        "--evds-manifest", str(manifest),
+        "--output-dir", str(out_dir),
+    ]
+    assert main(argv) == 1
+    assert _snapshot_tree(hazard_dir) == before_hazard
+    assert bddk.read_bytes() == before_bddk
+    assert evds.read_bytes() == before_evds
+    assert manifest.read_bytes() == before_manifest
+
+
+@pytest.mark.parametrize("link_mode", ["output_link_to_inputs", "staging_link_to_inputs", "backup_link_to_inputs"])
+def test_cli_rejects_symlink_aliased_output_staging_backup_paths(
+    synthetic_66_months, tmp_path, monkeypatch, link_mode
+):
+    """[P1] Symlink/junction paths resolving to the same location as inputs must exit 1 and preserve all inputs byte-for-byte."""
+    bddk, evds, manifest = synthetic_66_months
+    before_bytes = {
+        p.relative_to(tmp_path).as_posix(): p.read_bytes()
+        for p in sorted(tmp_path.rglob("*"))
+        if p.is_file()
+    }
+
+    links_dir = tmp_path.parent / f"{tmp_path.name}_links_{link_mode}"
+    links_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = links_dir / "out"
+
+    if link_mode == "output_link_to_inputs":
+        _create_dir_link(out_dir, tmp_path)
+    elif link_mode == "staging_link_to_inputs":
+        _create_dir_link(links_dir / "out.part", tmp_path)
+    else:
+        _create_dir_link(links_dir / "out.backup", tmp_path)
+
+    monkeypatch.chdir(tmp_path)
+    argv = [
+        "--bddk-silver", str(bddk),
+        "--evds-silver", str(evds),
+        "--evds-manifest", str(manifest),
+        "--output-dir", str(out_dir),
+    ]
+    assert main(argv) == 1
+    after_bytes = {
+        p.relative_to(tmp_path).as_posix(): p.read_bytes()
+        for p in sorted(tmp_path.rglob("*"))
+        if p.is_file()
+    }
+    assert after_bytes == before_bytes
+
+
+def test_cli_html_flag_renders_and_publishes_verified_offline_report(
+    synthetic_66_months, tmp_path, monkeypatch
+):
+    """[P2] --html generates report.html alongside the three JSON files using render_housing_report."""
+    from html import unescape
+    from tests.test_housing_report import _Page
+
+    bddk, evds, manifest = synthetic_66_months
+    out_dir = tmp_path / "output_html"
+
+    monkeypatch.chdir(tmp_path)
+    argv = [
+        "--bddk-silver", str(bddk),
+        "--evds-silver", str(evds),
+        "--evds-manifest", str(manifest),
+        "--start-period", "2021-01",
+        "--end-period", "2025-12",
+        "--output-dir", str(out_dir),
+        "--html",
+    ]
+    assert main(argv) == 0
+
+    for fname in ("evidence.json", "chart.json", "run_summary.json", "report.html"):
+        assert (out_dir / fname).is_file(), f"Missing expected output file: {fname}"
+
+    html = (out_dir / "report.html").read_text(encoding="utf-8")
+    summary_text = (out_dir / "run_summary.json").read_text(encoding="utf-8")
+    evidence_data = json.loads((out_dir / "evidence.json").read_text(encoding="utf-8"))
+
+    page = _Page()
+    page.feed(html)
+    assert page.external_resources == []
+    assert "Plotly.newPlot" in html
+    assert "YEREL VERİ" in html
+    assert "nedensellik kanıtlamaz" in html
+    assert "İlk ayın önceki ay değişimleri null" in html
+    assert "bronze/1.json" in html
+    assert summary_text in unescape(html)
+    for matched_period in evidence_data["matched_periods"]:
+        assert f"<td>{matched_period}</td>" in html
+
