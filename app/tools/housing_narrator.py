@@ -171,4 +171,5 @@ def narrate_housing_evidence(
 
 def narrate_housing_evidence_with_mia(evidence: HousingAnalysisEvidence) -> str:
     from app.connectors.mia_client import ask_mia
+
     return narrate_housing_evidence(evidence, ask_mia)

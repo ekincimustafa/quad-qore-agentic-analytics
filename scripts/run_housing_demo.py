@@ -4,6 +4,8 @@ import argparse
 import hashlib
 import json
 import math
+import os
+import re
 import shutil
 import sys
 import tempfile
@@ -15,40 +17,170 @@ import pandas as pd
 from app.lakehouse.bddk_silver import validate_bddk_monthly_silver
 from app.services.evds_manifest import load_and_validate_manifest, append_evds_source_refs
 from app.services.housing_demo import HousingDemoPaths, run_file_backed_housing_demo
-from app.lakehouse.gold import GoldAnalysisError
-from app.tools.housing_evidence import EvidenceBuildError
+from app.lakehouse.gold import GoldAnalysisError, build_housing_gold_table
+from app.tools.housing_evidence import EvidenceBuildError, HousingAnalysisEvidence
+
+
+_CHART_SERIES = {
+    "Nominal konut kredisi": "nominal_housing_loan_mn_try",
+    "Reel konut kredisi (2025 fiyatları)": "real_housing_loan_2025_mn_try",
+    "Konut kredisi faizi": "housing_loan_interest_rate_pct",
+    "TÜFE (2025=100)": "cpi_index",
+    "Konut Fiyat Endeksi (2023=100)": "housing_price_index",
+}
+_CHART_MARKER = "Koşula uyan ay"
+_CHART_DATE_PATTERN = re.compile(r"^\d{4}-(0[1-9]|1[0-2])-01$")
 
 
 def _calculate_sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def validate_chart(chart: dict[str, Any], matched_periods: tuple[str, ...], observed_count: int) -> None:
+def validate_chart(
+    chart: dict[str, Any],
+    matched_periods_or_evidence: tuple[str, ...] | HousingAnalysisEvidence,
+    observed_count: int | None = None,
+    *,
+    evidence: HousingAnalysisEvidence | None = None,
+    gold_df: pd.DataFrame | None = None,
+) -> None:
+    if isinstance(matched_periods_or_evidence, HousingAnalysisEvidence):
+        evidence = matched_periods_or_evidence
+        matched_periods = evidence.matched_periods
+        observed_count = evidence.observed_month_count
+    else:
+        matched_periods = tuple(matched_periods_or_evidence)
+        if evidence is not None and observed_count is None:
+            observed_count = evidence.observed_month_count
+
+    if not isinstance(chart, dict):
+        raise RuntimeError("Chart must be a dictionary.")
+
     data = chart.get("data", [])
-    if len(data) != 6:
-        raise RuntimeError(f"Chart must have exactly 6 traces, found {len(data)}")
+    if not isinstance(data, list) or len(data) != 6:
+        raise RuntimeError(
+            f"Chart must have exactly 6 traces, found {len(data) if isinstance(data, list) else type(data).__name__}"
+        )
+
+    trace_names = [t.get("name") for t in data if isinstance(t, dict)]
+    expected_names = set(_CHART_SERIES) | {_CHART_MARKER}
+    if len(trace_names) != 6 or len(set(trace_names)) != 6 or set(trace_names) != expected_names:
+        raise RuntimeError(
+            f"Chart must contain the 6 unique expected traces: {sorted(expected_names)}, got {trace_names}"
+        )
+
+    expected_dates: list[str] | None = None
+    if evidence is not None:
+        periods = pd.period_range(evidence.period_start, evidence.period_end, freq="M")
+        expected_dates = [f"{p}-01" for p in periods]
+        matches = tuple(row.period for row in evidence.results)
+        if (
+            len(expected_dates) != evidence.observed_month_count
+            or matches != evidence.matched_periods
+            or matches != matched_periods
+            or len(set(matches)) != len(matches)
+            or len(matches) != evidence.matched_month_count
+            or not set(matches).issubset(str(p) for p in periods[1:])
+        ):
+            raise RuntimeError("Evidence period metadata is inconsistent.")
+
+    expected_matched_x = [f"{p}-01" for p in matched_periods]
+    trace_maps: dict[str, dict[str, float]] = {}
 
     for trace in data:
-        name = trace.get("name", "")
+        name = trace["name"]
         x_vals = trace.get("x", [])
         y_vals = trace.get("y", [])
 
-        if name == "Koşula uyan ay":
-            stripped_x = tuple(x.rsplit("-", 1)[0] if x.endswith("-01") else x for x in x_vals)
-            if stripped_x != matched_periods:
+        if not isinstance(x_vals, list) or not isinstance(y_vals, list):
+            raise RuntimeError(f"Trace {name!r} x and y must be lists.")
+
+        if len(x_vals) != len(y_vals):
+            raise RuntimeError(
+                f"Trace {name!r} x/y length mismatch: len(x)={len(x_vals)}, len(y)={len(y_vals)}"
+            )
+
+        if any(not isinstance(x, str) or not _CHART_DATE_PATTERN.fullmatch(x) for x in x_vals):
+            raise RuntimeError(f"Trace {name!r} contains invalid date format in x.")
+
+        if any(type(y) not in (int, float) or not math.isfinite(y) for y in y_vals):
+            raise RuntimeError(f"Trace {name!r} contains non-numeric or non-finite y value.")
+
+        if name == _CHART_MARKER:
+            if x_vals != expected_matched_x:
                 raise RuntimeError(
-                    f"Matched periods trace mismatch. Expected {matched_periods}, got {stripped_x}"
+                    f"Matched periods trace mismatch. Expected {expected_matched_x}, got {x_vals}"
                 )
         else:
-            if len(x_vals) != observed_count:
+            if observed_count is not None and len(x_vals) != observed_count:
                 raise RuntimeError(
                     f"Trace {name!r} x-length mismatch. Expected {observed_count}, got {len(x_vals)}"
                 )
+            if expected_dates is not None:
+                if x_vals != expected_dates:
+                    raise RuntimeError(
+                        f"Trace {name!r} x-dates do not match expected period range."
+                    )
+            elif x_vals:
+                start_p = x_vals[0][:7]
+                end_p = x_vals[-1][:7]
+                if start_p > end_p:
+                    raise RuntimeError(f"Trace {name!r} x-dates are not chronological.")
+                contiguous = [
+                    f"{p}-01" for p in pd.period_range(start=start_p, end=end_p, freq="M")
+                ]
+                if x_vals != contiguous:
+                    raise RuntimeError(
+                        f"Trace {name!r} x-dates do not form a contiguous monthly sequence."
+                    )
+                expected_dates = contiguous
 
-        for y in y_vals:
-            if y is not None:
-                if not math.isfinite(y):
-                    raise RuntimeError(f"Non-finite y value in trace {name!r}")
+        trace_maps[name] = dict(zip(x_vals, (float(y) for y in y_vals)))
+
+    if expected_dates is not None and not set(expected_matched_x).issubset(set(expected_dates[1:])):
+        raise RuntimeError(
+            "Matched periods in chart are not a valid subset of the observed series periods."
+        )
+
+    # Cross-check marker trace values against the interest rate trace
+    rate_map = trace_maps["Konut kredisi faizi"]
+    marker_map = trace_maps[_CHART_MARKER]
+    for mx, my in marker_map.items():
+        if mx not in rate_map or rate_map[mx] != my:
+            raise RuntimeError(
+                f"Marker trace {_CHART_MARKER!r} value at {mx} ({my}) does not match "
+                f"'Konut kredisi faizi' trace value ({rate_map.get(mx)})."
+            )
+
+    # Cross-check all traces against evidence results
+    if evidence is not None:
+        for row in evidence.results:
+            date_key = f"{row.period}-01"
+            for trace_name, values in trace_maps.items():
+                field = (
+                    "housing_loan_interest_rate_pct"
+                    if trace_name == _CHART_MARKER
+                    else _CHART_SERIES[trace_name]
+                )
+                expected_val = getattr(row, field)
+                if date_key not in values or values[date_key] != expected_val:
+                    raise RuntimeError(
+                        f"Trace {trace_name!r} value at {row.period} ({values.get(date_key)}) "
+                        f"does not match evidence ({expected_val})."
+                    )
+
+    # Cross-check all 5 series traces across all observed months against Gold table
+    if gold_df is not None:
+        sorted_gold = gold_df.sort_values("period").reset_index(drop=True)
+        for trace_name, col_name in _CHART_SERIES.items():
+            values = trace_maps[trace_name]
+            for period_val, expected_val in zip(sorted_gold["period"], sorted_gold[col_name]):
+                date_key = f"{period_val}-01"
+                if date_key not in values or values[date_key] != float(expected_val):
+                    raise RuntimeError(
+                        f"Trace {trace_name!r} value at {period_val} ({values.get(date_key)}) "
+                        f"does not match Gold table ({expected_val})."
+                    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -71,6 +203,7 @@ def main(argv: list[str] | None = None) -> int:
     manifest_path = Path(args.evds_manifest)
     out_dir = Path(args.output_dir)
     staging_dir = out_dir.with_name(out_dir.name + ".part")
+    backup_dir = out_dir.with_name(f"{out_dir.name}.backup")
 
     try:
         # Validate BDDK Silver
@@ -121,8 +254,22 @@ def main(argv: list[str] | None = None) -> int:
         evidence = run.evidence
         chart = run.chart
 
-        # Validate Chart
-        validate_chart(chart, evidence.matched_periods, evidence.observed_month_count)
+        # Validate Chart against full evidence and Gold calculations
+        evds_df = pd.read_csv(evds_path)
+        gold_df = build_housing_gold_table(
+            bddk_df,
+            evds_df,
+            start_period=args.start_period,
+            end_period=args.end_period,
+            evds_source_refs=evds_ref_str,
+        )
+        validate_chart(
+            chart,
+            evidence.matched_periods,
+            evidence.observed_month_count,
+            evidence=evidence,
+            gold_df=gold_df,
+        )
 
         # Staging
         if staging_dir.exists():
@@ -184,33 +331,41 @@ def main(argv: list[str] | None = None) -> int:
         if read_summary_json != expected_summary_json:
             raise RuntimeError("Read-back verification failed for run_summary.json: content mismatch.")
 
-        # Transactional publishing: backup existing output directory before replacing
-        backup_dir = out_dir.with_name(f"{out_dir.name}.backup")
-        if backup_dir.exists():
-            shutil.rmtree(backup_dir)
-
-        has_existing_out = out_dir.exists()
-        if has_existing_out:
+        # Transactional publishing: never delete an intact backup before the new output is published
+        if out_dir.exists():
+            if backup_dir.exists():
+                raise RuntimeError(
+                    f"Cannot overwrite {out_dir}: an unrecovered backup directory ({backup_dir}) already exists."
+                )
             out_dir.rename(backup_dir)
 
         try:
             staging_dir.rename(out_dir)
-            if backup_dir.exists():
-                shutil.rmtree(backup_dir, ignore_errors=True)
         except Exception:
             if backup_dir.exists() and not out_dir.exists():
-                backup_dir.rename(out_dir)
+                try:
+                    backup_dir.rename(out_dir)
+                except Exception:
+                    try:
+                        os.replace(backup_dir, out_dir)
+                    except Exception:
+                        pass
             raise
+        else:
+            if backup_dir.exists():
+                shutil.rmtree(backup_dir, ignore_errors=True)
 
     except Exception as exc:
         if staging_dir.exists():
             shutil.rmtree(staging_dir, ignore_errors=True)
-        backup_dir = out_dir.with_name(f"{out_dir.name}.backup")
         if backup_dir.exists() and not out_dir.exists():
             try:
                 backup_dir.rename(out_dir)
             except Exception:
-                pass
+                try:
+                    os.replace(backup_dir, out_dir)
+                except Exception:
+                    pass
         print(f"Error: {exc}", file=sys.stderr)
         return 1
 

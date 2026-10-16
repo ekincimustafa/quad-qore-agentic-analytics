@@ -32,15 +32,81 @@ def mock_project(tmp_path: Path) -> tuple[Path, Path]:
     })
     df.to_csv(csv_path, index=False)
 
-    # Create receipt files physically on disk
-    receipt1 = root / "bronze" / "evds" / "tp_ktf12" / "receipts" / "1.json"
-    receipt2 = root / "bronze" / "evds" / "tp_ktf12" / "receipts" / "2.json"
-    receipt_cpi = root / "bronze" / "evds" / "cpi" / "receipts" / "cpi.json"
-    receipt_kfe = root / "bronze" / "evds" / "kfe" / "receipts" / "kfe.json"
+    def _create_bronze_pair(
+        series_code: str,
+        frequency: str,
+        receipt_rel: str,
+        raw_rel: str,
+        payload_tag: str,
+        request_start: str = "2021-01-01",
+        request_end: str = "2026-06-30",
+        downloaded_at: str = "2026-09-19T10:00:00+03:00",
+    ) -> dict[str, object]:
+        raw_file = root / raw_rel
+        raw_file.parent.mkdir(parents=True, exist_ok=True)
+        raw_payload = json.dumps(
+            {
+                "series_code": series_code,
+                "tag": payload_tag,
+                "items": [{"Tarih": "01-2021", "value": "100.0"}],
+            }
+        ).encode("utf-8")
+        raw_file.write_bytes(raw_payload)
+        raw_sha256 = hashlib.sha256(raw_payload).hexdigest()
+        raw_size = len(raw_payload)
 
-    for r in (receipt1, receipt2, receipt_cpi, receipt_kfe):
-        r.parent.mkdir(parents=True, exist_ok=True)
-        r.write_text("{}", encoding="utf-8")
+        receipt_file = root / receipt_rel
+        receipt_file.parent.mkdir(parents=True, exist_ok=True)
+        receipt_obj = {
+            "series_code": series_code,
+            "frequency": frequency,
+            "request_start": request_start,
+            "request_end": request_end,
+            "downloaded_at": downloaded_at,
+            "sha256": raw_sha256,
+            "size_bytes": raw_size,
+            "raw_path": raw_rel,
+        }
+        receipt_file.write_text(json.dumps(receipt_obj, indent=2), encoding="utf-8")
+
+        return {
+            "receipt_path": receipt_rel,
+            "raw_path": raw_rel,
+            "sha256": raw_sha256,
+            "size_bytes": raw_size,
+            "downloaded_at": downloaded_at,
+            "request_start": request_start,
+            "request_end": request_end,
+        }
+
+    b_ktf_1 = _create_bronze_pair(
+        "TP.KTF12",
+        "weekly",
+        "bronze/evds/tp_ktf12/receipts/1.json",
+        "bronze/evds/tp_ktf12/raw/1.json",
+        "ktf12_part1",
+    )
+    b_ktf_2 = _create_bronze_pair(
+        "TP.KTF12",
+        "weekly",
+        "bronze/evds/tp_ktf12/receipts/2.json",
+        "bronze/evds/tp_ktf12/raw/2.json",
+        "ktf12_part2",
+    )
+    b_cpi = _create_bronze_pair(
+        "TP.TUKFIY2025.GENEL",
+        "monthly",
+        "bronze/evds/cpi/receipts/cpi.json",
+        "bronze/evds/cpi/raw/cpi.json",
+        "cpi_main",
+    )
+    b_kfe = _create_bronze_pair(
+        "TP.KFE.TR",
+        "monthly",
+        "bronze/evds/kfe/receipts/kfe.json",
+        "bronze/evds/kfe/raw/kfe.json",
+        "kfe_main",
+    )
 
     sha256 = hashlib.sha256(csv_path.read_bytes()).hexdigest()
 
@@ -66,26 +132,7 @@ def mock_project(tmp_path: Path) -> tuple[Path, Path]:
                 "base_year": None,
                 "base_year_source": "not_applicable",
                 "transformation": "mean",
-                "bronze": [
-                    {
-                        "receipt_path": "bronze/evds/tp_ktf12/receipts/1.json",
-                        "raw_path": "bronze/evds/tp_ktf12/raw/1.json",
-                        "sha256": "abcdef",
-                        "size_bytes": 100,
-                        "downloaded_at": "2026-09-19T10:00:00+03:00",
-                        "request_start": "2021-01-01",
-                        "request_end": "2026-06-30"
-                    },
-                    {
-                        "receipt_path": "bronze/evds/tp_ktf12/receipts/2.json",
-                        "raw_path": "bronze/evds/tp_ktf12/raw/2.json",
-                        "sha256": "abcdef",
-                        "size_bytes": 100,
-                        "downloaded_at": "2026-09-19T10:00:00+03:00",
-                        "request_start": "2021-01-01",
-                        "request_end": "2026-06-30"
-                    }
-                ]
+                "bronze": [b_ktf_1, b_ktf_2],
             },
             {
                 "series_code": "TP.TUKFIY2025.GENEL",
@@ -96,17 +143,7 @@ def mock_project(tmp_path: Path) -> tuple[Path, Path]:
                 "base_year": 2025,
                 "base_year_source": "tcmb",
                 "transformation": "level",
-                "bronze": [
-                    {
-                        "receipt_path": "bronze/evds/cpi/receipts/cpi.json",
-                        "raw_path": "bronze/evds/cpi/raw/cpi.json",
-                        "sha256": "cpi123",
-                        "size_bytes": 200,
-                        "downloaded_at": "2026-09-19T10:00:00+03:00",
-                        "request_start": "2021-01-01",
-                        "request_end": "2026-06-30"
-                    }
-                ]
+                "bronze": [b_cpi],
             },
             {
                 "series_code": "TP.KFE.TR",
@@ -114,22 +151,12 @@ def mock_project(tmp_path: Path) -> tuple[Path, Path]:
                 "unit": "index",
                 "native_frequency": "monthly",
                 "target_frequency": "monthly",
-                "base_year": 2017,
+                "base_year": 2023,
                 "base_year_source": "tcmb",
                 "transformation": "level",
-                "bronze": [
-                    {
-                        "receipt_path": "bronze/evds/kfe/receipts/kfe.json",
-                        "raw_path": "bronze/evds/kfe/raw/kfe.json",
-                        "sha256": "kfe123",
-                        "size_bytes": 200,
-                        "downloaded_at": "2026-09-19T10:00:00+03:00",
-                        "request_start": "2021-01-01",
-                        "request_end": "2026-06-30"
-                    }
-                ]
-            }
-        ]
+                "bronze": [b_kfe],
+            },
+        ],
     }
 
     manifest_path = root / "manifest.json"
@@ -232,6 +259,203 @@ def test_receipt_path_traversal(mock_project):
     manifest_path.write_text(json.dumps(data), encoding="utf-8")
 
     with pytest.raises(ManifestValidationError, match="Receipt path contains traversal"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_missing_raw_file(mock_project):
+    root, manifest_path = mock_project
+    (root / "bronze" / "evds" / "tp_ktf12" / "raw" / "1.json").unlink()
+
+    with pytest.raises(ManifestValidationError, match="Bronze raw file declared in manifest not found"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_modified_raw_file_size(mock_project):
+    root, manifest_path = mock_project
+    raw_file = root / "bronze" / "evds" / "tp_ktf12" / "raw" / "1.json"
+    raw_file.write_text('{"tampered": true}', encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="Bronze raw file size mismatch"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_modified_raw_file_sha256_same_size(mock_project):
+    root, manifest_path = mock_project
+    raw_file = root / "bronze" / "evds" / "tp_ktf12" / "raw" / "1.json"
+    original = raw_file.read_bytes()
+    mutated = bytearray(original)
+    mutated[-2] = ord("X") if mutated[-2] != ord("X") else ord("Y")
+    raw_file.write_bytes(bytes(mutated))
+
+    with pytest.raises(ManifestValidationError, match="Bronze raw file SHA-256 mismatch"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_invalid_receipt_json(mock_project):
+    root, manifest_path = mock_project
+    receipt_file = root / "bronze" / "evds" / "tp_ktf12" / "receipts" / "1.json"
+    receipt_file.write_text("{not valid json", encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="Invalid JSON in bronze receipt"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_receipt_missing_required_fields(mock_project):
+    root, manifest_path = mock_project
+    receipt_file = root / "bronze" / "evds" / "tp_ktf12" / "receipts" / "1.json"
+    receipt_file.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="missing required fields"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_receipt_sha256_mismatch(mock_project):
+    root, manifest_path = mock_project
+    receipt_file = root / "bronze" / "evds" / "tp_ktf12" / "receipts" / "1.json"
+    receipt_data = json.loads(receipt_file.read_text(encoding="utf-8"))
+    receipt_data["sha256"] = "f" * 64
+    receipt_file.write_text(json.dumps(receipt_data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="sha256 .* does not match manifest sha256"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_receipt_size_bytes_mismatch(mock_project):
+    root, manifest_path = mock_project
+    receipt_file = root / "bronze" / "evds" / "tp_ktf12" / "receipts" / "1.json"
+    receipt_data = json.loads(receipt_file.read_text(encoding="utf-8"))
+    receipt_data["size_bytes"] = 99999
+    receipt_file.write_text(json.dumps(receipt_data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="size_bytes .* does not match manifest size_bytes"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_receipt_series_code_mismatch(mock_project):
+    root, manifest_path = mock_project
+    receipt_file = root / "bronze" / "evds" / "tp_ktf12" / "receipts" / "1.json"
+    receipt_data = json.loads(receipt_file.read_text(encoding="utf-8"))
+    receipt_data["series_code"] = "TP.KFE.TR"
+    receipt_file.write_text(json.dumps(receipt_data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="series_code .* does not match manifest series"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_receipt_frequency_mismatch(mock_project):
+    root, manifest_path = mock_project
+    receipt_file = root / "bronze" / "evds" / "tp_ktf12" / "receipts" / "1.json"
+    receipt_data = json.loads(receipt_file.read_text(encoding="utf-8"))
+    receipt_data["frequency"] = "monthly"
+    receipt_file.write_text(json.dumps(receipt_data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="frequency .* does not match series native_frequency"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_receipt_request_range_mismatch(mock_project):
+    root, manifest_path = mock_project
+    receipt_file = root / "bronze" / "evds" / "tp_ktf12" / "receipts" / "1.json"
+    receipt_data = json.loads(receipt_file.read_text(encoding="utf-8"))
+    receipt_data["request_start"] = "2022-01-01"
+    receipt_file.write_text(json.dumps(receipt_data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="request range .* does not match manifest"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_receipt_raw_path_mismatch(mock_project):
+    root, manifest_path = mock_project
+    receipt_file = root / "bronze" / "evds" / "tp_ktf12" / "receipts" / "1.json"
+    receipt_data = json.loads(receipt_file.read_text(encoding="utf-8"))
+    receipt_data["raw_path"] = "bronze/evds/tp_ktf12/raw/other.json"
+    receipt_file.write_text(json.dumps(receipt_data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="raw_path .* does not resolve to manifest raw_path"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_duplicate_series_rejected(mock_project):
+    root, manifest_path = mock_project
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data["series"].append(dict(data["series"][0]))
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="duplicate series declarations"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_cpi_wrong_base_year_rejected(mock_project):
+    root, manifest_path = mock_project
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for s in data["series"]:
+        if s["series_code"] == "TP.TUKFIY2025.GENEL":
+            s["base_year"] = 2020
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="Series TP.TUKFIY2025.GENEL base_year must be 2025"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_kfe_wrong_base_year_rejected(mock_project):
+    root, manifest_path = mock_project
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    for s in data["series"]:
+        if s["series_code"] == "TP.KFE.TR":
+            s["base_year"] = 2017
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="Series TP.KFE.TR base_year must be 2023"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_interest_rate_wrong_unit_rejected(mock_project):
+    root, manifest_path = mock_project
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data["series"][0]["unit"] = "USD"
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="Series TP.KTF12 unit must be 'percent'"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_wrong_target_frequency_rejected(mock_project):
+    root, manifest_path = mock_project
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data["series"][0]["target_frequency"] = "yearly"
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="Series TP.KTF12 target_frequency must be 'monthly'"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_wrong_native_frequency_rejected(mock_project):
+    root, manifest_path = mock_project
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data["series"][0]["native_frequency"] = "monthly"
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="Series TP.KTF12 native_frequency must be 'weekly'"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_interest_rate_wrong_transformation_rejected(mock_project):
+    root, manifest_path = mock_project
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data["series"][0]["transformation"] = "sum"
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="Series TP.KTF12 has invalid transformation"):
+        load_and_validate_manifest(manifest_path, root)
+
+
+def test_wrong_silver_column_mapping_rejected(mock_project):
+    root, manifest_path = mock_project
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    data["series"][0]["silver_columns"] = ["housing_price_index"]
+    manifest_path.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ManifestValidationError, match="Series TP.KTF12 silver_columns must be"):
         load_and_validate_manifest(manifest_path, root)
 
 

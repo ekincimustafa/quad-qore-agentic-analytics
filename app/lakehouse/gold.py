@@ -172,6 +172,9 @@ def build_housing_gold_table(
 
     expected_periods = _expected_periods(start_period, end_period)
 
+    if not isinstance(bddk_monthly, pd.DataFrame):
+        raise GoldAnalysisError("bddk_monthly must be a pandas DataFrame.")
+
     has_bddk_ref = "bddk_source_ref" in bddk_monthly.columns
     has_data_note = "data_quality_note" in bddk_monthly.columns
 
@@ -180,17 +183,18 @@ def build_housing_gold_table(
             "must have either both 'bddk_source_ref' and 'data_quality_note' columns, or neither"
         )
 
-    extra_cols = bddk_monthly[["period", "bddk_source_ref", "data_quality_note"]] if has_bddk_ref else None
+    bddk_cols = (
+        (*BDDK_REQUIRED_COLUMNS, "bddk_source_ref", "data_quality_note")
+        if has_bddk_ref
+        else BDDK_REQUIRED_COLUMNS
+    )
 
     bddk = _prepare_period_frame(
         bddk_monthly,
         frame_name="bddk_monthly",
-        required_columns=BDDK_REQUIRED_COLUMNS,
+        required_columns=bddk_cols,
         expected_periods=expected_periods,
     )
-
-    if extra_cols is not None:
-        bddk = bddk.merge(extra_cols, on="period", how="left")
 
     evds = _prepare_period_frame(
         evds_monthly,

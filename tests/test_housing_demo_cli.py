@@ -39,28 +39,68 @@ def synthetic_66_months(tmp_path: Path) -> tuple[Path, Path, Path]:
     })
     evds_df.to_csv(evds_path, index=False)
 
-    # Physical receipt files
-    r1 = tmp_path / "bronze" / "1.json"
-    r2 = tmp_path / "bronze" / "2.json"
-    r3 = tmp_path / "bronze" / "3.json"
-    for r in (r1, r2, r3):
-        r.parent.mkdir(parents=True, exist_ok=True)
-        r.write_text("{}", encoding="utf-8")
+    # Physical raw files and receipt files
+    import hashlib
+
+    def _make_bronze_entry(
+        series_code: str,
+        frequency: str,
+        receipt_rel: str,
+        raw_rel: str,
+    ) -> dict[str, object]:
+        raw_path = tmp_path / raw_rel
+        raw_path.parent.mkdir(parents=True, exist_ok=True)
+        raw_bytes = json.dumps(
+            {
+                "series_code": series_code,
+                "items": [{"Tarih": "01-2021", "value": "100.0"}],
+            }
+        ).encode("utf-8")
+        raw_path.write_bytes(raw_bytes)
+        raw_sha = hashlib.sha256(raw_bytes).hexdigest()
+        raw_size = len(raw_bytes)
+
+        receipt_path = tmp_path / receipt_rel
+        receipt_path.parent.mkdir(parents=True, exist_ok=True)
+        receipt_payload = {
+            "series_code": series_code,
+            "frequency": frequency,
+            "request_start": "2021-01-01",
+            "request_end": "2026-06-30",
+            "downloaded_at": "2026-09-19T10:00:00+03:00",
+            "sha256": raw_sha,
+            "size_bytes": raw_size,
+            "raw_path": raw_rel,
+        }
+        receipt_path.write_text(json.dumps(receipt_payload, indent=2), encoding="utf-8")
+
+        return {
+            "receipt_path": receipt_rel,
+            "raw_path": raw_rel,
+            "sha256": raw_sha,
+            "size_bytes": raw_size,
+            "downloaded_at": "2026-09-19T10:00:00+03:00",
+            "request_start": "2021-01-01",
+            "request_end": "2026-06-30",
+        }
+
+    b1 = _make_bronze_entry("TP.KTF12", "weekly", "bronze/1.json", "bronze/raw_1.json")
+    b2 = _make_bronze_entry("TP.TUKFIY2025.GENEL", "monthly", "bronze/2.json", "bronze/raw_2.json")
+    b3 = _make_bronze_entry("TP.KFE.TR", "monthly", "bronze/3.json", "bronze/raw_3.json")
 
     # Manifest
-    import hashlib
     sha256 = hashlib.sha256(evds_path.read_bytes()).hexdigest()
     manifest_data = {
         "schema_version": "1.0",
         "dataset": "evds_monthly_silver",
         "silver": {
-            "path": evds_path.name, # Assuming script will resolve relative to cwd, so we run from tmp_path
+            "path": evds_path.name,  # Assuming script will resolve relative to cwd, so we run from tmp_path
             "sha256": sha256,
             "size_bytes": len(evds_path.read_bytes()),
             "row_count": 66,
             "start_period": "2021-01",
             "end_period": "2026-06",
-            "columns": list(evds_df.columns)
+            "columns": list(evds_df.columns),
         },
         "series": [
             {
@@ -72,17 +112,7 @@ def synthetic_66_months(tmp_path: Path) -> tuple[Path, Path, Path]:
                 "base_year": None,
                 "base_year_source": "not_applicable",
                 "transformation": "mean",
-                "bronze": [
-                    {
-                        "receipt_path": "bronze/1.json",
-                        "raw_path": "bronze/raw_1.json",
-                        "sha256": "abcdef",
-                        "size_bytes": 100,
-                        "downloaded_at": "2026-09-19T10:00:00+03:00",
-                        "request_start": "2021-01-01",
-                        "request_end": "2026-06-30"
-                    }
-                ]
+                "bronze": [b1],
             },
             {
                 "series_code": "TP.TUKFIY2025.GENEL",
@@ -93,17 +123,7 @@ def synthetic_66_months(tmp_path: Path) -> tuple[Path, Path, Path]:
                 "base_year": 2025,
                 "base_year_source": "tcmb",
                 "transformation": "level",
-                "bronze": [
-                    {
-                        "receipt_path": "bronze/2.json",
-                        "raw_path": "bronze/raw_2.json",
-                        "sha256": "abcdef",
-                        "size_bytes": 100,
-                        "downloaded_at": "2026-09-19T10:00:00+03:00",
-                        "request_start": "2021-01-01",
-                        "request_end": "2026-06-30"
-                    }
-                ]
+                "bronze": [b2],
             },
             {
                 "series_code": "TP.KFE.TR",
@@ -111,22 +131,12 @@ def synthetic_66_months(tmp_path: Path) -> tuple[Path, Path, Path]:
                 "unit": "index",
                 "native_frequency": "monthly",
                 "target_frequency": "monthly",
-                "base_year": 2017,
+                "base_year": 2023,
                 "base_year_source": "tcmb",
                 "transformation": "level",
-                "bronze": [
-                    {
-                        "receipt_path": "bronze/3.json",
-                        "raw_path": "bronze/raw_3.json",
-                        "sha256": "abcdef",
-                        "size_bytes": 100,
-                        "downloaded_at": "2026-09-19T10:00:00+03:00",
-                        "request_start": "2021-01-01",
-                        "request_end": "2026-06-30"
-                    }
-                ]
-            }
-        ]
+                "bronze": [b3],
+            },
+        ],
     }
     manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
 
@@ -482,3 +492,257 @@ def test_cli_catches_readback_content_tampering(synthetic_66_months, tmp_path, m
     # Must fail because read-back content does not equal in-memory evidence!
     assert main(argv) == 1
     assert not out_dir.exists()
+
+
+def test_cli_recovers_interrupted_backup_byte_for_byte_on_publish_error(
+    synthetic_66_months, tmp_path, monkeypatch
+):
+    """If only output.backup exists from an interrupted run and staging->output fails, recover output byte-for-byte."""
+    bddk, evds, manifest = synthetic_66_months
+    out_dir = tmp_path / "output"
+    backup_dir = tmp_path / "output.backup"
+
+    monkeypatch.chdir(tmp_path)
+    argv = [
+        "--bddk-silver", str(bddk), "--evds-silver", str(evds),
+        "--evds-manifest", str(manifest), "--output-dir", str(out_dir),
+    ]
+
+    # 1. Run successfully once to produce a valid output package
+    assert main(argv) == 0
+    assert out_dir.exists()
+    initial_files = {p.name: p.read_bytes() for p in out_dir.iterdir()}
+
+    # 2. Simulate an interrupted previous run where output was moved to output.backup and output is missing
+    out_dir.rename(backup_dir)
+    assert not out_dir.exists()
+    assert backup_dir.exists()
+
+    # 3. Inject failure into staging_dir.rename when renaming to out_dir
+    original_rename = Path.rename
+    staging_name = out_dir.name + ".part"
+
+    def fail_rename_on_staging(self, target):
+        if str(self).endswith(staging_name) and str(target).endswith(out_dir.name):
+            raise OSError("Simulated atomic publish failure with existing backup")
+        return original_rename(self, target)
+
+    monkeypatch.setattr(Path, "rename", fail_rename_on_staging)
+
+    # 4. Re-run CLI with the injected failure
+    assert main(argv) == 1
+
+    # 5. Verify the surviving backup was NOT deleted and was recovered byte-for-byte!
+    assert out_dir.exists()
+    assert not backup_dir.exists()
+    recovered_files = {p.name: p.read_bytes() for p in out_dir.iterdir()}
+    assert recovered_files == initial_files
+
+
+def test_cli_preserves_both_when_output_and_backup_both_exist(
+    synthetic_66_months, tmp_path, monkeypatch
+):
+    """If both output and output.backup exist simultaneously, refuse to delete either and abort safely."""
+    bddk, evds, manifest = synthetic_66_months
+    out_dir = tmp_path / "output"
+    backup_dir = tmp_path / "output.backup"
+
+    monkeypatch.chdir(tmp_path)
+    argv = [
+        "--bddk-silver", str(bddk), "--evds-silver", str(evds),
+        "--evds-manifest", str(manifest), "--output-dir", str(out_dir),
+    ]
+
+    assert main(argv) == 0
+    initial_out_files = {p.name: p.read_bytes() for p in out_dir.iterdir()}
+
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    (backup_dir / "sentinel.txt").write_bytes(b"precious-backup")
+
+    assert main(argv) == 1
+    assert out_dir.exists()
+    assert {p.name: p.read_bytes() for p in out_dir.iterdir()} == initial_out_files
+    assert backup_dir.exists()
+    assert (backup_dir / "sentinel.txt").read_bytes() == b"precious-backup"
+
+
+def test_cli_error_when_bronze_raw_deleted(synthetic_66_months, tmp_path, monkeypatch):
+    bddk, evds, manifest = synthetic_66_months
+    out_dir = tmp_path / "output"
+    (tmp_path / "bronze" / "raw_1.json").unlink()
+
+    monkeypatch.chdir(tmp_path)
+    argv = [
+        "--bddk-silver", str(bddk), "--evds-silver", str(evds),
+        "--evds-manifest", str(manifest), "--output-dir", str(out_dir),
+    ]
+    assert main(argv) == 1
+    assert not out_dir.exists()
+
+
+def test_cli_error_when_bronze_raw_modified(synthetic_66_months, tmp_path, monkeypatch):
+    bddk, evds, manifest = synthetic_66_months
+    out_dir = tmp_path / "output"
+    raw_file = tmp_path / "bronze" / "raw_1.json"
+    raw_file.write_text('{"corrupted": true}', encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    argv = [
+        "--bddk-silver", str(bddk), "--evds-silver", str(evds),
+        "--evds-manifest", str(manifest), "--output-dir", str(out_dir),
+    ]
+    assert main(argv) == 1
+    assert not out_dir.exists()
+
+
+def test_cli_error_when_bronze_receipt_invalid_json(synthetic_66_months, tmp_path, monkeypatch):
+    bddk, evds, manifest = synthetic_66_months
+    out_dir = tmp_path / "output"
+    (tmp_path / "bronze" / "1.json").write_text("{broken json", encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    argv = [
+        "--bddk-silver", str(bddk), "--evds-silver", str(evds),
+        "--evds-manifest", str(manifest), "--output-dir", str(out_dir),
+    ]
+    assert main(argv) == 1
+    assert not out_dir.exists()
+
+
+def test_cli_error_when_bronze_receipt_hash_mismatch(synthetic_66_months, tmp_path, monkeypatch):
+    bddk, evds, manifest = synthetic_66_months
+    out_dir = tmp_path / "output"
+    receipt_file = tmp_path / "bronze" / "1.json"
+    receipt_data = json.loads(receipt_file.read_text(encoding="utf-8"))
+    receipt_data["sha256"] = "0" * 64
+    receipt_file.write_text(json.dumps(receipt_data), encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    argv = [
+        "--bddk-silver", str(bddk), "--evds-silver", str(evds),
+        "--evds-manifest", str(manifest), "--output-dir", str(out_dir),
+    ]
+    assert main(argv) == 1
+    assert not out_dir.exists()
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "shorten_y",
+        "mutate_x_period",
+        "mutate_matched_y_to_999",
+        "mutate_unmatched_y_to_999",
+        "rename_marker_trace",
+    ],
+)
+def test_cli_rejects_corrupted_chart_traces(
+    synthetic_66_months, tmp_path, monkeypatch, mutation
+):
+    """Verify that validate_chart in run_housing_demo rejects all 4 chart corruption scenarios."""
+    import app.services.housing_analysis as analysis_mod
+    from app.tools.housing_chart import build_housing_chart as real_build_chart
+
+    bddk, evds, manifest = synthetic_66_months
+    out_dir = tmp_path / "output"
+
+    def tampered_build_chart(evidence):
+        chart = real_build_chart(evidence)
+        dumped = json.loads(json.dumps(chart))
+        if mutation == "shorten_y":
+            dumped["data"][0]["y"] = dumped["data"][0]["y"][:-1]
+        elif mutation == "mutate_x_period":
+            dumped["data"][0]["x"][0] = "1999-01-01"
+        elif mutation == "mutate_matched_y_to_999":
+            for t in dumped["data"]:
+                if t.get("name") == "Koşula uyan ay":
+                    t["y"] = [999.0 for _ in t["y"]]
+        elif mutation == "mutate_unmatched_y_to_999":
+            dumped["data"][0]["y"][0] = 999.0
+        elif mutation == "rename_marker_trace":
+            for t in dumped["data"]:
+                if t.get("name") == "Koşula uyan ay":
+                    t["name"] = "Başka İsim"
+        return dumped
+
+    monkeypatch.setattr(analysis_mod, "build_housing_chart", tampered_build_chart)
+    monkeypatch.chdir(tmp_path)
+    argv = [
+        "--bddk-silver", str(bddk), "--evds-silver", str(evds),
+        "--evds-manifest", str(manifest), "--output-dir", str(out_dir),
+    ]
+    assert main(argv) == 1
+    assert not out_dir.exists()
+
+
+def test_validate_chart_direct_unit_checks(synthetic_66_months):
+    """Test validate_chart directly with both (chart, evidence) and legacy (chart, matched_periods, count) signatures."""
+    from app.services.housing_demo import HousingDemoPaths, run_file_backed_housing_demo
+    from scripts.run_housing_demo import validate_chart
+
+    bddk, evds, _ = synthetic_66_months
+    run = run_file_backed_housing_demo(
+        start_period="2021-01",
+        end_period="2025-12",
+        paths=HousingDemoPaths(bddk_silver=bddk, evds_silver=evds),
+    )
+
+    # Valid chart passes both signatures
+    validate_chart(run.chart, run.evidence)
+    validate_chart(
+        run.chart,
+        run.evidence.matched_periods,
+        run.evidence.observed_month_count,
+        evidence=run.evidence,
+    )
+    validate_chart(
+        run.chart,
+        run.evidence.matched_periods,
+        run.evidence.observed_month_count,
+    )
+
+    # 1. Shortened y array
+    c1 = json.loads(json.dumps(run.chart))
+    c1["data"][0]["y"] = c1["data"][0]["y"][:-1]
+    with pytest.raises(RuntimeError, match="x/y length mismatch"):
+        validate_chart(c1, run.evidence)
+    with pytest.raises(RuntimeError, match="x/y length mismatch"):
+        validate_chart(c1, run.evidence.matched_periods, run.evidence.observed_month_count)
+
+    # 2. Mutated x period to 1999-01-01
+    c2 = json.loads(json.dumps(run.chart))
+    c2["data"][0]["x"][0] = "1999-01-01"
+    with pytest.raises(RuntimeError):
+        validate_chart(c2, run.evidence)
+    with pytest.raises(RuntimeError):
+        validate_chart(c2, run.evidence.matched_periods, run.evidence.observed_month_count)
+
+    # 3. Matched months' y values changed to 999
+    c3 = json.loads(json.dumps(run.chart))
+    for t in c3["data"]:
+        if t["name"] == "Koşula uyan ay":
+            t["y"] = [999.0 for _ in t["y"]]
+    with pytest.raises(RuntimeError):
+        validate_chart(c3, run.evidence)
+    with pytest.raises(RuntimeError):
+        validate_chart(c3, run.evidence.matched_periods, run.evidence.observed_month_count)
+
+    # 4. Marker trace renamed
+    c4 = json.loads(json.dumps(run.chart))
+    for t in c4["data"]:
+        if t["name"] == "Koşula uyan ay":
+            t["name"] = "Başka İsim"
+    with pytest.raises(RuntimeError, match="6 unique expected traces"):
+        validate_chart(c4, run.evidence)
+    with pytest.raises(RuntimeError, match="6 unique expected traces"):
+        validate_chart(c4, run.evidence.matched_periods, run.evidence.observed_month_count)
+
+    # 5. Both marker trace AND interest rate trace mutated to 999 at matched period (caught via evidence.results)
+    c5 = json.loads(json.dumps(run.chart))
+    matched_date = f"{run.evidence.matched_periods[0]}-01"
+    for t in c5["data"]:
+        if t["name"] in ("Koşula uyan ay", "Konut kredisi faizi"):
+            idx = t["x"].index(matched_date)
+            t["y"][idx] = 999.0
+    with pytest.raises(RuntimeError, match="does not match evidence"):
+        validate_chart(c5, run.evidence)
