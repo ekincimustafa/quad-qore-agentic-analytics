@@ -28,6 +28,11 @@ from scripts.download_evds import (
     _period_start,
 )
 
+from app.lakehouse.core_validators import (
+    IntegrityError,
+    parse_iso8601_timestamp,
+)
+
 
 SERIES_DATASETS = {
     "TP.KTF12": "tp_ktf12",
@@ -157,10 +162,20 @@ def _find_bronze_for_request(
                 f"its receipt: {raw_path}"
             )
 
+        try:
+            downloaded_at = parse_iso8601_timestamp(
+                receipt["downloaded_at"],
+                field_name="downloaded_at",
+            )
+        except IntegrityError as exc:
+            raise ValueError(
+                f"Invalid EVDS receipt timestamp: {receipt_path.name}"
+            ) from exc
+
         matches.append(
             (
-                str(receipt["downloaded_at"]),
-                str(receipt_path),
+                downloaded_at,
+                receipt_path.name,
                 raw_path,
             )
         )
@@ -290,6 +305,9 @@ def run(
                 "start_period": result.start_period,
                 "end_period": result.end_period,
                 "sha256": result.sha256,
+                "coverage_report": str(
+                    result.path.with_suffix(".coverage.json")
+                ),
                 "bronze": {
                     series: str(path)
                     for series, path
