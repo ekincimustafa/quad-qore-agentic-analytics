@@ -1,6 +1,7 @@
 # Quad-Qore Agentic Analytics
 
-An early MVP for monthly housing-loan analysis, developed for KKB Hackathon 2026.
+An early MVP for monthly economic analysis, developed for KKB Hackathon 2026,
+with housing-loan analysis and a deterministic CPI-change endpoint.
 Python collects and validates data, computes the analysis, and returns evidence,
 a Plotly chart, and an optional guarded narration. A standalone HTML report is available.
 
@@ -15,6 +16,7 @@ analysis window is January 2021 to December 2025: 60 months.
 | BDDK ingestion and Silver | Raw bulletin acquisition, receipt/integrity validation, monthly housing-loan Parquet | [Ingestion](docs/bddk-ingestion.md), [Silver](docs/bddk-silver.md) |
 | TCMB EVDS ingestion and Silver | Three approved series, Bronze receipts, monthly CSV and weekly-rate aggregation | [EVDS guide](docs/evds-ingestion.md) |
 | Gold analysis | Period alignment, real loan stock, monthly changes and deterministic matching rule | [gold.py](app/lakehouse/gold.py) |
+| CPI analysis | Monthly and same-month-last-year CPI changes from normalized rows; missing history stays null, no model call | [Inflation guide](docs/inflation-analysis.md) |
 | Evidence and chart | Typed evidence and a six-trace, three-panel Plotly chart | [Evidence](app/tools/housing_evidence.py), [chart](app/tools/housing_chart.py) |
 | FastAPI | Health, normalized-row analysis, and server-side Silver analysis endpoints | [housing.py](app/api/housing.py) |
 | Guarded narration | Model JSON checked against the same month/metric; Turkish text rendered from evidence | [Narration contract](docs/housing-narration.md) |
@@ -104,6 +106,7 @@ Interactive API documentation: <http://127.0.0.1:8000/docs>.
 | `POST /analysis/housing` | Normalized BDDK/EVDS rows and period; returns evidence, chart and optional narration |
 | `POST /analysis/housing/demo` | Period and optional narration; reads server-controlled local Silver files |
 | `POST /analysis/housing/question` | Turkish question + normalized rows; validates the model plan before analysis, or returns clarification/unsupported |
+| `POST /analysis/inflation` | Normalized monthly CPI rows and period; deterministic monthly/annual changes, no model or narration |
 
 `include_narration` defaults to `false`, so normalized-row analysis needs no key.
 Try [the three-month synthetic request](docs/housing-api-example.json) in a second terminal.
@@ -130,6 +133,11 @@ the 60-month HTML sample and does not create Silver files.
 For the question endpoint, use [the separate synthetic question request](docs/housing-question-api-example.json)
 and [question API instructions](docs/housing-question.md#soru-apisi). Question planning
 requires a configured live model even when `include_narration=false`.
+
+The separate [CPI example](docs/inflation-api-example.json) and
+[inflation guide](docs/inflation-analysis.md) work without an API key.
+This calculation endpoint is not yet connected to question routing;
+the Housing question endpoint still allows only its existing Housing analysis.
 
 The file-backed endpoint expects these paths relative to the repository root:
 
