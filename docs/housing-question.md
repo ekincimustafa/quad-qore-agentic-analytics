@@ -176,5 +176,7 @@ narrator hatası kontrol edilir. Bunlar canlı model başarı oranı ölçmez.
 `evals/golden_cases.json` içindeki geniş taslak vakalar bu teslimatta çalıştırılmış
 sayılmaz. HTTP testleri harici HTTP taşıyıcısını engeller; üç cevap durumu,
 istek/model/narrator hataları, modelden önce veri kontrolleri ve mevcut analizle
-sayısal/grafik eşitliği kapsanır. Daha geniş canlı soru davranış değerlendirmesi,
-dosya tabanlı entegrasyon ve anlamsal eval runner açık kalan parçalardır.
+sayısal/grafik eşitliği kapsanır. Dokuz vakalık ayrı set ve açık bütçeli
+[değerlendirme komutu](housing-question-evals.md) hazırdır; offline mod model
+başarı oranı ölçmez. Daha geniş canlı soru davranış değerlendirmesi ve gerçek
+dosya tabanlı entegrasyon açık kalır.
