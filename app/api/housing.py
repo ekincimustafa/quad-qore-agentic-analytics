@@ -44,6 +44,8 @@ class BddkMonthlyRow(BaseModel):
 
     period: str = Field(pattern=PERIOD_PATTERN)
     nominal_housing_loan_mn_try: NonNegativeFiniteFloat
+    bddk_source_ref: Optional[str] = None
+    data_quality_note: Optional[str] = None
 
 
 class EvdsMonthlyRow(BaseModel):
@@ -119,7 +121,7 @@ def _analysis_response(result: Any) -> HousingAnalysisResponse:
 
 def _raise_invalid_input(exc: Exception) -> None:
     raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail={
             "code": "invalid_analysis_input",
             "message": str(exc),

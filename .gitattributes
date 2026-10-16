@@ -1,0 +1,2 @@
+# Physical EVDS fixture hashes describe the committed bytes on every platform.
+tests/fixtures/evds_manifest_v1/** -text

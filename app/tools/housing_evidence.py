@@ -109,7 +109,7 @@ def _validate_requested_periods(start_period: str, end_period: str) -> list[str]
 
 def _require_non_empty_text(frame: pd.DataFrame, column: str) -> None:
     values = frame[column].astype("string").str.strip()
-    invalid = values.isna() | values.eq("")
+    invalid = values.isna() | values.eq("") | values.str.lower().isin(["none", "nan", "<na>"])
     if invalid.any():
         periods = frame.loc[invalid, "period"].tolist()
         raise EvidenceBuildError(

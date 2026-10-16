@@ -1,0 +1,119 @@
+{
+  "dataset": "evds_monthly_silver",
+  "schema_version": "1.0",
+  "series": [
+    {
+      "base_year": null,
+      "base_year_source": "not_applicable",
+      "bronze": [
+        {
+          "downloaded_at": "2026-09-19T10:00:00+00:00",
+          "raw_path": "data/bronze/evds/tp_ktf12/d3a4468da617a164fc633b9ecbad191ab0ef119c378171ba5ff66a13d88ed155.json",
+          "receipt_path": "data/bronze/evds/tp_ktf12/receipts/35592ec4758fba04-d3a4468da617a164.json",
+          "request_end": "2021-02-28",
+          "request_start": "2021-01-01",
+          "sha256": "d3a4468da617a164fc633b9ecbad191ab0ef119c378171ba5ff66a13d88ed155",
+          "size_bytes": 200
+        }
+      ],
+      "native_frequency": "weekly",
+      "series_code": "TP.KTF12",
+      "silver_columns": [
+        "housing_loan_interest_rate_pct",
+        "weekly_observation_count"
+      ],
+      "target_frequency": "monthly",
+      "transformation": "mean",
+      "unit": "percent",
+      "weekly_coverage": {
+        "calendar_verification": "not_available",
+        "months": [
+          {
+            "expected_count": null,
+            "observed_count": 2,
+            "observed_dates": [
+              "2021-01-01",
+              "2021-01-15"
+            ],
+            "period": "2021-01",
+            "quality_note": "Weekly coverage cannot be confirmed without a verified source publication calendar.",
+            "status": "unverified"
+          },
+          {
+            "expected_count": null,
+            "observed_count": 2,
+            "observed_dates": [
+              "2021-02-05",
+              "2021-02-19"
+            ],
+            "period": "2021-02",
+            "quality_note": "Weekly coverage cannot be confirmed without a verified source publication calendar.",
+            "status": "unverified"
+          }
+        ],
+        "overall_status": "unverified"
+      }
+    },
+    {
+      "base_year": 2025,
+      "base_year_source": "tcmb",
+      "bronze": [
+        {
+          "downloaded_at": "2026-09-19T10:00:00+00:00",
+          "raw_path": "data/bronze/evds/tp_tukfiy2025_genel/feb8e4670c99ae40ec5645786ecb013298fe6b91c43b5b8bddf0c67c88183c54.json",
+          "receipt_path": "data/bronze/evds/tp_tukfiy2025_genel/receipts/37cf245245246beb-feb8e4670c99ae40.json",
+          "request_end": "2021-02-28",
+          "request_start": "2021-01-01",
+          "sha256": "feb8e4670c99ae40ec5645786ecb013298fe6b91c43b5b8bddf0c67c88183c54",
+          "size_bytes": 130
+        }
+      ],
+      "native_frequency": "monthly",
+      "series_code": "TP.TUKFIY2025.GENEL",
+      "silver_columns": [
+        "cpi_index"
+      ],
+      "target_frequency": "monthly",
+      "transformation": "level",
+      "unit": "index"
+    },
+    {
+      "base_year": 2023,
+      "base_year_source": "tcmb",
+      "bronze": [
+        {
+          "downloaded_at": "2026-09-19T10:00:00+00:00",
+          "raw_path": "data/bronze/evds/tp_kfe_tr/0fea2e892cf357c64ec5c05b7c5a39a867bda4a2b19f82cbf92acb8d44be836f.json",
+          "receipt_path": "data/bronze/evds/tp_kfe_tr/receipts/3aed7566285e1195-0fea2e892cf357c6.json",
+          "request_end": "2021-02-28",
+          "request_start": "2021-01-01",
+          "sha256": "0fea2e892cf357c64ec5c05b7c5a39a867bda4a2b19f82cbf92acb8d44be836f",
+          "size_bytes": 110
+        }
+      ],
+      "native_frequency": "monthly",
+      "series_code": "TP.KFE.TR",
+      "silver_columns": [
+        "housing_price_index"
+      ],
+      "target_frequency": "monthly",
+      "transformation": "level",
+      "unit": "index"
+    }
+  ],
+  "silver": {
+    "columns": [
+      "period",
+      "housing_loan_interest_rate_pct",
+      "weekly_observation_count",
+      "cpi_index",
+      "housing_price_index"
+    ],
+    "end_period": "2021-02",
+    "path": "data/silver/evds/monthly/evds_monthly_2021-01_2021-02.csv",
+    "row_count": 2,
+    "sha256": "c4c1569a1a342a76c74df8ee78202535f3caa765c084e7aee14ee446c6b060f5",
+    "size_bytes": 139,
+    "start_period": "2021-01"
+  }
+}

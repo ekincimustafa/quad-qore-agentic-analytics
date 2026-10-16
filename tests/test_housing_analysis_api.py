@@ -104,3 +104,16 @@ def test_openapi_schema_contains_housing_analysis_endpoint():
 
     assert response.status_code == 200
     assert "/analysis/housing" in response.json()["paths"]
+
+
+def test_housing_endpoint_backward_compatibility_top_level_ref():
+    application = create_app()
+    payload = _payload()
+    # Add legacy top-level bddk_source_ref without row-level refs
+    payload["bddk_source_ref"] = "Custom Legacy BDDK Ref"
+
+    response = TestClient(application).post("/analysis/housing", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["evidence"]["bddk_source_refs"] == ["Custom Legacy BDDK Ref"]
