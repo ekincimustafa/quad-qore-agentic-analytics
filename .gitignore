@@ -245,3 +245,6 @@ logs/
 # IDE
 .vscode/
 .idea/
+
+# Generated demo reports
+out/

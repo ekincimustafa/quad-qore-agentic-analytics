@@ -1,5 +1,7 @@
 ## 1. Amaç
 
+Bu belge, Zeynep Ahsen Açıkel'in [PR #34](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/34) kapsamındaki ilk taslağı temel alır. Afra Topçu, [PR #38](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/38) ile taslağı review geri bildirimleri ve mevcut MVP davranışı doğrultusunda geliştirmiştir. Güncel sözleşme dosyası `docs/tool-contracts.md` olarak tutulur.
+
 Bu belge, Quad-Qore sisteminde Agent Orchestrator tarafından kullanılacak araçların (tools) sorumluluklarını, giriş ve çıkış sözleşmelerini, kaynak/kanıt taşıma biçimlerini ve hata yönetimini tanımlar.
 
 Bu sözleşmelerin amacı:
@@ -104,7 +106,7 @@ Orchestrator yalnızca `enabled` durumundaki tool'ları çağrılabilir araç li
 | `analyze_causality` | `disabled` | Kesin yöntem, minimum gözlem sayısı ve varsayımlar tanımlanana kadar çağrılamaz; çağrılırsa `UNSUPPORTED_OPERATION` döner. |
 | `detect_changes` | `planned` | İlk demo sırasında Gold katmanında zaten hesaplanan değişimleri yeniden hesaplamaz. Genel amaçlı değişim aracı gelecek kapsamdadır. |
 
-> Güncel repository'de bu tabloda adı geçen generic tool'ların runtime implementasyonları henüz bulunmamaktadır. Mevcut ilk demo, servis tabanlı ve dosya destekli deterministik orchestration akışıyla çalışır. Bu nedenle `enabled` statüsü ancak ilgili tool adapter'ı kodlanıp test edildikten sonra verilmelidir.
+> Güncel repository'de bu tabloda adı geçen generic tool'ların runtime implementasyonları henüz bulunmamaktadır. Mevcut dosya destekli demo deterministik servis akışıyla çalışır. Ayrıca normalize edilmiş istek satırları üzerinde çalışan sınırlı soru → plan → analiz servisi ve HTTP endpoint'i vardır; bunlar generic tool registry değildir. Bu nedenle `enabled` statüsü ancak ilgili tool adapter'ı kodlanıp test edildikten sonra verilmelidir.
 
 ### 3.3 Mevcut MVP ile Eşleme
 
@@ -119,7 +121,10 @@ Orchestrator yalnızca `enabled` durumundaki tool'ları çağrılabilir araç li
 | `app/tools/housing_narrator.py` — guarded narrator | Modelden yalnızca `results` içeren yapılandırılmış JSON alınır. Eşleşen ayların her biri tam bir kez bulunmalı ve her sayı aynı ayın aynı metriğiyle doğrulanmalıdır. Ek kaynak/yöntem/nedensellik alanları ve serbest metin reddedilir. Türkçe anlatım, kaynaklar, yöntem ve nedensellik sınırlaması uygulama tarafından evidence üzerinden oluşturulur. | Doğrulama model çıktısını evidence ile sınırlar; evidence kaynaklarının fiziksel Bronze/manifest bütünlüğünü yeniden doğrulamaz. Bu görev veri hattı/manifest doğrulama katmanına aittir. |
 | `app/tools/housing_chart.py` — `build_housing_chart` | Gold tablodan doğrulanmış Plotly chart specification üretir. | Görselleştirme katmanıdır; ikinci bir sayısal doğruluk kaynağı değildir. |
 | `app/api/housing.py` — `/analysis/housing`, `/analysis/housing/demo` | Doğrulanmış Housing Analysis servisini FastAPI üzerinden sunar ve domain hatalarını kontrollü HTTP hatalarına çevirir. | Tool değildir; mevcut servis sonucunun HTTP yüzeyidir. |
-| `app/api/main.py` — `create_app` | Housing router'ını uygulamaya bağlar ve API uygulamasını oluşturur. | Orchestrator/tool sözleşmesinin hesaplama katmanı değildir. |
+| `app/services/housing_question.py` — `run_housing_question`, `validate_housing_question_plan` | Soruyu tek model isteğiyle yapılandırılmış karara dönüştürür; planı ve veri kapsamını doğrular. Yalnızca `housing_rate_down_real_credit_not_up` analizi için mevcut servisi en fazla bir kez çağırır. | Mevcut sınırlı harness yüzeyidir; generic araç seçme döngüsü, serbest kod/SQL veya yeni hesaplama formülleri içermez. |
+| `app/api/housing_question.py` — `/analysis/housing/question` | Normalize edilmiş istek satırlarını kabul eder; ortak ve kesintisiz dönem kapsamını model çağrısından önce türetir. `ok`, `clarification_required` veya `unsupported` kararını sunar. | Soru servisinin HTTP yüzeyidir. İstek satırlarının resmî kaynak dosyalarından geldiğini veya fiziksel Bronze/manifest zincirini doğrulamaz. |
+| `app/connectors/llm_client.py` — `ask_llm`, `read_llm_settings` | Yerel ayarlardan yapılandırılmış Chat Completions istemcisini sağlar; SDK retry sayısını sıfırlar ve sağlayıcı hatalarını kontrollü uygulama hatalarına çevirir. | Soru planlaması ve opsiyonel narrator tarafından kullanılan model erişim katmanıdır; analiz hesabı yapmaz. |
+| `app/api/main.py` — `create_app` | Housing ve soru router'larını uygulamaya bağlar ve API uygulamasını oluşturur. | Orchestrator/tool sözleşmesinin hesaplama katmanı değildir. |
 
 **Narrator doğrulamasının sınırı:** Güncel PR #47 akışında model yalnızca `results` içeren JSON döndürür. Eşleşen aylar tam bir kez yer almalı; her sayısal değer, aynı ayın aynı metriğiyle karşılaştırılmalıdır. Ek kaynak, yöntem ve nedensellik alanları ile serbest metin reddedilir. Türkçe anlatım; kaynaklar, yöntem ve nedensellik sınırlaması uygulama tarafından doğrulanmış evidence üzerinden oluşturulur. Bu kontrol, evidence içinde anılan kaynakların fiziksel Bronze/manifest bütünlüğünü yeniden doğrulamaz; o sorumluluk veri hattı ve manifest doğrulama aşamasındadır. Güncel davranış ve ayrıntılar için [Housing Narration belgesine](housing-narration.md) bakınız.
 
@@ -158,6 +163,10 @@ app/api/housing.py
 İlk demo akışında `detect_changes` çağrılmaz. Çünkü `app/lakehouse/gold.py` zaten `nominal_housing_loan_change_pct`, `real_housing_loan_change_pct`, `interest_rate_change_pp` ve `rate_down_real_credit_not_up` alanlarını deterministik olarak üretmektedir. `detect_changes` bu değerleri yeniden hesaplayıp ikinci bir doğruluk kaynağı oluşturmamalıdır. Araç ancak Gold tarafından sağlanmayan genel amaçlı bir değişim analizi ihtiyacı için, ayrı testlerle etkinleştirilebilir.
 
 Aynı şekilde `detect_anomalies`, `web_search` ve `web_url_reader` ilk demo runtime akışında kullanılmaz; `analyze_causality` ise açıkça `disabled` durumundadır.
+
+**Mevcut sınırlı soru akışı:** `POST /analysis/housing/question`, `run_housing_question()` üzerinden soruyu tek JSON kararına dönüştürür. Geçerli `ready` planında mevcut deterministik `run_housing_analysis()` servisi çalışır; `clarification_required` ve `unsupported` kararlarında analiz çalıştırılmaz. Planlama için bir model çağrısı vardır; narrator açıkça istenirse onun çağrısı ayrıca yapılır. Model planına SQL, dosya yolu veya yeni tool adı eklenemez. Şema ve kapsam doğrulaması, modelin kullanıcı sorusunu anlamsal olarak doğru yorumladığını tek başına kanıtlamaz.
+
+Soru API'si çağıranın sağladığı normalize edilmiş satırlar üzerinde çalışır. Dosya/manifest destekli soru entegrasyonu, ek ekonomik analizler ve serbest LLM yorumlama henüz tamamlanmamıştır. Bu akışın mevcut yanıtları Bölüm 5'teki geleceğe yönelik generic response zarfıyla aynı değildir. Ayrıntılar için [Housing Question](housing-question.md) ve [LLM Client](llm-client.md) belgelerine bakınız. Bölüm 3.4'teki generic tool timeout/retry sınırları mevcut LLM istemcisinin uçtan uca süre garantisi olarak yorumlanmamalıdır.
 
 ### 3.4 Tool Timeout ve Retry Sözleşmesi (Issue #6)
 

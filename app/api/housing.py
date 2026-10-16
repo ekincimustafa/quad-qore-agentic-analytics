@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Optional
 from typing import Annotated, Any, Literal
 
 import pandas as pd
@@ -25,7 +26,7 @@ from app.services.housing_demo import (
 )
 from app.tools.housing_chart import HousingChartError
 from app.tools.housing_evidence import EvidenceBuildError, HousingAnalysisEvidence
-from app.tools.housing_narrator import narrate_housing_evidence_with_mia
+from app.tools.housing_narrator import narrate_housing_evidence_with_llm
 
 
 PERIOD_PATTERN = r"^\d{4}-(0[1-9]|1[0-2])$"
@@ -93,13 +94,13 @@ class HousingAnalysisResponse(BaseModel):
     status: Literal["ok"] = "ok"
     evidence: HousingAnalysisEvidence
     chart: dict[str, Any]
-    narration: str | None
+    narration: Optional[str]
 
 
 def get_housing_narrator() -> HousingNarrator:
-    """Provide the configured MIA narrator; replaceable in offline tests."""
+    """Provide the configured LLM narrator; settings are read only on use."""
 
-    return narrate_housing_evidence_with_mia
+    return narrate_housing_evidence_with_llm
 
 
 def get_housing_demo_paths() -> HousingDemoPaths:
@@ -118,7 +119,7 @@ def _analysis_response(result: Any) -> HousingAnalysisResponse:
 
 def _raise_invalid_input(exc: Exception) -> None:
     raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail={
             "code": "invalid_analysis_input",
             "message": str(exc),

@@ -33,7 +33,7 @@ class HousingDemoDataError(RuntimeError):
     """Raised when a configured Silver artifact cannot be loaded safely."""
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class HousingDemoPaths:
     """Server-controlled Silver inputs used by the first demo."""
 
