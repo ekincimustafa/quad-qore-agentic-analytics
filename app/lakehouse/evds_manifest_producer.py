@@ -396,14 +396,19 @@ def build_evds_manifest(
         data_root=data_root,
     )
 
-    #45 tarafından üretilen kapsam raporunu doğrula.
-    coverage_path = Path(silver_path).with_suffix(
+    # Silver dosyasının doğrulanmış repo-relative yolunu kullan.
+    resolved_silver_path = (
+        Path(project_root).resolve(strict=True)
+        / silver_entry["path"]
+    ).resolve(strict=True)
+
+    coverage_path = resolved_silver_path.with_suffix(
         ".coverage.json"
     )
 
     weekly_coverage = build_weekly_coverage_manifest_entry(
         coverage_path=coverage_path,
-        silver_path=silver_path,
+        silver_path=resolved_silver_path,
     )
 
     required_metadata_fields = {
@@ -468,6 +473,83 @@ def build_evds_manifest(
         ):
             raise ValueError(
                 f"Invalid base year: {series_code}"
+            )
+
+        # Consumer v1.0 seri metadata sözleşmesi.
+        contract = {
+            "TP.KTF12": {
+                "unit": "percent",
+                "base_year": None,
+                "base_year_sources": {"not_applicable"},
+                "transformations": {
+                    "mean",
+                    "monthly_arithmetic_mean",
+                    "monthly arithmetic mean of weekly observations",
+                },
+            },
+            "TP.TUKFIY2025.GENEL": {
+                "unit": "index",
+                "base_year": 2025,
+                "base_year_sources": {
+                    "tcmb",
+                    "evds",
+                    "series_definition",
+                    "source_metadata",
+                    "official_series_metadata",
+                },
+                "transformations": {
+                    "level",
+                    "none",
+                    "as_published",
+                    "monthly level as published",
+                },
+            },
+            "TP.KFE.TR": {
+                "unit": "index",
+                "base_year": 2023,
+                "base_year_sources": {
+                    "tcmb",
+                    "evds",
+                    "series_definition",
+                    "source_metadata",
+                    "official_series_metadata",
+                },
+                "transformations": {
+                    "level",
+                    "none",
+                    "as_published",
+                    "monthly level as published",
+                },
+            },
+        }[series_code]
+
+        if metadata["unit"].strip() != contract["unit"]:
+            raise ValueError(
+                f"Invalid unit for {series_code}"
+            )
+
+        if (
+            type(base_year) is not type(contract["base_year"])
+            or base_year != contract["base_year"]
+        ):
+            raise ValueError(
+                f"Invalid base year for {series_code}"
+            )
+
+        if (
+            metadata["base_year_source"].strip().lower()
+            not in contract["base_year_sources"]
+        ):
+            raise ValueError(
+                f"Invalid base year source for {series_code}"
+            )
+
+        if (
+            metadata["transformation"].strip().lower()
+            not in contract["transformations"]
+        ):
+            raise ValueError(
+                f"Invalid transformation for {series_code}"
             )
 
         # Silver üretiminde kullanılan Bronze kaydını doğrula.

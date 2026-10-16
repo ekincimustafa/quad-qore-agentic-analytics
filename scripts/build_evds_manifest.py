@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-
+from tempfile import TemporaryDirectory
 from app.lakehouse.evds_manifest_producer import build_evds_manifest
 from app.lakehouse.evds_pipeline import build_evds_silver_from_bronze
 from scripts.build_evds_silver import _find_bronze_for_request
@@ -109,6 +109,49 @@ def main(argv=None):
             )
 
         print("60 aylık demo Silver ve coverage raporu oluşturuldu.")
+
+    else:
+        # Normal modda mevcut Silver'ın seçilen Bronze
+        # dosyalarından üretildiğini bağımsız olarak doğrula.
+        with TemporaryDirectory() as temp:
+            temp_csv = Path(temp) / silver_path.name
+
+            build_evds_silver_from_bronze(
+                housing_rate_path=selected_raw_paths["TP.KTF12"],
+                cpi_path=selected_raw_paths[
+                    "TP.TUKFIY2025.GENEL"
+                ],
+                housing_price_path=selected_raw_paths["TP.KFE.TR"],
+                output_path=temp_csv,
+                start_period="2021-01",
+                end_period="2026-06",
+            )
+
+            if temp_csv.read_bytes() != silver_path.read_bytes():
+                raise ValueError(
+                    "Existing Silver CSV does not match "
+                    "the selected Bronze sources."
+                )
+
+            expected_coverage = json.loads(
+                temp_csv.with_suffix(
+                    ".coverage.json"
+                ).read_text(encoding="utf-8")
+            )
+
+            actual_coverage = json.loads(
+                silver_path.with_suffix(
+                    ".coverage.json"
+                ).read_text(encoding="utf-8")
+            )
+
+            if expected_coverage != actual_coverage:
+                raise ValueError(
+                    "Existing coverage report does not match "
+                    "the selected Bronze sources."
+                )
+
+        print("Silver–Bronze kaynak tutarlılığı doğrulandı.")
 
     # Bronze, Silver ve haftalık kapsam bilgilerini doğrula.
     manifest = build_evds_manifest(

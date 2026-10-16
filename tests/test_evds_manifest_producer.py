@@ -445,12 +445,24 @@ def test_full_manifest_combines_three_evds_series(tmp_path):
 
         series_metadata[code] = {
             "silver_columns": columns,
-            "unit": "test_unit",
+            "unit": (
+                "percent" if code == "TP.KTF12" else "index"
+            ),
             "native_frequency": frequency,
             "target_frequency": "monthly",
-            "base_year": None,
-            "base_year_source": "test_fixture",
-            "transformation": "test_transformation",
+            "base_year": {
+                "TP.KTF12": None,
+                "TP.TUKFIY2025.GENEL": 2025,
+                "TP.KFE.TR": 2023,
+            }[code],
+            "base_year_source": (
+                "not_applicable"
+                if code == "TP.KTF12"
+                else "tcmb"
+            ),
+            "transformation": (
+                "mean" if code == "TP.KTF12" else "level"
+            ),
         }
 
     manifest = build_evds_manifest(
@@ -664,3 +676,191 @@ def test_shared_fixture_has_valid_physical_provenance():
     assert "weekly_coverage" not in series_by_code[
         "TP.KFE.TR"
     ]
+
+@pytest.mark.parametrize(
+    "series_code,field,bad_value,expected_error",
+    [
+        (
+            "TP.TUKFIY2025.GENEL",
+            "unit",
+            "USD",
+            "Invalid unit",
+        ),
+        (
+            "TP.TUKFIY2025.GENEL",
+            "base_year",
+            2020,
+            "Invalid base year",
+        ),
+        (
+            "TP.KFE.TR",
+            "base_year",
+            2025,
+            "Invalid base year",
+        ),
+        (
+            "TP.KTF12",
+            "base_year",
+            2020,
+            "Invalid base year",
+        ),
+        (
+            "TP.KTF12",
+            "transformation",
+            "sum",
+            "Invalid transformation",
+        ),
+        (
+            "TP.KFE.TR",
+            "base_year_source",
+            "unknown",
+            "Invalid base year source",
+        ),
+    ],
+)
+def test_manifest_rejects_invalid_series_metadata(
+    series_code,
+    field,
+    bad_value,
+    expected_error,
+):
+    fixture_root = (
+        Path(__file__).resolve().parent
+        / "fixtures"
+        / "evds_manifest_v1"
+    )
+    data_root = fixture_root / "data"
+
+    manifest_path = (
+        data_root
+        / "silver"
+        / "evds"
+        / "monthly"
+        / "manifest.json"
+    )
+
+    manifest = json.loads(
+        manifest_path.read_text(encoding="utf-8")
+    )
+
+    silver_path = fixture_root / manifest["silver"]["path"]
+
+    metadata_fields = (
+        "silver_columns",
+        "unit",
+        "native_frequency",
+        "target_frequency",
+        "base_year",
+        "base_year_source",
+        "transformation",
+    )
+
+    series_metadata = {
+        item["series_code"]: {
+            key: item[key] for key in metadata_fields
+        }
+        for item in manifest["series"]
+    }
+
+    selected_raw_paths = {
+        item["series_code"]: (
+            fixture_root / item["bronze"][0]["raw_path"]
+        )
+        for item in manifest["series"]
+    }
+
+    # Testte yalnızca tek bir metadata alanını boz.
+    series_metadata[series_code][field] = bad_value
+
+    receipt = manifest["series"][0]["bronze"][0]
+
+    with pytest.raises(ValueError, match=expected_error):
+        build_evds_manifest(
+            silver_path=silver_path,
+            selected_raw_paths=selected_raw_paths,
+            series_metadata=series_metadata,
+            request_start=receipt["request_start"],
+            request_end=receipt["request_end"],
+            project_root=fixture_root,
+            data_root=data_root,
+        )
+
+def test_manifest_resolves_relative_silver_path_from_project_root(
+    tmp_path,
+    monkeypatch,
+):
+    fixture_root = (
+        Path(__file__).resolve().parent
+        / "fixtures"
+        / "evds_manifest_v1"
+    )
+
+    manifest_path = (
+        fixture_root
+        / "data/silver/evds/monthly/manifest.json"
+    )
+
+    expected = json.loads(
+        manifest_path.read_text(encoding="utf-8")
+    )
+
+    metadata_fields = (
+        "silver_columns",
+        "unit",
+        "native_frequency",
+        "target_frequency",
+        "base_year",
+        "base_year_source",
+        "transformation",
+    )
+
+    series_metadata = {
+        series["series_code"]: {
+            field: series[field]
+            for field in metadata_fields
+        }
+        for series in expected["series"]
+    }
+
+    selected_raw_paths = {
+        series["series_code"]: (
+            fixture_root / series["bronze"][0]["raw_path"]
+        )
+        for series in expected["series"]
+    }
+
+    receipt = expected["series"][0]["bronze"][0]
+
+    relative_silver = expected["silver"]["path"]
+    absolute_silver = fixture_root / relative_silver
+
+    # Terminalin proje klasörü dışında olduğunu taklit et.
+    monkeypatch.chdir(tmp_path)
+
+    def generate_manifest(silver_path):
+        return build_evds_manifest(
+            silver_path=silver_path,
+            selected_raw_paths=selected_raw_paths,
+            series_metadata=series_metadata,
+            request_start=receipt["request_start"],
+            request_end=receipt["request_end"],
+            project_root=fixture_root,
+            data_root=fixture_root / "data",
+        )
+
+    relative_result = generate_manifest(relative_silver)
+    absolute_result = generate_manifest(absolute_silver)
+
+    # Göreli ve mutlak yollar aynı sonucu vermeli.
+    assert relative_result == absolute_result
+
+    # Fiziksel CSV ve kapsam bilgileri doğru kalmalı.
+    assert relative_result["silver"] == expected["silver"]
+
+    rate_series = next(
+        series
+        for series in relative_result["series"]
+        if series["series_code"] == "TP.KTF12"
+    )
+
+    assert len(rate_series["weekly_coverage"]["months"]) == 2
