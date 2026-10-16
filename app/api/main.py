@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from app.api.housing import router as housing_router
 from app.api.housing_question import router as housing_question_router
+from app.api.inflation import router as inflation_router
 
 
 APP_VERSION = "0.1.0"
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
     )
     application.include_router(housing_router)
     application.include_router(housing_question_router)
+    application.include_router(inflation_router)
 
     @application.get(
         "/health",
