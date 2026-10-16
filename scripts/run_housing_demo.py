@@ -9,6 +9,7 @@ import re
 import shutil
 import sys
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -390,7 +391,19 @@ def main(argv: list[str] | None = None) -> int:
             narrator=None,
         )
 
-        evidence = run.evidence
+        weekly_coverage = next(
+            series.weekly_coverage for series in manifest.series
+            if series.series_code == "TP.KTF12"
+        )
+        # Complete monthly rows do not establish complete weekly publications.
+        coverage_note = (
+            "EVDS TP.KTF12 weekly_coverage: unverified; calendar_verification: not_available. "
+            "Haftalık kapsam, doğrulanmış resmî yayın takvimi olmadan teyit edilemez."
+        )
+        evidence = run.evidence.model_copy(update={
+            "data_quality_notes": tuple(dict.fromkeys((*run.evidence.data_quality_notes, coverage_note)))
+        })
+        run = replace(run, evidence=evidence)
         chart = run.chart
 
         # Validate Chart against full evidence and Gold calculations
@@ -449,7 +462,8 @@ def main(argv: list[str] | None = None) -> int:
             },
             "manifest": {
                 "sha256": _calculate_sha256(manifest_path),
-                "schema_version": manifest.schema_version
+                "schema_version": manifest.schema_version,
+                "weekly_coverage": weekly_coverage.model_dump(),
             },
             "period": f"{args.start_period} to {args.end_period}",
             "observed_month_count": evidence.observed_month_count,

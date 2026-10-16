@@ -133,6 +133,21 @@ def mock_project(tmp_path: Path) -> tuple[Path, Path]:
                 "base_year_source": "not_applicable",
                 "transformation": "mean",
                 "bronze": [b_ktf_1, b_ktf_2],
+                "weekly_coverage": {
+                    "overall_status": "unverified",
+                    "calendar_verification": "not_available",
+                    "months": [
+                        {
+                            "period": period,
+                            "status": "unverified",
+                            "observed_count": 4,
+                            "expected_count": None,
+                            "observed_dates": [f"{period}-{day}" for day in ("01", "08", "15", "22")],
+                            "quality_note": "No verified source publication calendar.",
+                        }
+                        for period in df["period"]
+                    ],
+                },
             },
             {
                 "series_code": "TP.TUKFIY2025.GENEL",

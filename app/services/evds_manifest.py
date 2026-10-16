@@ -7,10 +7,10 @@ import hashlib
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any, Literal
 
 import pandas as pd
-from pydantic import BaseModel, ConfigDict, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 
 
 class EvdsBronzeReceipt(BaseModel):
@@ -25,6 +25,29 @@ class EvdsBronzeReceipt(BaseModel):
     request_end: str
 
 
+class EvdsWeeklyCoverageMonth(BaseModel):
+    """Observed weekly dates; no publication calendar has been verified."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    period: StrictStr
+    status: Literal["unverified"]
+    observed_count: Annotated[StrictInt, Field(ge=1)]
+    expected_count: None
+    observed_dates: list[StrictStr]
+    quality_note: StrictStr
+
+
+class EvdsWeeklyCoverage(BaseModel):
+    """The embedded #39 contract, not the standalone .coverage.json report."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    overall_status: Literal["unverified"]
+    calendar_verification: Literal["not_available"]
+    months: list[EvdsWeeklyCoverageMonth]
+
+
 class EvdsSeriesRef(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -37,6 +60,7 @@ class EvdsSeriesRef(BaseModel):
     base_year_source: str
     transformation: str
     bronze: list[EvdsBronzeReceipt]
+    weekly_coverage: EvdsWeeklyCoverage | None = None
 
 
 class EvdsSilverDataset(BaseModel):
@@ -149,6 +173,36 @@ def _parse_iso_date(value: str, field_name: str) -> date:
         return date.fromisoformat(value.strip())
     except ValueError as exc:
         raise ManifestValidationError(f"Invalid calendar date for {field_name}: {value!r}") from exc
+
+
+def _validate_weekly_coverage(manifest: EvdsManifest, df: pd.DataFrame) -> None:
+    """Cross-check the full Silver sequence without inventing expected weeks."""
+    series = next(s for s in manifest.series if s.series_code == "TP.KTF12")
+    coverage = series.weekly_coverage
+    if coverage is None:
+        raise ManifestValidationError("TP.KTF12 weekly_coverage is required.")
+
+    periods = df["period"].astype(str).str.strip().tolist()
+    if [month.period for month in coverage.months] != periods:
+        raise ManifestValidationError("weekly_coverage months must match the Silver period sequence exactly.")
+
+    counts = pd.to_numeric(df["weekly_observation_count"], errors="coerce")
+    for month, silver_count in zip(coverage.months, counts):
+        prefix = f"weekly_coverage {month.period}"
+        if not month.quality_note.strip():
+            raise ManifestValidationError(f"{prefix} quality_note cannot be empty.")
+        if month.observed_dates != sorted(set(month.observed_dates)):
+            raise ManifestValidationError(f"{prefix} observed_dates must be sorted and unique.")
+        for value in month.observed_dates:
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+                raise ManifestValidationError(f"{prefix} observed_dates must use YYYY-MM-DD.")
+            parsed = _parse_iso_date(value, f"{prefix} observed_dates")
+            if parsed.isoformat()[:7] != month.period:
+                raise ManifestValidationError(f"{prefix} observed_dates contains a date from another month.")
+        if month.observed_count != len(month.observed_dates):
+            raise ManifestValidationError(f"{prefix} observed_count does not match observed_dates length.")
+        if pd.isna(silver_count) or silver_count != month.observed_count:
+            raise ManifestValidationError(f"{prefix} observed_count does not match Silver weekly_observation_count.")
 
 
 def load_and_validate_manifest(manifest_path: Path | str, project_root: Path | str) -> EvdsManifest:
@@ -277,6 +331,12 @@ def load_and_validate_manifest(manifest_path: Path | str, project_root: Path | s
 
         if not series.bronze:
             raise ManifestValidationError(f"Series {series.series_code} bronze receipts list cannot be empty.")
+
+        if series.series_code == "TP.KTF12":
+            if series.weekly_coverage is None:
+                raise ManifestValidationError("TP.KTF12 weekly_coverage is required.")
+        elif series.weekly_coverage is not None:
+            raise ManifestValidationError(f"Monthly series {series.series_code} weekly_coverage must be absent or null.")
 
         bronze_starts: list[date] = []
         bronze_ends: list[date] = []
@@ -492,6 +552,8 @@ def load_and_validate_manifest(manifest_path: Path | str, project_root: Path | s
                 f"[{min_start}, {max_end}] does not cover manifest silver period "
                 f"[{silver_start_date}, {silver_end_date}]."
             )
+
+    _validate_weekly_coverage(manifest, df)
 
     return manifest
 

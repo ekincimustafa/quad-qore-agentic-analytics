@@ -113,6 +113,21 @@ def synthetic_66_months(tmp_path: Path) -> tuple[Path, Path, Path]:
                 "base_year_source": "not_applicable",
                 "transformation": "mean",
                 "bronze": [b1],
+                "weekly_coverage": {
+                    "overall_status": "unverified",
+                    "calendar_verification": "not_available",
+                    "months": [
+                        {
+                            "period": period,
+                            "status": "unverified",
+                            "observed_count": 4,
+                            "expected_count": None,
+                            "observed_dates": [f"{period}-{day}" for day in ("01", "08", "15", "22")],
+                            "quality_note": "No verified source publication calendar.",
+                        }
+                        for period in periods
+                    ],
+                },
             },
             {
                 "series_code": "TP.TUKFIY2025.GENEL",
@@ -205,6 +220,37 @@ def test_cli_determinism(synthetic_66_months, tmp_path, monkeypatch):
 
     for fname in ["evidence.json", "chart.json", "run_summary.json"]:
         assert (out1 / fname).read_bytes() == (out2 / fname).read_bytes()
+
+
+@pytest.mark.parametrize("corruption", ["missing-tail", "tail-count", "tail-date"])
+def test_cli_validates_coverage_outside_demo_slice(synthetic_66_months, tmp_path, monkeypatch, corruption):
+    """The 60-month demo must not hide invalid coverage in the full 66-month input."""
+    from app.services.evds_manifest import ManifestValidationError, load_and_validate_manifest
+
+    bddk, evds, manifest = synthetic_66_months
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    months = next(s for s in payload["series"] if s["series_code"] == "TP.KTF12")["weekly_coverage"]["months"]
+    assert months[-1]["period"] == "2026-06"
+    if corruption == "missing-tail":
+        months.pop()
+    elif corruption == "tail-count":
+        months[-1]["observed_count"] = 3
+    else:
+        months[-1]["observed_dates"][-1] = "2026-07-01"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    before = {p: p.read_bytes() for p in (bddk, evds, manifest)}
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(ManifestValidationError, match="weekly_coverage"):
+        load_and_validate_manifest(manifest, tmp_path)
+    output = tmp_path / "output"
+    assert main([
+        "--bddk-silver", str(bddk), "--evds-silver", str(evds),
+        "--evds-manifest", str(manifest), "--start-period", "2021-01",
+        "--end-period", "2025-12", "--output-dir", str(output), "--html",
+    ]) == 1
+    assert not output.exists()
+    assert not (tmp_path / "output.part").exists()
+    assert all(p.read_bytes() == content for p, content in before.items())
 
 
 def test_cli_error_missing_args(synthetic_66_months):
@@ -952,4 +998,3 @@ def test_cli_html_flag_renders_and_publishes_verified_offline_report(
     assert summary_text in unescape(html)
     for matched_period in evidence_data["matched_periods"]:
         assert f"<td>{matched_period}</td>" in html
-

@@ -1,0 +1,13 @@
+{
+  "content_type": "application/json",
+  "data_period": "2021-01-01/2021-02-28",
+  "downloaded_at": "2026-09-19T10:00:00+00:00",
+  "frequency": "monthly",
+  "raw_path": "bronze/evds/tp_tukfiy2025_genel/feb8e4670c99ae40ec5645786ecb013298fe6b91c43b5b8bddf0c67c88183c54.json",
+  "request_end": "2021-02-28",
+  "request_start": "2021-01-01",
+  "series_code": "TP.TUKFIY2025.GENEL",
+  "sha256": "feb8e4670c99ae40ec5645786ecb013298fe6b91c43b5b8bddf0c67c88183c54",
+  "size_bytes": 130,
+  "source_url": "https://example.invalid/evds/fixture"
+}
