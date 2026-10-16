@@ -1,0 +1,13 @@
+{
+  "content_type": "application/json",
+  "data_period": "2021-01-01/2021-02-28",
+  "downloaded_at": "2026-09-19T10:00:00+00:00",
+  "frequency": "monthly",
+  "raw_path": "bronze/evds/tp_kfe_tr/0fea2e892cf357c64ec5c05b7c5a39a867bda4a2b19f82cbf92acb8d44be836f.json",
+  "request_end": "2021-02-28",
+  "request_start": "2021-01-01",
+  "series_code": "TP.KFE.TR",
+  "sha256": "0fea2e892cf357c64ec5c05b7c5a39a867bda4a2b19f82cbf92acb8d44be836f",
+  "size_bytes": 110,
+  "source_url": "https://example.invalid/evds/fixture"
+}

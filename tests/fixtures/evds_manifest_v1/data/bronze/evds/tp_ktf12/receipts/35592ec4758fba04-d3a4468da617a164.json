@@ -1,0 +1,13 @@
+{
+  "content_type": "application/json",
+  "data_period": "2021-01-01/2021-02-28",
+  "downloaded_at": "2026-09-19T10:00:00+00:00",
+  "frequency": "weekly",
+  "raw_path": "bronze/evds/tp_ktf12/d3a4468da617a164fc633b9ecbad191ab0ef119c378171ba5ff66a13d88ed155.json",
+  "request_end": "2021-02-28",
+  "request_start": "2021-01-01",
+  "series_code": "TP.KTF12",
+  "sha256": "d3a4468da617a164fc633b9ecbad191ab0ef119c378171ba5ff66a13d88ed155",
+  "size_bytes": 200,
+  "source_url": "https://example.invalid/evds/fixture"
+}

@@ -1,0 +1,30 @@
+{
+  "calendar_verification": "not_available",
+  "months": [
+    {
+      "expected_count": null,
+      "observed_count": 2,
+      "observed_dates": [
+        "2021-01-01",
+        "2021-01-15"
+      ],
+      "period": "2021-01",
+      "quality_note": "Weekly coverage cannot be confirmed without a verified source publication calendar.",
+      "status": "unverified"
+    },
+    {
+      "expected_count": null,
+      "observed_count": 2,
+      "observed_dates": [
+        "2021-02-05",
+        "2021-02-19"
+      ],
+      "period": "2021-02",
+      "quality_note": "Weekly coverage cannot be confirmed without a verified source publication calendar.",
+      "status": "unverified"
+    }
+  ],
+  "overall_status": "unverified",
+  "schema_version": "1.0",
+  "silver_sha256": "c4c1569a1a342a76c74df8ee78202535f3caa765c084e7aee14ee446c6b060f5"
+}
