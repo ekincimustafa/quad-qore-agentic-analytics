@@ -1,6 +1,7 @@
 # Quad-Qore Agentic Analytics
 
-An early MVP for monthly housing-loan analysis, developed for KKB Hackathon 2026.
+An early MVP for monthly economic analysis, developed for KKB Hackathon 2026,
+with housing-loan analysis and a deterministic CPI-change endpoint.
 Python collects and validates data, computes the analysis, and returns evidence,
 a Plotly chart, and an optional guarded narration. A standalone HTML report is available.
 
@@ -15,9 +16,13 @@ analysis window is January 2021 to December 2025: 60 months.
 | BDDK ingestion and Silver | Raw bulletin acquisition, receipt/integrity validation, monthly housing-loan Parquet | [Ingestion](docs/bddk-ingestion.md), [Silver](docs/bddk-silver.md) |
 | TCMB EVDS ingestion and Silver | Three approved series, Bronze receipts, monthly CSV and weekly-rate aggregation | [EVDS guide](docs/evds-ingestion.md) |
 | Gold analysis | Period alignment, real loan stock, monthly changes and deterministic matching rule | [gold.py](app/lakehouse/gold.py) |
+| CPI analysis | Monthly and same-month-last-year CPI changes from normalized rows; missing history stays null, no model call | [Inflation guide](docs/inflation-analysis.md) |
 | Evidence and chart | Typed evidence and a six-trace, three-panel Plotly chart | [Evidence](app/tools/housing_evidence.py), [chart](app/tools/housing_chart.py) |
 | FastAPI | Health, normalized-row analysis, and server-side Silver analysis endpoints | [housing.py](app/api/housing.py) |
 | Guarded narration | Model JSON checked against the same month/metric; Turkish text rendered from evidence | [Narration contract](docs/housing-narration.md) |
+| LLM client | Configured OpenAI-compatible Chat Completions, bounded SDK timeout, one attempt and safe application errors | [LLM guide](docs/llm-client.md) |
+| Question analysis | Turkish question + normalized rows, typed decisions, one allowed Housing analysis and shared period validation | [Question API guide](docs/housing-question.md) |
+| Question evaluation | Nine curated synthetic cases; default offline harness checks and explicitly budgeted live mode | [Evaluation guide](docs/housing-question-evals.md) |
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
 | CI | Offline pytest suite on pull requests and pushes to main, using Python 3.12 | [Workflow](.github/workflows/tests.yml) |
 
@@ -28,13 +33,17 @@ work in [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issue
 [#45](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/45).
 See the [acceptance record](docs/release-acceptance.md) for verified checks and open gates.
 
-Natural-language question routing, a general agent/tool registry, data catalog,
-general web/anomaly/causality tools and deployment are planned work. The next LLM
-and question-routing stages are tracked in
-[#41](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/41) and
-[#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42).
+Question routing has a bounded Python service and HTTP endpoint with offline
+behavior tests. File-backed integration and live semantic evaluation remain open
+in [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42).
+A general agent/tool registry, data catalog, general web/anomaly/causality tools
+and deployment are planned work. A live Gemini narration contract check passed;
+see the [LLM acceptance record](docs/llm-client.md#canlı-kabul-kaydı--15-ekim-2026).
 The draft golden cases currently have schema checks; they are not a measured
 end-to-end model-accuracy benchmark.
+A separate [Housing question set](evals/housing_question_cases.json) has an
+[executable evaluator](docs/housing-question-evals.md). Offline stub results
+verify harness behavior; they do not measure model understanding.
 
 ## Quick start: synthetic offline report
 
@@ -96,6 +105,8 @@ Interactive API documentation: <http://127.0.0.1:8000/docs>.
 | `GET /health` | API health; does not verify real-data availability or model access |
 | `POST /analysis/housing` | Normalized BDDK/EVDS rows and period; returns evidence, chart and optional narration |
 | `POST /analysis/housing/demo` | Period and optional narration; reads server-controlled local Silver files |
+| `POST /analysis/housing/question` | Turkish question + normalized rows; validates the model plan before analysis, or returns clarification/unsupported |
+| `POST /analysis/inflation` | Normalized monthly CPI rows and period; deterministic monthly/annual changes, no model or narration |
 
 `include_narration` defaults to `false`, so normalized-row analysis needs no key.
 Try [the three-month synthetic request](docs/housing-api-example.json) in a second terminal.
@@ -118,6 +129,15 @@ curl -f -H 'Content-Type: application/json' --data-binary @docs/housing-api-exam
 
 The example has three observations and matches `2021-02`. It is independent of
 the 60-month HTML sample and does not create Silver files.
+
+For the question endpoint, use [the separate synthetic question request](docs/housing-question-api-example.json)
+and [question API instructions](docs/housing-question.md#soru-apisi). Question planning
+requires a configured live model even when `include_narration=false`.
+
+The separate [CPI example](docs/inflation-api-example.json) and
+[inflation guide](docs/inflation-analysis.md) work without an API key.
+This calculation endpoint is not yet connected to question routing;
+the Housing question endpoint still allows only its existing Housing analysis.
 
 The file-backed endpoint expects these paths relative to the repository root:
 
@@ -152,22 +172,28 @@ The intended Silver scope is 66 months; the first analysis selects 60 months.
 Real-data hashes, three sample-month comparisons and complete source binding
 remain release acceptance gates. See the BDDK and EVDS guides above.
 
-## Optional MIA connection
+## Optional LLM narration
 
-Copy `.env.example` to a local `.env` and configure `MIA_API_KEY`, `MIA_BASE_URL`
-and `MIA_CHAT_MODEL` for an account/model you can access. The `openai` package
-is used as an OpenAI-compatible client; requests use the configured MIA URL.
+Copy `.env.example` to a local `.env` and configure `LLM_API_KEY`, `LLM_BASE_URL`
+and `LLM_CHAT_MODEL` for a Chat Completions-compatible endpoint/model you can
+access. There is no default provider/model or automatic MIA fallback.
+`LLM_TIMEOUT_SECONDS` defaults to 30; retries are disabled. See the
+[LLM guide](docs/llm-client.md) for configuration and controlled errors.
 
 With the virtual environment activated:
 
 ```bash
-python -m scripts.smoke_test_mia
+python -m scripts.smoke_test_llm
 ```
 
-This checks basic model connectivity. It does not test the structured Housing
-narration contract. Live compatibility with that JSON contract remains unverified.
-Invalid model narration is rejected with HTTP 502 (`narration_failed`). The HTML
-sample does not call MIA. A provider-independent client is tracked in #41.
+This sends a small synthetic Housing evidence package to the selected live model
+and validates its JSON using the real narration contract. A single live check
+passed with `gemini-3.5-flash-lite` on October 15, 2026; this is not a model
+accuracy or availability benchmark. Verify access for your own provider/model.
+Invalid narration is rejected with HTTP 502 (`narration_failed`). The HTML sample
+and `include_narration=false` path do not read LLM settings or call a model.
+The old `MIA_*` helper and `scripts.smoke_test_mia` remain a separate legacy path;
+that older smoke command only checks basic connectivity.
 
 ## Analysis rule and limitations
 

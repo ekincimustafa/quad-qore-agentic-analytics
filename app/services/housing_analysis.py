@@ -64,9 +64,9 @@ def run_housing_analysis(
         try:
             candidate = narrator(evidence)
         except Exception as exc:
-            raise HousingNarrationError("MIA narration failed.") from exc
+            raise HousingNarrationError("LLM narration failed.") from exc
         if not isinstance(candidate, str) or not candidate.strip():
-            raise HousingNarrationError("MIA narration returned an empty response.")
+            raise HousingNarrationError("LLM narration returned an empty response.")
         narration = candidate.strip()
 
     return HousingAnalysisRun(

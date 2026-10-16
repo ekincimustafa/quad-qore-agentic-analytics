@@ -185,3 +185,174 @@ def test_build_evds_silver_rejects_duplicate_month(
             start_period="2021-01",
             end_period="2021-03",
         )
+
+
+def test_build_reports_unverified_weekly_coverage(tmp_path):
+    rate_path, cpi_path, kfe_path = _make_raw_files(
+        tmp_path,
+        "2021-01",
+        "2021-01",
+    )
+
+    output = tmp_path / "evds_monthly.csv"
+
+    result = build_evds_silver_from_bronze(
+        housing_rate_path=rate_path,
+        cpi_path=cpi_path,
+        housing_price_path=kfe_path,
+        output_path=output,
+        start_period="2021-01",
+        end_period="2021-01",
+    )
+
+    # Mevcut Silver hesaplaması değişmemeli.
+    silver = pd.read_csv(output)
+
+    assert silver.loc[0, "housing_loan_interest_rate_pct"] == pytest.approx(15.0)
+    assert silver.loc[0, "weekly_observation_count"] == 2
+
+    # Haftalık kapsam ayrı raporlanmalı.
+    report_path = output.with_suffix(".coverage.json")
+
+    assert report_path.exists()
+
+    report = json.loads(
+        report_path.read_text(encoding="utf-8")
+    )
+
+    assert report["silver_sha256"] == result.sha256
+    assert report["overall_status"] == "unverified"
+
+    january = report["months"][0]
+
+    assert january["period"] == "2021-01"
+    assert january["status"] == "unverified"
+    assert january["observed_count"] == 2
+    assert january["expected_count"] is None
+    assert january["observed_dates"] == [
+        "2021-01-01",
+        "2021-01-15",
+    ]
+
+def test_single_week_produces_unverified_coverage_report(tmp_path):
+    rate_path, cpi_path, kfe_path = _make_raw_files(
+        tmp_path,
+        "2021-01",
+        "2021-01",
+    )
+
+    # Faiz verisinde yalnızca bir haftalık gözlem bırak.
+    rate_data = json.loads(
+        rate_path.read_text(encoding="utf-8")
+    )
+
+    rate_data["items"] = rate_data["items"][:1]
+    rate_data["totalCount"] = 1
+
+    rate_path.write_text(
+        json.dumps(rate_data),
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "evds_monthly.csv"
+
+    result = build_evds_silver_from_bronze(
+        housing_rate_path=rate_path,
+        cpi_path=cpi_path,
+        housing_price_path=kfe_path,
+        output_path=output,
+        start_period="2021-01",
+        end_period="2021-01",
+    )
+
+    silver = pd.read_csv(output)
+
+    # Silver mevcut gözlemden doğru ortalamayı üretmeli.
+    assert silver.loc[0, "housing_loan_interest_rate_pct"] == pytest.approx(10.0)
+    assert silver.loc[0, "weekly_observation_count"] == 1
+
+    report_path = output.with_suffix(".coverage.json")
+
+    report = json.loads(
+        report_path.read_text(encoding="utf-8")
+    )
+
+    assert report["silver_sha256"] == result.sha256
+    assert report["overall_status"] == "unverified"
+
+    january = report["months"][0]
+
+    assert january["status"] == "unverified"
+    assert january["observed_count"] == 1
+    assert january["expected_count"] is None
+    assert january["observed_dates"] == ["2021-01-01"]
+
+def test_build_rejects_invalid_weekly_date(tmp_path):
+    rate_path, cpi_path, kfe_path = _make_raw_files(
+        tmp_path,
+        "2021-01",
+        "2021-01",
+    )
+
+    rate_data = json.loads(
+        rate_path.read_text(encoding="utf-8")
+    )
+
+    rate_data["items"][0]["Tarih"] = "99-01-2021"
+
+    rate_path.write_text(
+        json.dumps(rate_data),
+        encoding="utf-8",
+    )
+
+    output = tmp_path / "evds_monthly.csv"
+
+    with pytest.raises(ValueError):
+        build_evds_silver_from_bronze(
+            housing_rate_path=rate_path,
+            cpi_path=cpi_path,
+            housing_price_path=kfe_path,
+            output_path=output,
+            start_period="2021-01",
+            end_period="2021-01",
+        )
+
+    assert not output.exists()
+    assert not output.with_suffix(".coverage.json").exists()
+
+def test_coverage_report_is_deterministic(tmp_path):
+    rate_path, cpi_path, kfe_path = _make_raw_files(
+        tmp_path,
+        "2021-01",
+        "2021-02",
+    )
+
+    output = tmp_path / "evds_monthly.csv"
+    report_path = output.with_suffix(".coverage.json")
+
+    def build():
+        return build_evds_silver_from_bronze(
+            housing_rate_path=rate_path,
+            cpi_path=cpi_path,
+            housing_price_path=kfe_path,
+            output_path=output,
+            start_period="2021-01",
+            end_period="2021-02",
+        )
+
+    first_result = build()
+
+    first_csv = output.read_bytes()
+    first_report = report_path.read_bytes()
+
+    second_result = build()
+
+    assert output.read_bytes() == first_csv
+    assert report_path.read_bytes() == first_report
+    assert first_result.sha256 == second_result.sha256
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+
+    assert report["silver_sha256"] == second_result.sha256
+    assert report["overall_status"] == "unverified"
+    assert len(report["months"]) == 2

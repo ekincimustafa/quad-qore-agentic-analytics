@@ -74,5 +74,5 @@ def test_run_housing_analysis_wraps_narrator_failure():
     def failing_narrator(_evidence):
         raise RuntimeError("upstream unavailable")
 
-    with pytest.raises(HousingNarrationError, match="MIA narration failed"):
+    with pytest.raises(HousingNarrationError, match="LLM narration failed"):
         _run(narrator=failing_narrator)
