@@ -80,6 +80,8 @@ def run_file_backed_housing_demo(
     *,
     start_period: str = DEFAULT_START_PERIOD,
     end_period: str = DEFAULT_END_PERIOD,
+    bddk_source_ref: str = DEFAULT_BDDK_SOURCE_REF,
+    evds_source_refs: str | None = None,
     narrator: HousingNarrator | None = None,
 ) -> HousingAnalysisRun:
     """Load verified Silver artifacts and execute the existing analysis service."""
@@ -101,7 +103,7 @@ def run_file_backed_housing_demo(
         evds_monthly,
         start_period=start_period,
         end_period=end_period,
-        bddk_source_ref=DEFAULT_BDDK_SOURCE_REF,
-        evds_source_refs=DEFAULT_EVDS_SOURCE_REFS,
+        bddk_source_ref=bddk_source_ref,
+        evds_source_refs=evds_source_refs or DEFAULT_EVDS_SOURCE_REFS,
         narrator=narrator,
     )

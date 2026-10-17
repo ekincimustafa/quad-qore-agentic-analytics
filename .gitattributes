@@ -1,1 +1,2 @@
-tests/fixtures/evds_manifest_v1/data/silver/evds/monthly/*.csv text eol=lf
+# Physical EVDS fixture hashes describe the committed bytes on every platform.
+tests/fixtures/evds_manifest_v1/** -text

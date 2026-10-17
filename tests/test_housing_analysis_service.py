@@ -36,7 +36,6 @@ def _run(*, narrator=None):
         evds,
         start_period="2021-01",
         end_period="2021-03",
-        bddk_source_ref="BDDK test source",
         evds_source_refs="TP.KTF12; TP.TUKFIY2025.GENEL; TP.KFE.TR",
         narrator=narrator,
     )
@@ -67,7 +66,6 @@ def test_run_housing_analysis_rejects_missing_period():
             evds.iloc[:-1].copy(),
             start_period="2021-01",
             end_period="2021-03",
-            bddk_source_ref="BDDK test source",
             evds_source_refs="TP.KTF12; TP.TUKFIY2025.GENEL; TP.KFE.TR",
         )
 
