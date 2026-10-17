@@ -52,6 +52,12 @@ Aynı request ve aynı içerik tekrar işlendiğinde gereksiz yeni raw kopyası 
 
 Script ilgili döneme ait Bronze receipt dosyalarını bulur ve raw dosyanın SHA-256 ile boyutunu doğrular.
 
+Makbuz seçiminde `downloaded_at` timezone içeren ISO-8601 zaman olarak parse
+edilir ve UTC anına göre en yenisi seçilir. Aynı UTC anındaki makbuzlarda
+dosya adı leksikografik olarak en büyük olan seçilir. Eksik, bozuk veya timezone
+içermeyen timestamp işlemi durdurur; string sıralamasına veya sessiz fallback'e
+dönülmez. Bu seçim aylık faiz ortalaması formülünü değiştirmez.
+
 API response yapısı `app/lakehouse/evds_adapter.py` tarafından mevcut Silver fonksiyonlarının beklediği forma çevrilir. Analitik kurallar adapter içinde yeniden uygulanmaz.
 
 Kullanılan mevcut Silver fonksiyonları:
@@ -81,6 +87,43 @@ Kolonlar:
 2021-01 ile 2026-06 arasında beklenen satır sayısı 66'dır.
 
 Pipeline eksik ay, duplicate ay, non-numeric değer, bozuk Bronze SHA-256 veya beklenmeyen API şeması durumlarında fail-closed davranır.
+
+## Haftalık kapsam ve manifest
+
+CSV'nin beş kolonu korunur. Yanındaki `.coverage.json`, `schema_version`,
+`silver_sha256`, `overall_status`, `calendar_verification` ve aylık `months`
+kayıtlarını içerir. Gözlenen haftalık tarihler ve sayıları gerçek girdiden
+alınır; her ayda dört veya beş yayın olduğu varsayılmaz.
+
+Doğrulanmış resmî yayın takvimi bulunmadığından mevcut politika
+`overall_status: "unverified"`, `calendar_verification: "not_available"`,
+aylık `status: "unverified"` ve `expected_count: null` değerleridir.
+`expected_dates` veya `missing_dates` üretilmez. Tek haftalık gözlem aylık
+ortalama verebilir; bu durum haftalık kapsamın tam olduğunu göstermez.
+
+Yerel Bronze ve tam Silver hazırlandıktan sonra, ağ/LLM gerektirmeden:
+
+```bash
+python -m scripts.build_evds_manifest
+python -m scripts.build_evds_manifest --demo
+```
+
+Normal komut 2021-01–2026-06 Silver CSV ve kapsam raporunu seçilen Bronze
+dosyalarından geçici alanda yeniden hesaplanan sonuçla karşılaştırır.
+Uyuşmazlıkta yeni manifest yayımlanmaz, mevcut dosyalar korunur. `--demo`,
+aynı Bronze kaynaklarından 2021-01–2025-12 CSV/raporu ve ayrı
+`manifest_2021-01_2025-12.json` üretir. Ana manifest `manifest.json` olur.
+
+Manifest üreticisi raporun Silver hash'ini doğrular ve yalnızca
+`overall_status`, `calendar_verification`, `months` alanlarını
+`series[TP.KTF12].weekly_coverage` altında taşır. Tüketici tam CSV dönemi
+boyunca ay/tarih/sayı uyumunu doğrular. Offline demo CLI kapsamı çalıştırma
+özetine, belirsizlik notunu evidence ve HTML'e aktarır; kullanım için
+[Housing demo belgesine](housing-demo.md) bakınız.
+
+Üretici/tüketici fixture testleri sentetiktir. Gerçek 66 aylık dosyaların
+teslimi ve 60 aylık demo/üç örnek ay kabulü #39/#40 kapsamında ayrıca
+kaydedilmelidir. Aşağıdaki eski canlı ingestion kaydı bu son kabulün yerine geçmez.
 
 ## Testler
 
