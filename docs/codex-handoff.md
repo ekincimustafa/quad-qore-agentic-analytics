@@ -7,6 +7,29 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## Güncel oturum — 18 Ekim 2026
+
+Bu bölüm, aşağıdaki 17 Ekim planının güncel durumunu tamamlar. Ana dal
+`45c8dcf`; PR #62 iki analizli servis çekirdeği ve PR #63 çalışma düzeni açık,
+ikisinin Tests CI'si başarılıdır. Merge edilmemiş kod main'de var sayılmaz.
+
+- Aktif dal `feat/verified-housing-question`, doğrudan bu main tabanından açıldı.
+  #42'nin sunucu kontrollü yerel dosya wrapper'ı, fiziksel paket kontrolleri ve
+  [kısa belgesi](housing-question-files.md) bu dalda tamamlandı.
+- BDDK Silver mevcut üreticiyle doğrulanmış Bronze'dan yeniden türetilen tabloyla
+  karşılaştırılır; EVDS mevcut manifest tüketicisiyle doğrulanır. Ortak kapsam
+  türetildikten sonra mevcut soru/hesap servisi kullanılır. Yeni HTTP endpoint'i
+  ve anlatım çağrısı eklenmedi; gerçek veri kabulü tamamlanmış sayılmaz.
+- Python 3.12.15 (`out/python312`): odaklı paket **63 passed, 1 skipped**;
+  tam paket **729 passed, 2 skipped**. Atlamalar Windows symlink izinlerindendir.
+  Housing offline stub değerlendirmesi **9/9** geçti; canlı çağrı yapılmadı.
+  46 yerel belge bağlantısı ve bir Python örneğinin sözdizimi kontrol edildi.
+- Yerel `.venv` kayıp Python kurulumuna işaret eder. `out/python312` ve çıktılar
+  Git tarafından yok sayılır. Yerel `data/` yalnızca `.gitkeep` dosyaları içerir.
+- Sıradaki bağımsız iş #46'nın sentetik kullanım/kabul belgesini güncel main ve
+  mevcut PR sahipliğiyle düzeltmektir. #59 API/eval PR #62'yi, #42 gerçek kabulü
+  ve #46 gerçek demo ise #39/#40'ın erişilebilir gerçek dosya/kanıt paketini bekler.
+
 ## Temel karar
 
 Hesaplanabilen işler Python ile yapılır. LLM soru → sınırlı plan dönüşümü ve
