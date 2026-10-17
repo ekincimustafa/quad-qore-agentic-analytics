@@ -126,3 +126,19 @@ Her teslim sonunda testleri, diff kapsamını ve kalan parçayı kısaca kaydet.
 Bu nottaki planlı işi yapılmış gibi işaretleme. Gerçek 60 aylık kabul yapılmadan
 release tamamlandı veya ekonomik analiz/model doğruluğu ölçüldü deme. Aynı
 görev üzerinde bu sohbet ve yerel Codex oturumu eşzamanlı farklı kod üretmesin.
+
+## #59 servis çekirdeği ilerlemesi — 17 Ekim 2026
+
+`feat/economic-question-routing` dalında iki izinli analiz için tipli soru planı,
+veriden türetilen dönem kapsamı ve mevcut Housing/TÜFE servislerine tek yürütmeli
+yönlendirme eklendi. Sınırlar ve kapsam dışı kararlar
+[çekirdek belgesinde](economic-question.md). Mevcut Housing soru endpoint'i
+değişmedi. #59 açık kalır; ortak HTTP yüzeyi, örnekler ve sınırlı değerlendirme
+seti sonraki küçük PR kapsamıdır.
+
+Bu yerel Windows kopyasında mevcut `.venv` kayıp bir Python 3.12 yoluna işaret
+ettiği için testlerde Git tarafından yok sayılan `out/python312` ortamında Python
+3.12.15 kullanıldı. Temiz `HEAD` başlangıç paketi **707 passed, 1 skipped**;
+çekirdek sonrası tam paket **731 passed, 1 skipped**. Housing offline stub
+değerlendirmesi **9/9** geçti. Bunlar canlı model başarı ölçümü veya gerçek veri
+kabulü değildir.
