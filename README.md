@@ -15,6 +15,7 @@ analysis window is January 2021 to December 2025: 60 months.
 | --- | --- | --- |
 | BDDK ingestion and Silver | Raw bulletin acquisition, receipt/integrity validation, monthly housing-loan Parquet | [Ingestion](docs/bddk-ingestion.md), [Silver](docs/bddk-silver.md) |
 | TCMB EVDS ingestion and Silver | Three approved series, Bronze receipts, monthly CSV and weekly-rate aggregation | [EVDS guide](docs/evds-ingestion.md) |
+| EVDS manifest | Verified raw/receipt references, series metadata and weekly-coverage policy; normal CLI checks existing Silver against selected Bronze | [Manifest producer](app/lakehouse/evds_manifest_producer.py), [CLI](scripts/build_evds_manifest.py) |
 | Gold analysis | Period alignment, real loan stock, monthly changes and deterministic matching rule | [gold.py](app/lakehouse/gold.py) |
 | CPI analysis | Monthly and same-month-last-year CPI changes from normalized rows; missing history stays null, no model call | [Inflation guide](docs/inflation-analysis.md) |
 | Evidence and chart | Typed evidence and a six-trace, three-panel Plotly chart | [Evidence](app/tools/housing_evidence.py), [chart](app/tools/housing_chart.py) |
@@ -24,14 +25,20 @@ analysis window is January 2021 to December 2025: 60 months.
 | Question analysis | Turkish question + normalized rows, typed decisions, one allowed Housing analysis and shared period validation | [Question API guide](docs/housing-question.md) |
 | Question evaluation | Nine curated synthetic cases; default offline harness checks and explicitly budgeted live mode | [Evaluation guide](docs/housing-question-evals.md) |
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
+| File demo CLI | Physical EVDS manifest checks, source/output protection, evidence/chart/summary and optional offline HTML | [Demo guide](docs/housing-demo.md) |
 | CI | Offline pytest suite on pull requests and pushes to main, using Python 3.12 | [Workflow](.github/workflows/tests.yml) |
 
-The key-free sample below uses **synthetic data**. The real-data delivery,
-manifest binding and complete Bronze-to-report source chain remain acceptance
+The key-free sample below uses **synthetic data**. Manifest production,
+physical consumer checks and the file-to-report CLI are implemented and tested
+with shared synthetic fixtures. Real-data delivery and acceptance of the complete
+Bronze-to-report source chain remain open
 work in [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39),
-[#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) and
-[#45](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/45).
+and [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40).
+Weekly publication coverage is explicitly unverified without an official calendar;
+the timestamp and coverage policy is documented in the [EVDS guide](docs/evds-ingestion.md).
 See the [acceptance record](docs/release-acceptance.md) for verified checks and open gates.
+The [tool contracts](docs/tool-contracts.md) map current code to the planned and
+disabled generic tools; those generic adapters are not implemented runtime tools.
 
 Question routing has a bounded Python service and HTTP endpoint with offline
 behavior tests. File-backed integration and live semantic evaluation remain open

@@ -51,6 +51,35 @@ HTTP 422 sabitine ilişkin deprecation uyarısı sürüyor. Önceki Windows koş
 AnyIO portal alias uyarısı da vardı; 13 Ekim temiz Windows çıktısında yalnızca
 HTTP 422 uyarısı bulunuyor. Uyarılar kabul tablosunda gizlenmedi.
 
+## Kod ve sentetik kabul güncellemesi — 17 Ekim 2026
+
+Bu bölümün kod temeli `d0fecc8e2684a36e40de94dec22432b16330bafa`
+(PR #58 sonrası main). Yukarıdaki 12–13 Ekim ortam/uyarı kayıtları tarihsel
+koşularına aittir; güncel sürümün aynı ortamda tekrar kontrolü sayılmaz.
+
+- PR #43: fiziksel EVDS manifest tüketimi, kaynak/çıktı koruması,
+  evidence/chart/run summary ve `--html` CLI ana dalda.
+- PR #58: manifest üretimi, metadata kontrolü, normal CLI'da
+  Bronze–Silver türetim karşılaştırması ve göreli yol düzeltmeleri ana dalda.
+- Son zorunlu PR CI: **708 passed in 17.10s** (job 117348171632).
+  Bağımsız yerel birleşik koşu: **708 passed**, uyarılar hata kabul edildi.
+- `core.autocrlf=true` ayrı checkout'ta fixture hash'i ve fiziksel
+  consumer/gerçek HTML CLI: **3 passed**. Bu Windows işletim sisteminde yeni
+  kurulum yapıldığı anlamına gelmez; Git satır sonu dönüşümü kontrolüdür.
+- Kaynak takvimi doğrulanmadığı için haftalık kapsam `unverified` olarak
+  manifest, summary ve kalite notlarında taşınır; tam kapsam iddia edilmez.
+- PR #51/#52/#54/#55 ile LLM istemcisi, sınırlı Housing soru API'si ve
+  dokuz vakalık offline değerlendirme mevcut. Kullanıcının önceki üç canlı
+  sentetik vaka kaydı [eval belgesindedir](housing-question-evals.md);
+  genel model başarı oranı değildir. Buradaki güncellemede canlı çağrı yapılmadı.
+- PR #57: deterministik TÜFE endpoint'i mevcut; doğal dil yönlendirmesi
+  henüz yalnızca Housing analizine izin veriyor.
+
+**Gerçek veri kabulü açık:** #39 dosya/komut/hash teslimi, #40 gerçek 66→60 ay
+ve üç örnek ay karşılaştırması, ardından gerçek veri kullanılan demo/sürüm
+notu #46'da tamamlanmalı. Bu güncelleme tag/release veya deployment değildir.
+Aşağıdaki gerçek veri kutuları yalnızca bu kayıt nedeniyle işaretlenmez.
+
 ## Açık kabul kapıları
 
 - [x] Windows'ta yeni Python 3.12 ortamında README sentetik hızlı başlangıcını doğrula (13 Ekim: clone, kurulum, rapor ve testler).
