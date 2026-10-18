@@ -67,3 +67,26 @@
 - Keep issue progress and the handoff accurate when completing a task. If GitHub
   access is unavailable, say so and provide the local result; do not claim an issue,
   PR, merge, or release was published.
+
+## Task continuation and approval boundaries
+
+1. Complete the current task, review the diff, and run the relevant checks.
+2. When checks pass, commit and push the scoped changes, then create or update the
+   PR. Routine coding, testing, and fixes do not require repeated confirmation.
+3. Briefly report the completed work, actual test results, and remaining gaps.
+4. Read current issues and `docs/codex-handoff.md`, select the next small task owned
+   by Mustafa, and continue while an authorized independent task is available.
+5. Prioritize existing acceptance criteria and the working demo. Do not invent
+   features or expand the product scope to keep busy.
+6. Do not take over Osman's or Afra's tasks or branches without instruction.
+7. Check dependencies before starting. An unmerged PR is not part of `main`; wait
+   on dependent work and use a separate branch from current `main` for independent
+   work instead.
+8. Obtain Mustafa's approval before live or paid API calls, data deletion, force
+   push, merge, release, or publication. Commit/push/PR authorization does not
+   authorize these actions. Mandatory sandbox permissions still apply.
+9. Stop for a genuine blocker, an unresolved product decision, or necessary access
+   that is unavailable. State the concrete missing input or permission.
+10. Before ending the session, update `docs/codex-handoff.md` with completed work,
+    the active branch, test status, and the next step. Distinguish local, PR, and
+    merged work; do not present pending acceptance as complete.

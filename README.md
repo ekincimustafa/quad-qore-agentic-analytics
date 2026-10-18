@@ -27,6 +27,7 @@ analysis window is January 2021 to December 2025: 60 months.
 | Question evaluation | Nine Housing cases with offline/budgeted live mode; twelve Economic cases with offline HTTP checks | [Housing evaluation](docs/housing-question-evals.md), [Economic evaluation](docs/economic-question.md#offline-değerlendirme) |
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
 | File demo CLI | Physical EVDS manifest checks, source/output protection, evidence/chart/summary and optional offline HTML | [Demo guide](docs/housing-demo.md) |
+| Verified question files | Server-controlled local BDDK/EVDS files verified before question planning; Python wrapper only | [File question guide](docs/housing-question-files.md) |
 | CI | Offline pytest suite on pull requests and pushes to main, using Python 3.12 | [Workflow](.github/workflows/tests.yml) |
 
 The key-free sample below uses **synthetic data**. Manifest production,
@@ -42,7 +43,8 @@ The [tool contracts](docs/tool-contracts.md) map current code to the planned and
 disabled generic tools; those generic adapters are not implemented runtime tools.
 
 Question routing has a bounded Python service and HTTP endpoint with offline
-behavior tests. File-backed integration and live semantic evaluation remain open
+behavior tests. A separate server-side Python wrapper verifies local files before
+planning. Its HTTP integration, real-data acceptance and live semantic evaluation remain open
 in [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42).
 A general agent/tool registry, data catalog, general web/anomaly/causality tools
 and deployment are planned work. A live Gemini narration contract check passed;

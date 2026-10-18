@@ -93,6 +93,10 @@ REQUIRED_EVDS_COLUMNS = (
     "housing_price_index",
 )
 REQUIRED_SERIES_CODES = {"TP.KTF12", "TP.TUKFIY2025.GENEL", "TP.KFE.TR"}
+WEEKLY_COVERAGE_NOTE = (
+    "EVDS TP.KTF12 weekly_coverage: unverified; calendar_verification: not_available. "
+    "Haftalık kapsam, doğrulanmış resmî yayın takvimi olmadan teyit edilemez."
+)
 REQUIRED_RECEIPT_FIELDS = {
     "series_code",
     "frequency",

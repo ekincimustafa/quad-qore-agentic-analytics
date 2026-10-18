@@ -1,6 +1,6 @@
 # İlk sürüm kabul kaydı — ara durum
 
-İlk kayıt: 12 Ekim 2026. Güncelleme: 13 Ekim 2026. Takip: [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
+İlk kayıt: 12 Ekim 2026. Güncelleme: 18 Ekim 2026. Takip: [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
 Durum: Sentetik demo ve temel analiz doğrulandı; gerçek veri kabulü ve ilk sürüm teslimi açık.
 
 İlk kontrollerin kod temeli: `f9d02099b2fc97a7a8588a022e4c0c04ce07b652` (PR #48 sonrası main).
@@ -80,21 +80,57 @@ ve üç örnek ay karşılaştırması, ardından gerçek veri kullanılan demo/
 notu #46'da tamamlanmalı. Bu güncelleme tag/release veya deployment değildir.
 Aşağıdaki gerçek veri kutuları yalnızca bu kayıt nedeniyle işaretlenmez.
 
+## Windows sentetik kullanım kontrolü — 18 Ekim 2026
+
+Kod temeli `45c8dcf771b6f6b41e2b4a247b94be7607f0d40c` (kontrol sırasında PR #61 sonrası main).
+Kontrol sonrası PR #62, kullanıcı onayıyla `6abcfb8` olarak merge edildi;
+aşağıdaki test/çıktı kayıtları belirtilen `45c8dcf` kaynağına aittir.
+Bu kaynak ağacı `git archive main` ile Git'in yok saydığı `out/acceptance-main`
+altına çıkarıldı. Python 3.12.15 ortamı önceki oturumda `requirements.txt` ile
+kurulmuş `out/python312` ortamıdır; bugün yeni clone/venv veya bağımlılık kurulumu
+yapılmış sayılmaz. PR #62/#64'ün runtime kodu bu tarihli koşuda bulunmaz.
+
+Arşiv kökünde çalıştırılan komutlar:
+
+```powershell
+..\python312\python.exe -m pytest tests -q -rs --basetemp "$env:TEMP\qq46main" --tb=short
+..\python312\python.exe -m scripts.render_housing_sample
+```
+
+- Tam offline paket: **707 passed, 1 skipped in 58.24s**. Atlanan test
+  `tests/test_bddk_silver.py::test_symlink_outside_raw_dir_rejected` için Windows
+  symlink iznidir.
+- Sentetik HTML: **60 ay, 55 eşleşme, ilk eşleşme 2021-02, 6 trace**.
+  `SENTETİK DEMO` etiketi ve dış `script src` bulunmadığı dosya içeriğinden
+  kontrol edildi. Tarayıcı görünümü/etkileşimi bu oturumda denenmedi.
+- Yerel çıktı `out/acceptance-main/out/housing-sample.html`: 4.376.582 bayt;
+  SHA-256 `0796af39622e9b3e1cd13fbb3ad188ef923cc838cb29aa73fc122fa5a77952a4`.
+- FastAPI TestClient ile süreç içi HTTP: `/health`, README'deki üç aylık Housing
+  isteği ve TÜFE örneği **200** döndü. Housing: 3 ay, 2021-02 eşleşmesi;
+  TÜFE: 3 ay, ilk-son değişimi yaklaşık %-1. Bu kontrol gerçek TCP sunucusu veya
+  tarayıcı denemesi değildir.
+- Yerel `data/` yalnızca `.gitkeep` dosyaları içerir. Canlı model/EVDS çağrısı,
+  gerçek veri indirme, merge, release veya yayınlama yapılmadı.
+
+Bu kayıt belirtilen `45c8dcf` kaynağının sentetik kullanımını doğrular; gerçek 66→60 ay,
+üç örnek ay karşılaştırması ve gerçek veriyle sunum kapıları açık kalır.
+
 ## Açık kabul kapıları
 
 - [x] Windows'ta yeni Python 3.12 ortamında README sentetik hızlı başlangıcını doğrula (13 Ekim: clone, kurulum, rapor ve testler).
 - [ ] BDDK/EVDS gerçek girdilerinin yollarını, boyutlarını ve SHA-256 özetlerini kaydet.
-- [ ] EVDS seri kodu, frekans, baz yıl ve haftalık kapsam notlarını doğrula (#39, #45).
+- [ ] EVDS seri kodu, frekans, baz yıl ve haftalık kapsam notlarını gerçek paketle doğrula (#39; zaman/kapsam politikası #45'te tamamlandı).
 - [ ] 66 aylık gerçek Silver girdisinden tam 60 aylık analiz kapsamını doğrula.
 - [ ] 2021-01, 2023-06 ve 2025-12 aylarını ham kaynak/Silver çıktısıyla karşılaştır.
 - [ ] BDDK satır referansları ve EVDS manifestini Gold/evidence akışında koru (#40).
 - [ ] Gerçek dosya tabanlı demo sonucunu HTML raporuna bağla; run summary ve kaynak zincirini göster (#46).
-- [ ] Araç sözleşmesini güncel anlatım ve enabled/planned/disabled kapsamla uyumlu teslim et (#6).
+- [x] Araç sözleşmesini güncel anlatım ve enabled/planned/disabled kapsamla uyumlu teslim et (#6 tamamlandı; ilk katkı PR #38, güncel kapsam PR #60).
 - [ ] Gerçek veri kullanılan 60–90 saniyelik demo akışını çalıştır ve katkı/sürüm notunu tamamla.
 
-Opsiyonel MIA'nın Housing JSON sözleşmesine canlı uyumu henüz doğrulanmadı.
-`scripts.smoke_test_mia` yalnızca temel bağlantıyı sınar. İlk offline sürümün
-teslimi MIA çağrısı gerektirmez; sonraki istemci/ajan işleri #41 ve #42'dedir.
+Yapılandırılabilir LLM istemcisi #41 ile tamamlandı; önceki sınırlı canlı kontrol
+[LLM kabul kaydındadır](llm-client.md). Legacy `scripts.smoke_test_mia` yalnızca
+temel bağlantıyı sınar. Güncel sentetik kontrol canlı LLM gerektirmedi.
+Dosya destekli soru kabulü #42'de, iki analizli yönlendirme #59'da açık kalır.
 
 Gerçek veri kabulünde doldurulacak kayıt:
 
@@ -114,9 +150,9 @@ Kişisel katkılar ilgili PR'ların kod farklarıyla değerlendirilir.
 
 | PR sahibi | Birleşmiş katkı örnekleri | Açık teslimat |
 | --- | --- | --- |
-| Mustafa / ekincimustafa | [#27 Gold](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/27), [#30 API](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/30), [#47 anlatım doğrulaması](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/47), [#48 HTML raporu](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/48) | #46 kurulum, kabul kaydı ve sürüm teslimi |
-| Osman / OsmanerdemDutar | [#36 BDDK Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/36) | #40 / PR #43 kaynak zinciri ve offline demo |
-| Afra / afratopcu | [#23 EVDS Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/23), [#35 EVDS ingestion](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/35) | #39 veri/manifest, #45 zaman/kapsam, #6 / PR #38 sözleşme |
+| Mustafa / ekincimustafa | [#27 Gold](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/27), [#30 API](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/30), [#47 anlatım doğrulaması](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/47), [#48 HTML raporu](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/48) | #42 gerçek dosya destekli soru kabulü, #59 iki analizli yönlendirme, #46 gerçek rapor/kabul/sunum |
+| Osman / OsmanerdemDutar | [#36 BDDK Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/36), [#43 kaynak zinciri ve offline demo CLI](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/43) | #40 gerçek BDDK/EVDS birleşik demo kabulü |
+| Afra / afratopcu | [#23 EVDS Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/23), [#35 EVDS ingestion](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/35), [#38 ilk araç sözleşmesi katkısı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/38), [#58 manifest üretimi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/58) | #39 gerçek dosya/komut/hash ve örnek ay teslimi |
 
 Açık görevler tamamlanmış katkı olarak raporlanmaz. Tag/release yayınlama,
 bu kabul kapıları tamamlandıktan sonraki ayrı teslim adımıdır.
