@@ -14,10 +14,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 - Aktif dal `docs/real-demo-readiness`; başlangıç çalışma ağacı temizdi,
   mevcut kullanıcı değişikliği yoktu. Runtime `7ee7225`, Python 3.12.15
   `out/clean312`; uygulama kodu değiştirilmedi. Yeni özellik veya takip belgesi
-  açılmaz. #39 ve #46 açıklamaları güncellendi; mevcut alıcı yorumu kanıt olarak
-  kullanıldı, yeni yorum veya paket talebi gönderilmedi. PR #67 açık kalır.
-  Bu durum düzeltmesinde 12 yerel belge bağlantısı ve `git diff --check` temiz;
-  veri/kod testleri yeniden çalıştırılmadı, son commit'in zorunlu CI'si izlenir.
+  açılmaz. #39/#40/#42/#46 açıklamaları ve mevcut PR #67 güncellenir;
+  yeni yorum/paket talebi gönderilmez. PR #67 açık; merge/release yapılmadı.
 - Afra'nın [OneDrive teslimi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251399411)
   Mustafa tarafından İndirilenler'e alınmış. `OneDrive_1_18.10.2026.zip` bir
   taşıma arşivi; içindeki **20.344 baytlık** `EVDS_gercek_veri_teslim.zip` hash'i
@@ -38,28 +36,41 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 - Ağ erişimi kapatılmış yerel audit'te **0 ağ girişimi**; canlı EVDS/LLM veya
   yeniden veri indirme yok. Önceki tam kod testleri gereksiz tekrar edilmedi;
   bu oturumun kanıtı gerçek EVDS paket doğrulamasıdır, sentetik test sayısı değildir.
-- **EVDS erişim engeli kalktı.** #39'da Afra teslimi ve Mustafa alıcı kontrolleri
-  işaretli; Osman'ın aynı ZIP hash'iyle ayrı teyidi açık. Bu teyit #39'da
-  paralel takip edilir; EVDS paketini yeniden isteme.
-- **Birleşik demoyu durduran eksik BDDK paketidir.** #40'ta yalnızca mevcut
-  talep yorumu var; İndirilenler'de BDDK/konut/Parquet paketi ve repo `data/`
-  altında gerçek BDDK dosyası bulunmadı. Birleşik CLI, #42 gerçek dosya sorusu ve
-  gerçek HTML çalıştırılmadı. #39/#40/#42/#46 açık bırakıldı.
-- Beklenen ayrı birleşik çalışma kökü `out/housing-acceptance-20261018/inputs/`;
-  altında `data/silver/bddk/housing_loans.parquet`,
-  `data/bronze/bddk/aylik/raw/`, `data/bronze/bddk/aylik/receipts/` ve teslimin
-  commit/komut/boyut/hash/üç örnek ay kaydı gerekli. Bu kök henüz hazırlanmış
-  bir BDDK teslimi değildir; doğrulanmış EVDS kanıt kopyası korunur.
-- Paket gelince mevcut kapsam sırası:
-  1. BDDK kaynak/makbuz/hash/birim ve 2021-01 / 2023-06 / 2025-12 kontrolü.
-  2. Gerçek BDDK+EVDS ile mevcut offline CLI'den 60 aylık rapor/dört çıktı.
-  3. Aynı girdilerle #42 dosya wrapper'ına açık sabit plan; evidence/grafik
-     sonucunu doğrudan analiz/CLI ile karşılaştırma. Canlı model çağrısı yok.
-  4. Açılacak gerçek HTML yolu ve kısa hover/zoom, tablo, kaynak/yöntem/kalite
-     görsel kontrol listesini Mustafa'ya verme.
-  5. Sonuçları #46 kabul listesine ve mevcut kabul kaydına işleme; sonra kısa
-     demo ve sürüm notu. Merge/release öncesi sonucu bildirip ayrıca onay al.
-  BDDK gelmeden talep tekrarlanmaz; eksik kaydedilip durulur.
+- **İki veri erişim engeli de kalktı.** Osman [EVDS alıcı teyidini](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6252994701)
+  ve [birleşik Housing teslimini](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40#issuecomment-6252930443)
+  paylaştı. #39 teslim/alıcı kapsamı tamamlandı ve kapandı.
+- `Housing_tam_teslim_20261018.zip`: 1.587.106 bayt; SHA-256
+  `956e47c3a7d922b4da7b755635379ccc357423aeceed2bcdef817a1098ca312f` eşleşti.
+  Ayrı `out/housing-acceptance-20261018/` klasöründe açıldı. **156/156 envanter**,
+  145 girdi, **66 BDDK raw + 66 makbuz + 66 aylık Silver** doğrulandı; mevcut
+  üreticiyle yeniden kurulan tablo tam eşit. Üç BDDK örneği 276785 / 438466 /
+  678970 Milyon TL. EVDS'nin 12 dosyası eski kanıt kopyasıyla bayt eşit;
+  iki fiziksel manifest geçti.
+- Teslim README/kabul/audit dosyaları **yazar kanıtı** olarak okundu. Eski
+  `housing-demo/...` bağlantıları korunmuş teslim `outputs/...` dosyalarıdır.
+  Osman'ın iki koşusu/görsel incelemesi Mustafa'nın yaptığı kontrol sayılmaz.
+- Mustafa CLI girişini **bir kez** socket kapalı çalıştırdı: exit 0,
+  **60 ay / 22 hesaplanan eşleşme**, ilk ay null değişimleri/koşulu, 6 trace ve
+  bütün Gold/grafik değerleri, 60 BDDK / 3 EVDS kaynak referansı doğrulandı.
+  Aynı girdilerle açık sabit planlı wrapper **1 stub çağrısı** yaptı;
+  evidence/grafik CLI ile tam eşit. #42 teknik dosya kabulü tamamlandı ve kapandı.
+- Yeni dört dosya `out/housing-acceptance-20261018/reproduced/` altında;
+  hepsi teslim `outputs/` ile **bayt eşit**. Açılacak gerçek HTML:
+  `out/housing-acceptance-20261018/reproduced/report.html`.
+  HTML SHA-256 `81a7eef0e09880e109b41bd9c75fc26ce0f7f45525446af28f18f5c52ca6c09f`.
+- Ocak faizi Decimal `18.38800000`, CSV metni `18.387999999999998`; fark
+  **−2E−15 yüzde puan**. Pandas okuması `18.388`; tam Decimal eşitliği yok.
+  Kaynak/hash değiştirilmedi, toleransla saklanmadı; hesap/çıktı uyuşmazlığı yok.
+- Yerel `independent-audit.json` hash'i
+  `6267c389bb90634fb57bea4e8028cdb718435ae32d93922d6c89cd837fb7ac5b`.
+  Özgün ZIP, inputs/outputs ve önceki EVDS kopyası değişmedi; ağ girişimi ve
+  canlı model çağrısı **0**. Yerel veri/audit dosyaları ignored; Git'e eklenmez.
+  Kod değişmediği için gereksiz tam test tekrarı yapılmadı; belge CI'si izlenir.
+- **Kalan kapı:** Mustafa'nın yeni HTML için 60 ay/22, hover–zoom–pan–sıfırlama,
+  tablo/grafik, kaynak/birim/yöntem ve sınırlamaları görsel teyidi. Kullanıcıya
+  dosya ve liste verildi; henüz onay gelmedi, etkileşimler tamamlandı sayılmaz.
+  #40/#46 bu nedenle açık. Sonra kısa demo/sürüm notu taslağı sonlandırılır;
+  merge/release öncesi sonucu bildirip ayrıca onay alınır.
 
 ## Önceki gerçek demo hazırlığı — 18 Ekim 2026
 
@@ -76,7 +87,7 @@ engeli artık kapalıdır; güncel eksik ve iş sırası yalnızca üst bölümd
   ve [#40 yorumunda](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40#issuecomment-6250883464)
   yayımladı. ZIP eki veya ekip erişimli OneDrive/Google Drive bağlantısı kabul
   ediliyor. Kullanıcı talimatı: **tekrar mesaj gönderme**; mevcut taleplerin
-  BDDK talebinin yanıtı beklenir. EVDS teslim ve alıcı sonucu üst bölümde kayıtlıdır.
+  iki teslim de artık alındı; güncel durum üst bölümde kayıtlıdır.
 - Yeni `out/clean312` venv'i (Python 3.12.15, sistem paketlerine kapalı) ve
   `git archive main` ile `out/clean-demo` kaynak kopyası kuruldu. Eski bozuk
   `.venv` korunur. `requirements.txt` kurulumu ve `pip check` başarılı;
@@ -195,15 +206,13 @@ Bu tablo 18 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumlar�
 
 | Issue | Sorumlu | Kalan sonuç |
 | --- | --- | --- |
-| [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42) | Mustafa | Doğrulanmış dosya wrapper'ı PR #64 ile main'de; gerçek veri kabulü bekler |
-| [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39) | Afra | Teslim ve Mustafa alıcı doğrulaması tamam; Osman'ın aynı pakete ayrı teyidi açık |
-| [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) | Osman | Gerçek BDDK+EVDS ile 66→60 ay ve üç örnek ayın birleşik demo kabulü |
-| [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) | Mustafa | Gerçek rapor, güncel kurulum/kabul kaydı, kısa demo ve katkı/sürüm notu |
+| [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) | Osman | Teslim ve Mustafa teknik tekrar koşusu tamam; Mustafa'nın gerçek HTML görsel kabulü açık |
+| [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) | Mustafa | Gerçek HTML görsel kabulü, kısa demo/sürüm notunun sonlandırılması ve ayrı merge/release onayı |
 
-#6, #41, #44, #45, #56 ve #59 tamamlandı. PR #43 ve #58 merge edildi; yeni bir
+#6, #39, #41, #42, #44, #45, #56 ve #59 tamamlandı. PR #43 ve #58 merge edildi; yeni bir
 üretici/tüketici düzeltme PR'ı beklenmiyor. Gerçek EVDS dosyaları erişilebilir ve
-Mustafa'da bağımsız doğrulandı. BDDK teslimi ve birleşik kabul henüz yok;
-Osman'ın önceki yerel beyanı erişilebilir paket/alıcı kabulü yerine geçmez.
+Mustafa'da bağımsız doğrulandı. BDDK teslimi ve birleşik teknik kabul de tamam;
+Osman'ın yerel görsel beyanı Mustafa'nın HTML etkileşim kabulü yerine geçmez.
 
 ## #59'un ilk parçası: servis çekirdeği (PR #62 ile merge edildi)
 

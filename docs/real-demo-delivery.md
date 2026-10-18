@@ -1,7 +1,7 @@
 # Gerçek demo teslimi ve gösterim
 
 18 Ekim 2026; kod temeli `7ee7225` (PR #66 sonrası main). Bu belge teslim ve
-EVDS alıcı doğrulamasını izler; birleşik demo kabulü değildir.
+EVDS/BDDK alıcı ve birleşik teknik doğrulamayı izler; Mustafa'nın görsel kabulü açıktır.
 İlgili işler: [#39][39], [#40][40], [#42][42], [#46][46].
 
 ## Kontrol edilen teslimler
@@ -13,17 +13,21 @@ EVDS alıcı doğrulamasını izler; birleşik demo kabulü değildir.
   ZIP SHA-256: `1c9255194c3222dccc33e056ba195c46a8d0912cdb9ccccd178e8e4b2731ebc1`.
   ZIP hash'i bağımsız eşleşti; [alıcı sonucu][acceptance39] #39'a kaydedildi.
   Ayrıntılar [kabul kaydındadır](release-acceptance.md).
-- #40 açıklaması ve bir paylaşım talebi yorumu okundu; paket bağlantısı yok. Osman'ın daha önceki
-  yerel BDDK kontrol beyanı korunur. Eksik olan erişilebilir dosya ve kabul kaydıdır.
+- Osman [birleşik gerçek paketi][delivery40] ve [ayrı EVDS teyidini][receiver39]
+  paylaştı. Housing ZIP hash'i `956e47c3a7d922b4da7b755635379ccc357423aeceed2bcdef817a1098ca312f`
+  eşleşti; **156/156 envanter kaydı**, BDDK raw/makbuz/Silver ve üç örnek ay
+  Mustafa'da doğrulandı. EVDS'nin 12 dosyası eski kabul kopyasıyla bayt eşit.
+- Mustafa'nın bağımsız **tek CLI koşusu 60 ay/22 eşleşme** verdi; yeni dört çıktı
+  teslim `outputs/` ile bayt eşit. Aynı girdilerle açık sabit planlı #42 wrapper'ı
+  aynı evidence/grafiği verdi. #39/#42 tamamlandı; #40/#46 görsel/demo kabulü açık.
 - Üretici/tüketici kodu, şema ve ortak sentetik fixture zaten teslim edildi.
   Bu işler yeniden istenmez. Yerel `data/` yalnızca `.gitkeep` içerir.
 
 ## Yayımlanan paylaşım talepleri ve önceki taslaklar
 
 Mustafa talepleri [Afra için #39'da][request39] ve [Osman için #40'ta][request40]
-yayımladı. **Tekrar paket talebi gönderilmez.** EVDS teslimi Mustafa'da
-doğrulandı; Osman'ın ayrı teyidi ve BDDK paketinin erişim bağlantısı beklenir.
-BDDK paketi gelince aşağıdaki mevcut birleşik offline doğrulama uygulanır.
+yayımladı. **Tekrar paket talebi gönderilmez.** İki teslim ve teknik kabul
+tamamlandı; beklenen şey Mustafa'nın yeniden üretilen gerçek HTML'yi incelemesidir.
 Aşağıdaki taslaklar yalnızca önceki hazırlığın kaydıdır.
 
 ### Afra
@@ -81,7 +85,7 @@ doğrulanır; yalnızca ZIP hash'i veya güvenlik taraması kabul kanıtı deği
 Üç seri `TP.KTF12`, `TP.TUKFIY2025.GENEL`, `TP.KFE.TR`; TÜFE 2025=100,
 KFE 2023=100. Haftalık yayın kapsamı resmî takvim olmadan `unverified` kalır.
 
-## Paket geldiğinde mevcut offline doğrulama
+## Mevcut offline doğrulama yolu
 
 Kaynak ZIP'i koruyun; ayrı çalışma kopyasında mevcut yolları açın. Girdi,
 çıktı, `.part` ve `.backup` dizinlerini ayırın. İlk adım:
@@ -104,9 +108,20 @@ Bu CLI yalnızca yerel dosyaları kullanır. 60 tekil ay, ilk ay null değişiml
 mevcut hesap kuralı, evidence/grafik uyumu ve üç gerçek örnek ay kontrol edilir.
 Gerçek eşleşme sayısı şimdiden varsayılmaz. Kaynak dosyalarının ilk/son hash'leri,
 komut sonuçları ve dört çıktı kaydedilir. [Kabul kaydı](release-acceptance.md)
-gerçek sonuçlarla ayrıca güncellenir; #42/#46 ancak gerçek kapılar geçince kapanır.
+gerçek sonuçlarla güncellendi; #42 teknik kabulü kapandı, #46 görsel/demo kapısını bekler.
 
-## Şimdi gösterilebilen yol
+## Şimdi açılacak gerçek rapor
+
+```powershell
+Start-Process .\out\housing-acceptance-20261018\reproduced\report.html
+```
+
+60 ay/22 eşleşme; hover–zoom–pan–sıfırlama, bir tablo/grafik eşleşmesi,
+2021-01'in eşleşmemesi, kaynak/birim/baz yılları ve sınırlamalar kontrol edilmeli.
+Osman'ın görsel beyanı Mustafa'nın teyidi yerine geçmez. Kullanıcının bu dosya
+için onayı henüz yoktur. Teslimdeki orijinal `outputs/` ve inputs değiştirilmedi.
+
+## Önceki sentetik örnek
 
 Anahtarsız sentetik HTML için repo kökünde çalışan Python 3.12 ortamıyla:
 
@@ -137,3 +152,5 @@ stub değerlendirmelerini kullanın. Yerel TCP API için README'nin
 [request40]: https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40#issuecomment-6250883464
 [delivery39]: https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251399411
 [acceptance39]: https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251815563
+[delivery40]: https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40#issuecomment-6252930443
+[receiver39]: https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6252994701

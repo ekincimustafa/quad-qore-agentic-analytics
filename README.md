@@ -33,9 +33,11 @@ analysis window is January 2021 to December 2025: 60 months.
 The key-free sample below uses **synthetic data**. Manifest production,
 physical consumer checks and the file-to-report CLI are implemented and tested
 with shared synthetic fixtures. Real-data delivery and acceptance of the complete
-Bronze-to-report source chain remain open
-work in [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39),
-and [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40).
+Bronze-to-report source chain were independently checked on the delivered real
+data (60 months, 22 matching months). EVDS delivery [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39)
+is complete; user visual acceptance and the final demo remain open in
+[#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) and
+[#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
 Weekly publication coverage is explicitly unverified without an official calendar;
 the timestamp and coverage policy is documented in the [EVDS guide](docs/evds-ingestion.md).
 See the [acceptance record](docs/release-acceptance.md) for verified checks and open gates.
@@ -46,8 +48,9 @@ disabled generic tools; those generic adapters are not implemented runtime tools
 
 Question routing has a bounded Python service and HTTP endpoint with offline
 behavior tests. A separate server-side Python wrapper verifies local files before
-planning. Its HTTP integration, real-data acceptance and live semantic evaluation remain open
-in [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42).
+planning; its fixed-plan evidence/chart result was checked against the same real
+CLI inputs in [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42).
+This offline acceptance does not measure live model understanding.
 A general agent/tool registry, data catalog, general web/anomaly/causality tools
 and deployment are planned work. A live Gemini narration contract check passed;
 see the [LLM acceptance record](docs/llm-client.md#canlı-kabul-kaydı--15-ekim-2026).

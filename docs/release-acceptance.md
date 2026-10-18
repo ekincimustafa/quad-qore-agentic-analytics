@@ -1,7 +1,8 @@
 # İlk sürüm kabul kaydı — ara durum
 
 İlk kayıt: 12 Ekim 2026. Güncelleme: 18 Ekim 2026. Takip: [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
-Durum: Sentetik demo ve temel analiz doğrulandı; gerçek veri kabulü ve ilk sürüm teslimi açık.
+Durum: Gerçek BDDK+EVDS teknik kabulü ve sabit planlı dosya sorusu doğrulandı;
+Mustafa'nın yeniden üretilen HTML için görsel kabulü ve ilk sürüm teslimi açık.
 
 İlk kontrollerin kod temeli: `f9d02099b2fc97a7a8588a022e4c0c04ce07b652` (PR #48 sonrası main).
 13 Ekim temiz Windows kontrolü: `8943608b807f791ea6af92436724d9db4dcc7115`
@@ -156,7 +157,7 @@ Set-Location out/clean-demo
 
 **İlk kurulum kontrolü sırasındaki engel:** Afra [hazır EVDS ZIP'ini bildirmişti](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6250215723);
 o sırada dosya bağlantısı yoktu. Sonraki EVDS teslimi ve alıcı kontrolü aşağıdadır.
-#40'ta BDDK/gerçek birleşik koşu paketi bağlantısı hâlâ yok.
+#40'taki sonraki birleşik teslim ve bağımsız koşu aşağıda kaydedilmiştir.
 Mustafa paylaşım taleplerini [#39'da](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6250879475)
 ve [#40'ta](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40#issuecomment-6250883464)
 yayımladı; tekrar mesaj gönderilmez. Yeni durum, kalan teslimler ve önceki taslaklar
@@ -213,38 +214,146 @@ koşuda **0 ağ girişimi** görüldü. Gerçek paket, teslim belgesi ve yerel a
 dosyaları Git'e eklenmedi. Kod testleri gereksiz tekrar edilmedi; bu kanıt gerçek
 dosya doğrulamasıdır. Sonuç [#39'a kaydedildi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251815563).
 
-**Ayrı kalan kabul:** Osman aynı ZIP hash'iyle kendi alıcı kontrolünü yapmalı.
-BDDK paketi/kabul kaydı mevcut değil; #40 birleşik Housing koşusu ve gerçek
-HTML raporu çalıştırılmadı. #39/#40/#42/#46 açık kalır.
+**Sonraki durum:** Osman [aynı EVDS paketi için alıcı teyidini](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6252994701)
+verdi; #39 tamamlandı. BDDK teslimi, birleşik teknik koşu ve #42 kontrolü
+aşağıda tamamlandı. #40/#46'nın kullanıcı görsel/demo kabulü ayrı açıktır.
+
+## Gerçek birleşik Housing: Mustafa'nın bağımsız koşusu — 18 Ekim 2026
+
+[Osman'ın teslimi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40#issuecomment-6252930443):
+`Housing_tam_teslim_20261018.zip`, **1.587.106 bayt**, SHA-256
+`956e47c3a7d922b4da7b755635379ccc357423aeceed2bcdef817a1098ca312f` eşleşti.
+Paket `out/housing-acceptance-20261018/` altında ayrı açıldı. Özgün ZIP,
+teslim `inputs/outputs`, repo data ve önceki EVDS kanıt kopyası korunur.
+
+`README.md`, `acceptance/KABUL_KAYDI.md` ve üç audit JSON'u yazar kanıtı olarak
+okundu. Belgedeki eski `housing-demo/...` bağlantıları teslimde `outputs/...`
+dosyalarına karşılık gelir; orijinal belge düzeltilmedi. Osman'ın Python 3.12.4
+ile iki koşu ve görsel inceleme beyanı, Mustafa'nın kendi koşusu olarak sunulmaz.
+
+### Bu ortamda bağımsız tamamlanan kontroller
+
+- Runtime `7ee7225`, Python **3.12.15**; pandas 3.0.5, pyarrow 25.0.1,
+  Plotly 7.0.0, Pydantic 2.13.5. Uygulama/test kodu değişmedi.
+- `DELIVERY_INVENTORY.json` **156/156** kaydı ve 145 girdilik ek envanter
+  boyut/SHA-256 olarak doğrulandı. EVDS'nin **12/12 dosyası** önceki kabul
+  kopyasıyla bayt eşit; iki fiziksel manifest mevcut tüketicide geçti.
+- BDDK: **66 raw + 66 makbuz**, 2021-01–2026-06 için 66 tekil/ardışık ay;
+  mevcut makbuz doğrulayıcı/üretici hash, boyut, başlık dönemi, zaman, birim ve
+  kaynak kontrollerinden geçti. Yeniden oluşturulan tablo saklanan Silver ile
+  `assert_frame_equal(check_exact=True)` eşleşti. Parquet **10.792 bayt**,
+  SHA-256 `c3cf8929d77de67ae91bbf64f7096f3a3bd926e4d3e81186bf7196037e3ee966`.
+- Üç ham BDDK örneği, doğrulanmış başlık/birim/kaynak referansıyla Silver'a eşit:
+  **2021-01: 276785; 2023-06: 438466; 2025-12: 678970 Milyon TL**.
+- Mevcut `scripts.run_housing_demo.main(args)` girişi socket erişimi kapalı
+  **bir kez** çağrıldı; exit **0**. Dönem 2021-01–2025-12, aynı göreli BDDK/EVDS
+  yolları, fiziksel manifest ve `--html`; yeni çıktı dizini `reproduced/`.
+- Hesap **60 benzersiz ay / 22 eşleşme** verdi. 22 hedef olarak dayatılmadı;
+  mevcut Gold seçiminin dönemleri evidence/summary ile karşılaştırıldı. İlk
+  ayın nominal/reel/faiz değişimleri ve koşulu gerçekten null kontrol edildi.
+- Mevcut grafik doğrulayıcıyla 6 trace'in tüm 60 aylık Gold değerleri ve
+  eşleşme marker'ları kontrol edildi. Evidence'daki **60 BDDK / 3 EVDS** kaynak
+  referansı girdilerle eşleşti. Weekly coverage `unverified/not_available` kaldı.
+- Aynı girdiler ve dönemle `run_verified_housing_question`, açık sabit
+  `housing_rate_down_real_credit_not_up` planıyla çalıştı: **1 stub çağrısı**,
+  evidence/grafik CLI ile **tam eşit**, anlatım null, canlı çağrı **0**.
+  #42'nin gerçek dosya soru teknik kabulü tamamlandı; model anlama metriği değildir.
+
+Hesaplanan eşleşen dönemler: 2021-02, 2021-03, 2021-05, 2021-08, 2021-10,
+2021-11, 2022-02, 2022-06, 2022-12, 2023-02, 2023-12, 2024-01, 2024-02,
+2024-05, 2024-06, 2024-07, 2024-08, 2024-09, 2025-01, 2025-02, 2025-07, 2025-09.
+
+### Ocak faizi: metin gösterimi ve hesap ayrı
+
+Ham haftalık değerlerin Decimal ortalaması **18.38800000**; değiştirilmemiş CSV
+metni **18.387999999999998**. Fark **−2E−15 yüzde puan**; tam Decimal eşitlik
+iddiası yok. Bu ortamın `pandas.read_csv` değeri **18.388**. Önceki EVDS audit'i
+CSV'nin aynı pipeline ile bayt düzeyinde tekrar üretildiğini doğrulamıştı.
+Kaynak/CSV/hash değiştirilmedi, tolerans eklenmedi. Python patch sürümü farklı
+olmasına karşın dört çıktı da teslimle bayt eşit; yol/serileştirme/hesap
+uyuşmazlığı görülmedi. Bu küçük metin gösterimi farkı hesap hatası sayılmadı.
+
+### Yeniden üretilen dört çıktı
+
+Dizin: `out/housing-acceptance-20261018/reproduced/`. Dördü de korunmuş
+`outputs/` teslimiyle bayt eşit; çıktı dizininin adı veya mutlak yolu sonuçları
+değiştirmedi.
+
+| Dosya | Bayt | SHA-256 |
+| --- | ---: | --- |
+| evidence.json | 32089 | `e43bd1f5a78cb6cec2527190e836ba9693af6535e4ab0f6c6f068a17819de3fb` |
+| chart.json | 35305 | `60c551bf3d9f8da4a09a36780f32651d3050b167edaaa4919e812407ffde9db3` |
+| run_summary.json | 30283 | `9f096787654951b7481c7dc1166fa270f30fe9db690f3d9b4a19581b3f75274d` |
+| report.html | 4405838 | `81a7eef0e09880e109b41bd9c75fc26ce0f7f45525446af28f18f5c52ca6c09f` |
+
+Yerel bağımsız rapor `out/housing-acceptance-20261018/independent-audit.json`,
+SHA-256 `6267c389bb90634fb57bea4e8028cdb718435ae32d93922d6c89cd837fb7ac5b`.
+Kullanılan yerel orchestrator `verify_local.py` mevcut fonksiyonları çağırır;
+çalıştırılan komut:
+
+```powershell
+.\out\clean312\Scripts\python.exe out/housing-acceptance-20261018/verify_local.py
+```
+
+Gerçek paket, yazar belgeleri, yerel script/audit ve çıktılar Git dışında.
+Özgün 156 teslim dosyası/envanter, önceki EVDS kopyası ve Downloads ZIP hash'i
+koşu sonunda değişmemiştir. Ağ girişimi **0**, canlı model çağrısı **0**.
+Yazarın iki tekrar koşusu yeniden yapılmış sayılmaz. Gereksiz tam pytest tekrarı
+yapılmadı; kod değişmedi, belge PR'ının zorunlu CI'si ayrıca izlenir.
+
+### Mustafa'nın görsel kabulü — bekliyor
+
+Açılacak dosya `out/housing-acceptance-20261018/reproduced/report.html`.
+
+- [ ] 2021-01–2025-12, 60 ay ve 22 eşleşme doğru görünüyor.
+- [ ] Hover, zoom, pan ve sıfırlama çalışıyor.
+- [ ] Tablo/grafik eşleşiyor; 2021-01 eşleşmelerde yok.
+- [ ] Kaynak/birim/baz yıl ve yöntem açıklamaları okunur.
+- [ ] Haftalık coverage, stok–akım ve nedensellik sınırlamaları görünür.
+
+Osman'ın kendi görsel beyanı burada Mustafa'nın kabulü yerine geçmez.
+
+### Kısa demo ve sürüm notu taslağı — görsel kabul sonrası sonlandırılacak
+
+0–15 sn: gerçek kaynaklar, kapsam ve Python kuralı. 15–40 sn: grafik/hover/zoom
+ve bir eşleşme. 40–60 sn: tablo, ilk ayın null kuralı ve kaynaklar. 60–90 sn:
+weekly coverage, stok–akım/nedensellik sınırı ve sabit planlı sorunun hesapla
+eşitliği. Bu akış henüz uygulanmış veya kaydedilmiş demo sayılmaz.
+
+Sürüm notu taslağı: Mevcut offline Housing hattı gerçek BDDK+EVDS girdilerinde
+60 ay/22 eşleşmeyle bağımsız yeniden üretildi; dosya soru wrapper'ı aynı sonucu
+veriyor. Canlı modele ihtiyaç yok. Görsel onay bekliyor; tag/sürüm numarası,
+merge, release veya yayınlama yapılmadı.
 
 ## Açık kabul kapıları
 
 - [x] Windows'ta yeni Python 3.12 ortamında README sentetik hızlı başlangıcını doğrula (13 Ekim: clone, kurulum, rapor ve testler).
-- [ ] BDDK/EVDS gerçek girdilerinin yollarını, boyutlarını ve SHA-256 özetlerini kaydet (EVDS tamam; BDDK bekleniyor).
-- [x] EVDS seri kodu, frekans, baz yıl ve haftalık kapsam notlarını gerçek paketle doğrula (Mustafa alıcı kontrolü; Osman'ın ayrı teyidi #39'da bekler).
-- [ ] 66 aylık gerçek Silver girdisinden tam 60 aylık analiz kapsamını doğrula.
-- [ ] 2021-01, 2023-06 ve 2025-12 aylarını ham kaynak/Silver çıktısıyla karşılaştır (EVDS tamam; BDDK bekleniyor).
-- [ ] BDDK satır referansları ve EVDS manifestini Gold/evidence akışında koru (#40).
-- [ ] Gerçek dosya tabanlı demo sonucunu HTML raporuna bağla; run summary ve kaynak zincirini göster (#46).
+- [x] BDDK/EVDS gerçek girdilerinin yollarını, boyutlarını ve SHA-256 özetlerini kaydet.
+- [x] EVDS seri kodu, frekans, baz yıl ve haftalık kapsam notlarını gerçek paketle doğrula (iki alıcı teyidi tamamlandı).
+- [x] 66 aylık gerçek Silver girdisinden tam 60 aylık analiz kapsamını doğrula.
+- [x] 2021-01, 2023-06 ve 2025-12 aylarını ham kaynak/Silver çıktısıyla karşılaştır.
+- [x] BDDK satır referansları ve EVDS manifestini Gold/evidence akışında koru (#40).
+- [x] Gerçek dosya tabanlı demo sonucunu HTML raporuna bağla; run summary ve kaynak zincirini göster (#46 teknik kabul).
 - [x] Araç sözleşmesini güncel anlatım ve enabled/planned/disabled kapsamla uyumlu teslim et (#6 tamamlandı; ilk katkı PR #38, güncel kapsam PR #60).
 - [ ] Gerçek veri kullanılan 60–90 saniyelik demo akışını çalıştır ve katkı/sürüm notunu tamamla.
+- [ ] Mustafa yeniden üretilen gerçek HTML'nin yukarıdaki görsel listesini teyit etsin.
 
 Yapılandırılabilir LLM istemcisi #41 ile tamamlandı; önceki sınırlı canlı kontrol
 [LLM kabul kaydındadır](llm-client.md). Legacy `scripts.smoke_test_mia` yalnızca
 temel bağlantıyı sınar. Güncel sentetik kontrol canlı LLM gerektirmedi.
-Dosya destekli sorunun gerçek veri kabulü #42'de açık kalır. İki analizli
+Dosya destekli sorunun gerçek veri teknik kabulü #42'de tamamlandı. İki analizli
 yönlendirme #59, PR #62/#66 ile tamamlandı; gerçek veri kabulünü kapatmaz.
 
-Gerçek veri kabulünde doldurulacak kayıt:
+Gerçek veri teknik kabul kaydı:
 
 | Alan | Durum |
 | --- | --- |
-| Kullanılan kod commit'i | EVDS alıcı kontrolü `7ee7225`; birleşik koşu ayrıca kaydedilecek |
-| BDDK Silver yolu / boyutu / SHA-256 | Bekleniyor |
+| Kullanılan kod commit'i | EVDS ve birleşik alıcı kontrolü `7ee7225` |
+| BDDK Silver yolu / boyutu / SHA-256 | `inputs/data/silver/bddk/housing_loans.parquet`, 10792 bayt; hash yukarıda |
 | EVDS Silver yolu / boyutu / SHA-256 | 66/60 aylık iki dosya yukarıda doğrulandı |
 | EVDS manifesti / Bronze receipt referansları | İki manifest ve üç fiziksel raw/makbuz zinciri doğrulandı |
-| 66→60 ay ve üç örnek ay karşılaştırması | EVDS 66/60 ve üç ay doğrulandı; BDDK/birleşik koşu bekleniyor |
-| Evidence/chart/run summary/HTML dosyaları | Gerçek veri koşusunda kaydedilecek |
+| 66→60 ay ve üç örnek ay karşılaştırması | EVDS, BDDK ve birleşik teknik kontroller geçti |
+| Evidence/chart/run summary/HTML dosyaları | `reproduced/` altında dört çıktı; yukarıdaki hash'lerle teslimle bayt eşit |
 
 ## Katkı kanıtları ve aktif iş paylaşımı
 
@@ -253,9 +362,9 @@ Kişisel katkılar ilgili PR'ların kod farklarıyla değerlendirilir.
 
 | PR sahibi | Birleşmiş katkı örnekleri | Açık teslimat |
 | --- | --- | --- |
-| Mustafa / ekincimustafa | [#27 Gold](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/27), [#30 API](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/30), [#47 anlatım doğrulaması](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/47), [#48 HTML raporu](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/48), [#62](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/62)/[#66 soru yönlendirmesi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/66), [#64 dosya wrapper'ı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/64) | #42 gerçek dosya destekli soru kabulü, #46 gerçek rapor/kabul/sunum |
-| Osman / OsmanerdemDutar | [#36 BDDK Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/36), [#43 kaynak zinciri ve offline demo CLI](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/43) | #40 gerçek BDDK/EVDS birleşik demo kabulü |
-| Afra / afratopcu | [#23 EVDS Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/23), [#35 EVDS ingestion](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/35), [#38 ilk araç sözleşmesi katkısı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/38), [#58 manifest üretimi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/58) | #39 gerçek dosya/komut/hash ve örnek ay teslimi |
+| Mustafa / ekincimustafa | [#27 Gold](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/27), [#30 API](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/30), [#47 anlatım doğrulaması](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/47), [#48 HTML raporu](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/48), [#62](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/62)/[#66 soru yönlendirmesi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/66), [#64 dosya wrapper'ı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/64) | #46 gerçek HTML görsel kabulü, kısa demo/sürüm notunun sonlandırılması; #42 teknik kabulü tamam |
+| Osman / OsmanerdemDutar | [#36 BDDK Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/36), [#43 kaynak zinciri ve offline demo CLI](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/43) | #40 teslim ve teknik tekrar koşu tamam; Mustafa'nın görsel kabulü açık |
+| Afra / afratopcu | [#23 EVDS Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/23), [#35 EVDS ingestion](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/35), [#38 ilk araç sözleşmesi katkısı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/38), [#58 manifest üretimi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/58) | #39 teslim ve iki alıcı kabulü tamam; bu kapsamda açık veri teslimi yok |
 
 Açık görevler tamamlanmış katkı olarak raporlanmaz. Tag/release yayınlama,
 bu kabul kapıları tamamlandıktan sonraki ayrı teslim adımıdır.
