@@ -12,6 +12,10 @@ endpoint'idir. Konut soru endpoint'i hâlâ tek Housing analizine izin verir;
 enflasyon sorusunu bu endpoint'e yönlendirme, grafik/HTML sunumu, serbest LLM
 yorumu ve doğrulanmış dosya/manifest bağlantısı henüz eklenmemiştir.
 
+İki analizli soru yönlendirmesi ayrı
+[`POST /analysis/economic/question`](economic-question.md) endpoint'indedir;
+mevcut Housing soru endpoint'inin tek analizli davranışını genişletmez.
+
 ## Girdi ve çıktı
 
 İstek dört alan içerir:

@@ -1,0 +1,23 @@
+{
+  "question": "2021 Ocak-Mart genel TÜFE endeksinin aylık ve yıllık değişimlerini özetle.",
+  "inflation": {
+    "cpi_monthly": [
+      {"period": "2020-01", "cpi_index": 100.0},
+      {"period": "2020-02", "cpi_index": 102.0},
+      {"period": "2020-03", "cpi_index": 104.0},
+      {"period": "2020-04", "cpi_index": 106.0},
+      {"period": "2020-05", "cpi_index": 108.0},
+      {"period": "2020-06", "cpi_index": 110.0},
+      {"period": "2020-07", "cpi_index": 112.0},
+      {"period": "2020-08", "cpi_index": 114.0},
+      {"period": "2020-09", "cpi_index": 116.0},
+      {"period": "2020-10", "cpi_index": 118.0},
+      {"period": "2020-11", "cpi_index": 120.0},
+      {"period": "2020-12", "cpi_index": 125.0},
+      {"period": "2021-01", "cpi_index": 130.0},
+      {"period": "2021-02", "cpi_index": 143.0},
+      {"period": "2021-03", "cpi_index": 140.0}
+    ],
+    "source_ref": "synthetic://cpi-history"
+  }
+}

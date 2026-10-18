@@ -1,8 +1,8 @@
-# Codex devir notu — 17 Ekim 2026
+# Codex devir notu — 18 Ekim 2026
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli: `5f34618` (PR #60 sonrası main).
+için bir sürüm garantisi değildir. Kod temeli: `6abcfb8` (PR #62 sonrası main).
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
@@ -26,7 +26,8 @@ genel tool registry, web/anomali/nedensellik araçları henüz uygulanmış değ
 | LLM istemcisi | `app/connectors/llm_client.py` | Yapılandırılabilir OpenAI-compatible Chat Completions; kontrollü hatalar ve SDK retry=0 |
 | Housing sorusu | `app/services/housing_question.py`, `app/api/housing_question.py` | Normalize satırlarda tek izinli analiz ve üç karar: ready, clarification_required, unsupported |
 | Housing değerlendirmesi | `scripts/evaluate_housing_questions.py`, `evals/housing_question_cases.json` | Dokuz vakalı offline stub; ayrı, açık bütçeli canlı mod |
-| TÜFE hesabı | `app/services/inflation_analysis.py`, `app/api/inflation.py` | Aylık/yıllık değişimler ve ilk-son endeks değişimi; henüz soru yönlendirmesinde değil |
+| TÜFE hesabı | `app/services/inflation_analysis.py`, `app/api/inflation.py` | Aylık/yıllık değişimler ve ilk-son endeks değişimi; iki analizli soru çekirdeğine PR #62 ile bağlı |
+| İki analizli soru API/eval | `app/api/economic_question.py`, `scripts/evaluate_economic_questions.py` | Bu dalda ortak HTTP yüzeyi ve 12 offline vaka; henüz main'e merge edilmedi |
 
 İlgili belgeler: [Housing question](housing-question.md),
 [eval](housing-question-evals.md), [inflation](inflation-analysis.md),
@@ -49,12 +50,12 @@ genel tool registry, web/anomali/nedensellik araçları henüz uygulanmış değ
 
 ## Açık işler ve sahipleri
 
-Bu tablo 17 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumları oku.
+Bu tablo 18 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumları oku.
 
 | Issue | Sorumlu | Kalan sonuç |
 | --- | --- | --- |
-| [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59) | Mustafa | İki mevcut analiz arasında sınırlı konut–TÜFE soru yönlendirmesi; sıradaki geliştirme |
-| [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42) | Mustafa | Housing sorusunu sunucu kontrollü, doğrulanmış yerel dosya/manifest verisine bağlama |
+| [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59) | Mustafa | Çekirdek PR #62 merge edildi; ortak HTTP/örnekler/eval bu dalda, review/merge bekler |
+| [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42) | Mustafa | Doğrulanmış dosya wrapper'ı PR #64'te açık; gerçek veri kabulü bekler |
 | [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39) | Afra | Gerçek CSV/coverage/manifest/raw/makbuz paketine ekip erişimi ve üç gerçek örnek ay karşılaştırması |
 | [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) | Osman | Gerçek BDDK+EVDS ile 66→60 ay ve üç örnek ayın birleşik demo kabulü |
 | [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) | Mustafa | Gerçek rapor, güncel kurulum/kabul kaydı, kısa demo ve katkı/sürüm notu |
@@ -64,7 +65,7 @@ Bu tablo 17 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumlar�
 erişilebilir ve bağımsız doğrulanmış sayılmaz; ilgili yazarların yerel kabul
 beyanları ile bağımsız kabul birbirinden ayrılır.
 
-## İlk Codex görevi: #59'un servis çekirdeği
+## #59'un ilk parçası: servis çekirdeği (PR #62 ile merge edildi)
 
 1. Çalışma ağacını/branch'i kontrol et, bu notu ve #59'u oku. Yerel değişiklikleri
    koru. Python 3.12 `.venv` ve offline başlangıç testini doğrula.
@@ -142,3 +143,22 @@ ettiği için testlerde Git tarafından yok sayılan `out/python312` ortamında 
 çekirdek sonrası tam paket **731 passed, 1 skipped**. Housing offline stub
 değerlendirmesi **9/9** geçti. Bunlar canlı model başarı ölçümü veya gerçek veri
 kabulü değildir.
+
+## #59 ortak HTTP ve offline değerlendirme — 18 Ekim 2026
+
+- Kullanıcı onayıyla PR #62, `6abcfb8` commit'iyle main'e merge edildi. Öncesinde
+  aynı `01018ae` başlığı, temiz diff, başarılı CI ve boş review/yorum durumu
+  kontrol edildi. Diğer PR'lar için merge onayı verilmiş sayılmaz.
+- Aktif dal `feat/economic-question-api`, güncel main `6abcfb8` tabanlıdır.
+  `POST /analysis/economic/question`, iki sentetik JSON örneği ve 12 vakalık
+  offline HTTP değerlendirmesi bu dalda tamamlandı; henüz main'de değildir.
+- Python 3.12.15 (`out/python312`): odaklı paket **96 passed**;
+  tam paket **772 passed, 1 skipped**. Tek atlama mevcut BDDK Windows symlink
+  kontrolüdür. Economic offline stub **12/12**, mevcut Housing offline stub
+  **9/9** geçti; canlı model/EVDS çağrısı yapılmadı.
+- İki HTTP JSON örneği ve vaka şeması doğrulandı; 48 yerel belge bağlantısı ile
+  üç PowerShell bloğunun sözdizimi kontrol edildi. HTTP örnekleri canlı modele
+  gönderilmedi. Stub geçişleri model anlama başarısı değildir.
+- PR #63 çalışma düzeni, #64 doğrulanmış dosya sorusu ve #65 kabul kaydı ayrı
+  PR'lardır. #59 API kodu bunlara bağımlı değildir. #42/#46 gerçek kabulü hâlâ
+  Afra/Osman'ın #39/#40 dosya ve kanıt teslimini bekler.
