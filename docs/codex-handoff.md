@@ -92,6 +92,31 @@ GitHub erişimi yoksa bu yerel kapsamla ilerle, erişilemeyen issue/PR bilgisini
 doğrulanmış gibi sunma. Commit/push/PR/merge adımlarında oturumdaki kullanıcı
 yetkisini izle; bir yetki veya araç eksikse yerel diff/test sonucunu teslim et.
 
+## Oturum kapanış kaydı — 18 Ekim 2026
+
+- Aktif dal `docs/current-demo-acceptance`; taban main `45c8dcf`. Bu dal yalnızca
+  kabul/devir belgelerini günceller. `AGENTS.md` çalışma düzeni PR #63'te kayıtlı;
+  kullanıcı talimatı bu oturumda uygulanır, PR henüz main'e merge edilmedi.
+- PR #62 (`01018ae`, #59 çekirdeği), PR #63 (`d58db6f`, çalışma düzeni) ve
+  PR #64 (`1191654`, #42 doğrulanmış dosya wrapper'ı) açık; üç Tests CI başarılı.
+  #64, #62'ye bağımlı değildir ve mevcut Housing HTTP sözleşmesini değiştirmez.
+- #42 dalı: odaklı testler 63 passed, 1 skipped; tam paket 729 passed, 2 skipped;
+  Housing offline stub 9/9. Windows atlamaları symlink iznidir. Bu sonuçlar
+  #42 dalına aittir; buradaki main tabanlı belge dalına taşınmış kod sayılmaz.
+- Güncel main arşivinde Python 3.12.15 ile 707 passed, 1 skipped; 60 aylık
+  sentetik HTML ve süreç içi Health/Housing/TÜFE HTTP kontrolleri başarılı.
+  Ayrıntı ve çıktı hash'i [kabul kaydında](release-acceptance.md).
+  Yerel `.venv` bozuk; kullanılan `out/python312` ortamı önceki oturumda kuruldu.
+- Bu belge dalında dokuz yerel bağlantı ve atlanan testin adı doğrulandı;
+  `git diff --check` temiz. Zorunlu Tests CI PR üzerinden takip edilir.
+- Yerel `data/` yalnızca `.gitkeep` içerir. #39/#40'ta erişilebilir yeni gerçek
+  paket/kanıt teslimi görünmedi. Afra'nın EVDS ve Osman'ın gerçek demo görevleri
+  devralınmadı; hiçbir canlı model/EVDS çağrısı yapılmadı.
+- Sıradaki adım: kullanıcı review/merge kararı sonrası #59 ortak API/eval işini
+  güncel main'de ele almak; gerçek #42/#46 kabulü için #39/#40 dosya/kanıt paketine
+  erişmek. Merge/release/yayınlama kullanıcı onayı gerektirir; gerçek veri
+  kabulü olmadan issue'lar veya release kapıları kapanmaz.
+
 ## Yerel Windows başlangıcı
 
 Repo zaten klonluysa VS Code ile **repo kök klasörünü** açmak yerel dosya
