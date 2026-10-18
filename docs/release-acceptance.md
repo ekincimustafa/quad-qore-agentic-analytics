@@ -155,8 +155,10 @@ Set-Location out/clean-demo
   açıp grafik hover/zoom, eşleşme tablosu, kaynak ve sınırlamaları kontrol etmeli.
 
 **Gerçek paket erişimi ayrı ve açık:** Afra [hazır EVDS ZIP'ini bildirdi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6250215723);
-henüz dosya bağlantısı yok. #40'ta BDDK/gerçek birleşik koşu paketi bağlantısı
-veya yorum yok. Yeni durum, kalan teslimler ve gönderilmemiş mesajlar
+henüz dosya bağlantısı yok. #40'ta BDDK/gerçek birleşik koşu paketi bağlantısı yok.
+Mustafa paylaşım taleplerini [#39'da](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6250879475)
+ve [#40'ta](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40#issuecomment-6250883464)
+yayımladı; tekrar mesaj gönderilmez. Yeni durum, kalan teslimler ve önceki taslaklar
 [teslim rehberindedir](real-demo-delivery.md). Sentetik sayılar gerçek sonuç
 olarak kabul edilmedi; #42/#46 açık kalır. Canlı LLM/EVDS çağrısı yapılmadı.
 

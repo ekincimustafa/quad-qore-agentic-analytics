@@ -15,15 +15,19 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   yeni özellik istemiyor; mevcut demoyu gerçek veriyle doğrulama öncelikli.
   PR #63–#66 başarılı CI ile merge edildi; #59 kapandı. Önceki onay yeni
   belge PR'ının merge'ini veya release/yayınlamayı kapsamaz.
-- #39 açıklaması ve **8 yorum**, #40 açıklaması ve **0 yorum** kontrol edildi.
+- Son kontrolde #39'da **9 yorum**, #40'ta **1 yorum** görüldü.
   Afra 12 dosyalık gerçek EVDS ZIP'i ile karşılaştırma/yeniden üretim belgesini
-  hazırlamış; yalnızca paylaşım kanalı/erişim bağlantısı eksik. Bildirdiği ZIP
+  hazırlamış; indirilebilir paket/teslim belgesi bağlantısı bekleniyor. Bildirdiği ZIP
   SHA-256 `1c9255194c3222dccc33e056ba195c46a8d0912cdb9ccccd178e8e4b2731ebc1`
   dosya erişimi olmadan bağımsız doğrulanmış sayılmaz. #40'ta gerçek BDDK ve
   birleşik demo dosya/kanıt bağlantısı yok. Yerel `data/` yalnızca `.gitkeep`.
 - [Teslim rehberi](real-demo-delivery.md) hazır paketi yeniden istemeden kalan
   dosya/dizin/komut/hash kanıtlarını ve Afra/Osman için ayrı mesaj taslaklarını
-  içerir. Mesajlar **gönderilmedi**; paylaşım kanalını Mustafa belirler.
+  içerir. Mustafa paylaşım taleplerini [#39 yorumunda](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6250879475)
+  ve [#40 yorumunda](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40#issuecomment-6250883464)
+  yayımladı. ZIP eki veya ekip erişimli OneDrive/Google Drive bağlantısı kabul
+  ediliyor. Kullanıcı talimatı: **tekrar mesaj gönderme**; mevcut taleplerin
+  yanıtı/paket bağlantısı beklenir.
 - Yeni `out/clean312` venv'i (Python 3.12.15, sistem paketlerine kapalı) ve
   `git archive main` ile `out/clean-demo` kaynak kopyası kuruldu. Eski bozuk
   `.venv` korunur. `requirements.txt` kurulumu ve `pip check` başarılı;
@@ -39,7 +43,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   indirme, veri silme, force push, merge, release veya yayınlama yapılmadı.
 - **Engel ve durma noktası:** erişilebilir EVDS ZIP/teslim belgesi ve BDDK
   raw/makbuz/Silver/üç örnek ay/birleşik koşu kaydı. Kod beklenmiyor. Paketler
-  gelince önce ZIP hash'i ve fiziksel zincir, sonra sabit planlı dosya sorusu,
+  gelince kullanıcı yetkisi kapsamında indirilecek; önce ZIP hash'i ve fiziksel
+  zincir, sonra sabit planlı dosya sorusu,
   66→60 ay ve gerçek rapor kontrol edilir. #42/#46 gerçek kabulü açık kalır;
   Afra/Osman'ın görevleri veya dalları devralınmadı. Bağımsız yeni kapsam açılmaz.
 
