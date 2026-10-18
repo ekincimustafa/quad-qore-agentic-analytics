@@ -37,7 +37,8 @@ Bronze-to-report source chain were independently checked on the delivered real
 data (60 months, 22 matching months). EVDS delivery [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39)
 and the real-data demo [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40)
 are complete, including Mustafa's browser acceptance on 18 October 2026.
-The short presentation and release delivery remain open in
+The [v0.1.0-rc.1 prerelease](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
+is published from `abea431`. The 60–90 second screen recording remains open in
 [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
 Weekly publication coverage is explicitly unverified without an official calendar;
 the timestamp and coverage policy is documented in the [EVDS guide](docs/evds-ingestion.md).

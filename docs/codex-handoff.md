@@ -9,7 +9,38 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
-## İlk gerçek demo: güncel durum ve sıra — 18 Ekim 2026
+## v0.1.0-rc.1 yayımlandı; ekran kaydı açık — 18 Ekim 2026
+
+- Başlangıç çalışma ağacı temizdi; kullanıcının değişikliği yoktu. Aktif dal
+  **`docs/rc1-publication`**, güncel main `abea431` tabanlıdır. PR #67 main'e
+  merge edilmiştir; runtime `7ee7225` ile aynı, yalnızca kabul belgeleri değişti.
+- Mustafa bu oturumda yalnızca **`v0.1.0-rc.1` sürüm adayının yayımlanmasına**
+  açık onay verdi. Güncel main tam SHA
+  `abea43137eed8a6ceb20cd9bbd22cd0afeb58f1b` yeniden kontrol edildi;
+  bu commit'in [main CI'si](https://github.com/ekincimustafa/quad-qore-agentic-analytics/actions/runs/39153169544)
+  **796 passed in 20.89s**. Gereksiz yerel tam pytest tekrarı yapılmadı.
+- Annotated `v0.1.0-rc.1` tag'i tam bu commit'e oluşturulup gönderildi;
+  [GitHub prerelease](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
+  **18 Ekim 2026 18:36:49 UTC** yayımlandı. `prerelease=true`, `draft=false`,
+  release kimliği `416628413`, yüklenen ek sayısı **0**. Tag hedefi ve yayımlanan
+  notlar bağımsız GET ile kontrol edildi. Gerçek veri, HTML, yerel audit veya
+  operasyon script'i eklenmedi; kaynak arşivleri yalnızca Git'teki dosyalardır.
+- #39/#40/#42 tamamdır. #46'da prerelease/onay maddeleri işaretlendi;
+  **60–90 saniyelik ekran kaydı alınmadı**, kısa demo teslimi bu nedenle açık.
+  Kullanıcının önceki gerçek HTML görsel kabulü kayıt yapıldığı anlamına gelmez.
+- Bu dal yalnızca mevcut README/kabul/teslim/devir kaydını günceller; sürüm
+  tag'i bu yayın sonrası belge commit'lerine taşınmaz. Belge commit/push/PR
+  rutini uygulanır; yeni PR'nin merge'i veya kararlı release için onay yoktur.
+  Bu belgelerde **63 yerel bağlantı**, **12 PowerShell bloğu** ve
+  `git diff --check` geçti; zorunlu belge PR CI'si son commit için izlenir.
+  Sonraki adım: Mustafa gerçek `reproduced/report.html` dosyasıyla anlatımı
+  kaydeder, MP4'ü açıp ses/okunabilirlik/süreyi kontrol eder ve sonucu paylaşır.
+  Yeni özellik veya takip belgesi açılmaz; canlı EVDS/LLM çağrısı yapılmaz.
+
+## PR #67 gerçek demo kabul teslimi — 18 Ekim 2026
+
+Bu bölüm yayın öncesi tarihli kabul kaydıdır; güncel yayın ve aktif dal durumu
+üstteki `v0.1.0-rc.1` bölümündedir. Önceki onay sınırları bu tarihe aittir.
 
 - Aktif dal `docs/real-demo-readiness`; başlangıç çalışma ağacı temizdi,
   mevcut kullanıcı değişikliği yoktu. Runtime `7ee7225`, Python 3.12.15

@@ -3,13 +3,15 @@
 İlk kayıt: 12 Ekim 2026. Güncelleme: 18 Ekim 2026. Takip: [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
 Durum: Gerçek BDDK+EVDS teknik kabulü ve sabit planlı dosya sorusu doğrulandı;
 Mustafa yeniden üretilen HTML'nin görsel kabulünü 18 Ekim'de teyit etti.
-#40 tamamlandı; kısa sunum ve ilk sürüm teslimi #46'da açık.
+#40 tamamlandı; `v0.1.0-rc.1` prerelease yayımlandı. Ekran kaydı ve kısa demo
+teslimi #46'da açık; kaydedilmiş demo sayılmaz.
 
 İlk kontrollerin kod temeli: `f9d02099b2fc97a7a8588a022e4c0c04ce07b652` (PR #48 sonrası main).
 13 Ekim temiz Windows kontrolü: `8943608b807f791ea6af92436724d9db4dcc7115`
 (PR #49 sonrası main). Aşağıdaki yeni Windows satırları bu commit'e aittir.
 `housing-api-example.json`, PR #49 ile eklenmiştir.
-Bu kayıt bir tag/release duyurusu değildir. Sonraki kod/veri değişiklikleri için
+12–13 Ekim tarihli ilk kayıtlar bir tag/release duyurusu değildir; rc.1 yayını
+aşağıda ayrı kaydedilmiştir. Sonraki kod/veri değişiklikleri için
 commit ve sonuçlar yeni bir doğrulama kaydında güncellenmelidir.
 
 ## Gerçekleştirilen doğrulamalar
@@ -320,13 +322,17 @@ Osman'ın önceki görsel beyanından ayrı olarak Mustafa'nın alıcı kabulü 
 #40 tamamlandı. Kullanıcı teyidi seçtiği ayı kapsar; tüm aylar için yeni bir
 tarayıcı karşılaştırması yapıldığı iddia edilmez.
 
-### Sürüm önerisi ve 60–90 saniyelik demo anlatımı — yayımlanmadı
+### v0.1.0-rc.1 prerelease ve 60–90 saniyelik demo anlatımı
 
-Önerilen ilk ön sürüm tag'i **`v0.1.0-rc.1`**; henüz oluşturulmadı.
-Sürüm notu ve aşağıdaki anlatım Mustafa'nın incelemesine hazırdır; anlatımın
-sunulduğu/kaydedildiği veya release tesliminin yapıldığı anlamına gelmez.
+Mustafa'nın açık onayıyla **`v0.1.0-rc.1`** annotated tag'i
+`abea43137eed8a6ceb20cd9bbd22cd0afeb58f1b` main commit'ine bağlandı.
+Bu commit'in [main CI'si](https://github.com/ekincimustafa/quad-qore-agentic-analytics/actions/runs/39153169544)
+**796 passed in 20.89s**. [GitHub prerelease](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
+18 Ekim 2026 18:36:49 UTC yayımlandı: `prerelease=true`, `draft=false`,
+kimlik `416628413`. Release'e yüklenen ek **0**; gerçek veri, HTML ve yerel
+audit dosyaları eklenmedi. Aşağıdaki notlar yayımlandı; ekran kaydı henüz yok.
 
-**Sürüm notu önerisi — İlk gerçek verili offline Housing demosu**
+**Yayımlanan sürüm notu — İlk gerçek verili offline Housing demosu**
 
 - Teslim edilen gerçek BDDK+EVDS dosyaları hash ve fiziksel kaynak zinciriyle
   doğrulandı. 66 aylık girdiden 2021-01–2025-12 için 60 ay ve 22 eşleşme üretildi.
@@ -349,9 +355,9 @@ sunulduğu/kaydedildiği veya release tesliminin yapıldığı anlamına gelmez.
 | 40–60 sn | Tabloyu ve Ocak 2021'i göster: “Tablodaki değerler grafikle aynı kanıttan geliyor. Ocak 2021 için pencere içinde önceki ay olmadığından değişimler null ve bu ay eşleşmelere dahil değil. Dosya soru wrapper'ı da aynı girdiler ve açık sabit planla doğrudan CLI sonucunu aynen verdi.” |
 | 60–90 sn | Kaynak ve sınırlamaları göster: “Raw, makbuz ve Silver zincirleri hash'lerle kontrol edildi. Bu gösterimde canlı model veya EVDS çağrısı yok. Haftalık yayın kapsamı resmî takvim olmadan doğrulanmış sayılmıyor. Ölçtüğümüz kredi stoku; yeni kredi akımı veya faiz değişiminin neden olduğu bir sonuç iddia etmiyoruz.” |
 
-Mustafa yalnızca PR #67'nin uygun diff/CI/review sonrası merge'ine onay verdi.
-Tag oluşturma, release ve yayınlama için ayrıca onay gerekir; bu adımlardan
-önce durulur. Henüz tag/release yayımlanmadı.
+PR #67 önceden onayla merge edildi. Bu oturumdaki ayrı onay yalnızca
+`v0.1.0-rc.1` prerelease yayınını kapsar; kararlı release veya başka tag için
+yeni onay gerekir. Yukarıdaki anlatım sunulmuş/kaydedilmiş demo değildir.
 
 ## Açık kabul kapıları
 
@@ -365,8 +371,9 @@ Tag oluşturma, release ve yayınlama için ayrıca onay gerekir; bu adımlardan
 - [x] Araç sözleşmesini güncel anlatım ve enabled/planned/disabled kapsamla uyumlu teslim et (#6 tamamlandı; ilk katkı PR #38, güncel kapsam PR #60).
 - [x] Mustafa yeniden üretilen gerçek HTML'nin yukarıdaki görsel listesini teyit etti.
 - [x] Sürüm notu, önerilen tag ve 60–90 saniyelik demo anlatımını incelemeye hazırla.
-- [ ] Gerçek veri kullanılan kısa demo anlatımını sun/kaydet ve sürüm teslimini tamamla.
-- [ ] Tag/release/yayınlama öncesi Mustafa'nın ayrı onayını al.
+- [x] `v0.1.0-rc.1` tag/prerelease için Mustafa'nın ayrı yayın onayını al.
+- [x] Başarılı main commit'ini tag'le ve notlarla GitHub prerelease yayımla; veri/audit eki yükleme.
+- [ ] Gerçek veri kullanılan 60–90 saniyelik ekran kaydını al; MP4 süre/ses/görünümünü kontrol et ve demo teslimini tamamla.
 
 Yapılandırılabilir LLM istemcisi #41 ile tamamlandı; önceki sınırlı canlı kontrol
 [LLM kabul kaydındadır](llm-client.md). Legacy `scripts.smoke_test_mia` yalnızca
@@ -392,9 +399,9 @@ Kişisel katkılar ilgili PR'ların kod farklarıyla değerlendirilir.
 
 | PR sahibi | Birleşmiş katkı örnekleri | Açık teslimat |
 | --- | --- | --- |
-| Mustafa / ekincimustafa | [#27 Gold](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/27), [#30 API](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/30), [#47 anlatım doğrulaması](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/47), [#48 HTML raporu](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/48), [#62](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/62)/[#66 soru yönlendirmesi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/66), [#64 dosya wrapper'ı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/64) | #46 kısa sunum ve onaylı sürüm teslimi; gerçek HTML görsel kabulü tamam |
+| Mustafa / ekincimustafa | [#27 Gold](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/27), [#30 API](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/30), [#47 anlatım doğrulaması](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/47), [#48 HTML raporu](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/48), [#62](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/62)/[#66 soru yönlendirmesi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/66), [#64 dosya wrapper'ı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/64) | #46 ekran kaydı ve kısa demo teslimi; gerçek HTML kabulü ve rc.1 yayını tamam |
 | Osman / OsmanerdemDutar | [#36 BDDK Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/36), [#43 kaynak zinciri ve offline demo CLI](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/43) | #40 teslim, bağımsız teknik tekrar koşu ve Mustafa'nın görsel kabulü tamam |
 | Afra / afratopcu | [#23 EVDS Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/23), [#35 EVDS ingestion](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/35), [#38 ilk araç sözleşmesi katkısı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/38), [#58 manifest üretimi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/58) | #39 teslim ve iki alıcı kabulü tamam; bu kapsamda açık veri teslimi yok |
 
-Açık görevler tamamlanmış katkı olarak raporlanmaz. Tag/release yayınlama,
-bu kabul kapıları tamamlandıktan sonraki ayrı teslim adımıdır.
+Açık görevler tamamlanmış katkı olarak raporlanmaz. Sürüm adayı yayını ekran
+kaydını veya kısa demo teslimini tamamlamaz; #46 bu kapsamda açık kalır.
