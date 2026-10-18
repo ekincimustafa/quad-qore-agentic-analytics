@@ -8,11 +8,11 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
-## Güncel oturum — 18 Ekim 2026
+## #42 dosya wrapper'ı geliştirme kaydı — 18 Ekim 2026
 
-Bu bölüm, aşağıdaki 17 Ekim planının güncel durumunu tamamlar. Bu feature dalı
-`45c8dcf` tabanlıdır. Güncel main `6abcfb8`: PR #62 kullanıcı onayıyla merge
-edildi; ortak API/eval PR #66'da açıktır. PR #63 çalışma düzeni de review bekler.
+Bu bölüm geliştirme sırasındaki kanıtı korur. Dal `45c8dcf` tabanından açıldı;
+PR #62/#63 sonrası main (`a987a88`) ile merge öncesinde güncellendi.
+Ortak API/eval PR #66'da açıktır. #63–#66 merge sırası kullanıcı tarafından onaylıdır.
 
 - Aktif dal `feat/verified-housing-question`, doğrudan `45c8dcf` tabanından açıldı.
   #42'nin sunucu kontrollü yerel dosya wrapper'ı, fiziksel paket kontrolleri ve
@@ -30,6 +30,9 @@ edildi; ortak API/eval PR #66'da açıktır. PR #63 çalışma düzeni de review
 - #46 sentetik kabul kaydı PR #65'te, #59 API/eval PR #66'da review bekler.
   #42/#46 gerçek kabulü #39/#40'ın erişilebilir gerçek dosya/kanıt paketini bekler.
   Bu belge düzeltmesi runtime kodunu değiştirmez; birleşik PR CI'si izlenir.
+- Güncel main ile birleşik kaynakta odaklı dosya/iki analiz/Housing soru paketi
+  **87 passed, 1 skipped** (Windows symlink); 49 yerel bağlantı ve diff kontrolü
+  başarılıdır. Tam paket zorunlu PR CI'sinde ve son birleşik teslimde doğrulanır.
 
 ## Temel karar
 
