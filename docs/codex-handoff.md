@@ -9,6 +9,33 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## Son teslim ve sonraki adım — 18 Ekim 2026
+
+- Aktif dal `feat/economic-question-api`; çalışma ağacı teslim commit'i sonrası
+  temiz bırakılır. PR #63 çalışma düzeni (`a987a88`), #64 dosya wrapper'ı
+  (`96031e2`) ve #65 tarihli kabul kaydı (`909f8c7`) başarılı güncel CI ile
+  kullanıcı onayı kapsamında main'e merge edildi.
+- PR #66 teslimi: ortak `POST /analysis/economic/question`, iki sentetik istek,
+  12 vakalı offline HTTP evaluator ve davranış testleri tamamlandı. Sınırlı
+  plan mevcut Housing/TÜFE servislerinden en fazla birini yürütür; mevcut
+  endpoint'ler korunur. #59'un çekirdek ve API/eval kapsamı tamamlanmıştır.
+- Birleşik runtime test kaynağı `624d176a37e8f7e1714cd395700270932fbe582e`
+  (PR #62–#65 main + #66), Python 3.12.15 `out/python312`: tam offline paket
+  **794 passed, 2 skipped in 92.08s**. İki atlama BDDK ve dosya soru testlerinin
+  Windows symlink iznidir. Önceki birleşik odaklı paket **87 passed, 1 skipped**.
+- Aynı kaynakta Economic offline stub **12/12**, Housing offline stub **9/9**;
+  canlı çağrı **0**. İki HTTP örneği, 12 vaka şeması ve 51 yerel bağlantı
+  doğrulandı; `git diff --check` temiz. Son belge commit'inin zorunlu PR CI'si
+  ayrıca geçmelidir; merge son başlık SHA'sı kontrol edilerek yapılır.
+- Kullanıcı #63–#66 merge sırasını onayladı. Canlı model/EVDS çağrısı, gerçek
+  veri indirme, veri silme, force push, tag/release veya yayınlama yapılmadı.
+- Güncel açık issue'lar kontrol edildi: Mustafa'nın kalan #42/#46 gerçek kabulü,
+  Afra #39 ve Osman #40'ın erişilebilir gerçek CSV/coverage/manifest/raw/makbuz,
+  BDDK Silver ve üç örnek ay karşılaştırma paketine bağlıdır. Yerel `data/`
+  yalnızca `.gitkeep` içerir. Bağımsız yeni özellik uydurulmaz; bu paket
+  erişilebilir olunca önce sabit planla offline doğrulama ve rapor incelemesi
+  yapılır. Diğer ekip üyelerinin görevleri/dalları devralınmaz.
+
 ## #42 dosya wrapper'ı geliştirme kaydı — 18 Ekim 2026
 
 Bu bölüm geliştirme sırasındaki kanıtı korur. Dal `45c8dcf` tabanından açıldı;
