@@ -23,9 +23,11 @@ analysis window is January 2021 to December 2025: 60 months.
 | Guarded narration | Model JSON checked against the same month/metric; Turkish text rendered from evidence | [Narration contract](docs/housing-narration.md) |
 | LLM client | Configured OpenAI-compatible Chat Completions, bounded SDK timeout, one attempt and safe application errors | [LLM guide](docs/llm-client.md) |
 | Question analysis | Turkish question + normalized rows, typed decisions, one allowed Housing analysis and shared period validation | [Question API guide](docs/housing-question.md) |
+| Economic question core | Bounded two-analysis question plan and dispatch to existing Housing/CPI services; no shared HTTP endpoint yet | [Economic question guide](docs/economic-question.md) |
 | Question evaluation | Nine curated synthetic cases; default offline harness checks and explicitly budgeted live mode | [Evaluation guide](docs/housing-question-evals.md) |
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
 | File demo CLI | Physical EVDS manifest checks, source/output protection, evidence/chart/summary and optional offline HTML | [Demo guide](docs/housing-demo.md) |
+| Verified question files | Server-controlled local BDDK/EVDS files verified before question planning; Python wrapper only | [File question guide](docs/housing-question-files.md) |
 | CI | Offline pytest suite on pull requests and pushes to main, using Python 3.12 | [Workflow](.github/workflows/tests.yml) |
 
 The key-free sample below uses **synthetic data**. Manifest production,
@@ -41,7 +43,8 @@ The [tool contracts](docs/tool-contracts.md) map current code to the planned and
 disabled generic tools; those generic adapters are not implemented runtime tools.
 
 Question routing has a bounded Python service and HTTP endpoint with offline
-behavior tests. File-backed integration and live semantic evaluation remain open
+behavior tests. A separate server-side Python wrapper verifies local files before
+planning. Its HTTP integration, real-data acceptance and live semantic evaluation remain open
 in [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42).
 A general agent/tool registry, data catalog, general web/anomaly/causality tools
 and deployment are planned work. A live Gemini narration contract check passed;
@@ -143,8 +146,10 @@ requires a configured live model even when `include_narration=false`.
 
 The separate [CPI example](docs/inflation-api-example.json) and
 [inflation guide](docs/inflation-analysis.md) work without an API key.
-This calculation endpoint is not yet connected to question routing;
-the Housing question endpoint still allows only its existing Housing analysis.
+The new two-analysis [service core](docs/economic-question.md) routes CPI and
+Housing questions offline with a stub model. It is not yet exposed through a
+shared HTTP endpoint; the Housing question endpoint still allows only its
+existing Housing analysis.
 
 The file-backed endpoint expects these paths relative to the repository root:
 

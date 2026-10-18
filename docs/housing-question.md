@@ -1,8 +1,9 @@
 # Sınırlı soru → plan → konut analizi çekirdeği
 
 Takip: #42. Python servis çekirdeği ve normalize edilmiş satırları kabul eden soru
-HTTP endpoint'i mevcut. Dosya/manifest entegrasyonu, genel amaçlı agent, ek
-ekonomik analiz ve serbest LLM yorumlama henüz tamamlanmış değildir.
+HTTP endpoint'i mevcut. Ayrı [yerel dosya wrapper'ı](housing-question-files.md)
+sunucu yapılandırmalı BDDK/EVDS paketini modelden önce doğrular. Gerçek veri kabulü
+ve bu wrapper'ın HTTP bağlantısı açık kalır.
 
 ## Görev paylaşımı
 
@@ -63,8 +64,10 @@ kontrolünden sonra ortak dönemlerden türetir; satırlar çağıranın sağlad
 girdilerdir ve resmî kaynaktan geldikleri fiziksel olarak doğrulanmış sayılmaz.
 Bu sınıf iki sınırı doğrular; fiziksel dosya varlığı, hash, tüm ara aylar veya
 kaynak zincirini doğrulamaz. Eksik/mükerrer ay ve sayısal kalite kontrolleri
-mevcut Gold servisinde kalır. Gerçek dosya/manifest entegrasyonu #39/#40 ve
-#42'nin sonraki veri entegrasyon teslimatında tamamlanacaktır.
+mevcut Gold servisinde kalır. Fiziksel kontroller ayrı
+[yerel dosya wrapper'ında](housing-question-files.md) uygulanır; normalize-satır
+API'si otomatik olarak bu doğrulamayı yapmış sayılmaz. Gerçek kabul #39/#40 ve
+#42'de açık kalır.
 
 Mevcut servisin ilk ay davranışı korunur: seçilen aralığın ilk ayı için önceki
 aya ait değişim ve koşul sonucu bulunmaz. Planlama servisi geçmiş ay ekleyerek

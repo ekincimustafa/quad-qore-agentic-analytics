@@ -16,7 +16,11 @@ from typing import Any
 import pandas as pd
 
 from app.lakehouse.bddk_silver import validate_bddk_monthly_silver
-from app.services.evds_manifest import load_and_validate_manifest, append_evds_source_refs
+from app.services.evds_manifest import (
+    WEEKLY_COVERAGE_NOTE,
+    load_and_validate_manifest,
+    append_evds_source_refs,
+)
 from app.services.housing_demo import HousingDemoPaths, run_file_backed_housing_demo
 from app.lakehouse.gold import GoldAnalysisError, build_housing_gold_table
 from app.tools.housing_evidence import EvidenceBuildError, HousingAnalysisEvidence
@@ -396,12 +400,8 @@ def main(argv: list[str] | None = None) -> int:
             if series.series_code == "TP.KTF12"
         )
         # Complete monthly rows do not establish complete weekly publications.
-        coverage_note = (
-            "EVDS TP.KTF12 weekly_coverage: unverified; calendar_verification: not_available. "
-            "Haftalık kapsam, doğrulanmış resmî yayın takvimi olmadan teyit edilemez."
-        )
         evidence = run.evidence.model_copy(update={
-            "data_quality_notes": tuple(dict.fromkeys((*run.evidence.data_quality_notes, coverage_note)))
+            "data_quality_notes": tuple(dict.fromkeys((*run.evidence.data_quality_notes, WEEKLY_COVERAGE_NOTE)))
         })
         run = replace(run, evidence=evidence)
         chart = run.chart

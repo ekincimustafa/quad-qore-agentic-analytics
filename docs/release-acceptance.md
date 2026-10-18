@@ -88,7 +88,7 @@ aşağıdaki test/çıktı kayıtları belirtilen `45c8dcf` kaynağına aittir.
 Bu kaynak ağacı `git archive main` ile Git'in yok saydığı `out/acceptance-main`
 altına çıkarıldı. Python 3.12.15 ortamı önceki oturumda `requirements.txt` ile
 kurulmuş `out/python312` ortamıdır; bugün yeni clone/venv veya bağımlılık kurulumu
-yapılmış sayılmaz. Açık PR #62/#64'ün runtime kodu bu koşuda bulunmaz.
+yapılmış sayılmaz. PR #62/#64'ün runtime kodu bu tarihli koşuda bulunmaz.
 
 Arşiv kökünde çalıştırılan komutlar:
 
@@ -112,7 +112,7 @@ Arşiv kökünde çalıştırılan komutlar:
 - Yerel `data/` yalnızca `.gitkeep` dosyaları içerir. Canlı model/EVDS çağrısı,
   gerçek veri indirme, merge, release veya yayınlama yapılmadı.
 
-Bu kayıt güncel main'in sentetik kullanımını doğrular; gerçek 66→60 ay,
+Bu kayıt belirtilen `45c8dcf` kaynağının sentetik kullanımını doğrular; gerçek 66→60 ay,
 üç örnek ay karşılaştırması ve gerçek veriyle sunum kapıları açık kalır.
 
 ## Açık kabul kapıları
