@@ -2,14 +2,123 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Son teslim PR #66; main entegrasyon tabanı
-`909f8c7` (PR #62–#65 sonrası). Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır;
-son teslim kaydı güncel durumu belirtir.
+için bir sürüm garantisi değildir. Kod temeli `7ee7225` (PR #66 sonrası main).
+Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
+güncel durumu belirtir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
-## Son teslim ve sonraki adım — 18 Ekim 2026
+## İlk gerçek demo: güncel durum ve sıra — 18 Ekim 2026
+
+- Aktif dal `docs/real-demo-readiness`; başlangıç çalışma ağacı temizdi,
+  mevcut kullanıcı değişikliği yoktu. Runtime `7ee7225`, Python 3.12.15
+  `out/clean312`; uygulama kodu değiştirilmedi. Yeni özellik veya takip belgesi
+  açılmaz. #39/#40/#42/#46 açıklamaları ve mevcut PR #67 güncellenir;
+  yeni yorum/paket talebi gönderilmez. Bu kayıt PR #67'nin son kabul teslimidir;
+  Mustafa uygun güncel diff/CI/review sonrası merge'e bu oturumda onay verdi.
+  Gerçek merge sonucu [PR #67 kaydından](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/67)
+  kontrol edilir; tag/release/yayınlama onayı verilmedi.
+- Afra'nın [OneDrive teslimi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251399411)
+  Mustafa tarafından İndirilenler'e alınmış. `OneDrive_1_18.10.2026.zip` bir
+  taşıma arşivi; içindeki **20.344 baytlık** `EVDS_gercek_veri_teslim.zip` hash'i
+  `1c9255194c3222dccc33e056ba195c46a8d0912cdb9ccccd178e8e4b2731ebc1` ile eşleşti.
+  Paket `out/evds-acceptance-20261018/inputs/` altında dizin yapısı korunarak
+  açıldı. Repo `data/` dizini ve 12 teslim dosyasının ilk/son hash'leri değişmedi.
+- Teslim belgesi okundu; **12/12 boyut ve SHA-256** eşleşti. Mevcut tüketicide
+  iki fiziksel manifest/raw/makbuz/CSV zinciri geçti. Mevcut üreticinin manifest
+  yapıları birebir aynı; aynı Bronze'dan ayrı `rebuilt/` alanında üretilen
+  **66 ve 60 aylık CSV'ler bayt düzeyinde**, coverage raporları JSON olarak aynı.
+  Üç örnek ayın ham ortalama/sayı/TÜFE/KFE değerleri belgeyle ayrıca eşleşti.
+  03-07-2026 faiz gözlemi kapsam dışında; weekly coverage hâlâ `unverified`.
+- Sonuç [#39 yorumuna](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251815563)
+  kullanıcının açık yetkisiyle kaydedildi. Yeni paket talebi veya #40'a mesaj
+  gönderilmedi. Ayrıntı ve CSV hash'leri [kabul kaydında](release-acceptance.md).
+  Yerel `audit-report.json` ve `audit_evds.py` aynı ignored kabul dizinindedir;
+  gerçek paket, teslim belgesi, ham gözlemler ve yerel audit çıktıları Git'e eklenmez.
+- Ağ erişimi kapatılmış yerel audit'te **0 ağ girişimi**; canlı EVDS/LLM veya
+  yeniden veri indirme yok. Önceki tam kod testleri gereksiz tekrar edilmedi;
+  bu oturumun kanıtı gerçek EVDS paket doğrulamasıdır, sentetik test sayısı değildir.
+- **İki veri erişim engeli de kalktı.** Osman [EVDS alıcı teyidini](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6252994701)
+  ve [birleşik Housing teslimini](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40#issuecomment-6252930443)
+  paylaştı. #39 teslim/alıcı kapsamı tamamlandı ve kapandı.
+- `Housing_tam_teslim_20261018.zip`: 1.587.106 bayt; SHA-256
+  `956e47c3a7d922b4da7b755635379ccc357423aeceed2bcdef817a1098ca312f` eşleşti.
+  Ayrı `out/housing-acceptance-20261018/` klasöründe açıldı. **156/156 envanter**,
+  145 girdi, **66 BDDK raw + 66 makbuz + 66 aylık Silver** doğrulandı; mevcut
+  üreticiyle yeniden kurulan tablo tam eşit. Üç BDDK örneği 276785 / 438466 /
+  678970 Milyon TL. EVDS'nin 12 dosyası eski kanıt kopyasıyla bayt eşit;
+  iki fiziksel manifest geçti.
+- Teslim README/kabul/audit dosyaları **yazar kanıtı** olarak okundu. Eski
+  `housing-demo/...` bağlantıları korunmuş teslim `outputs/...` dosyalarıdır.
+  Osman'ın iki koşusu/görsel incelemesi Mustafa'nın yaptığı kontrol sayılmaz.
+- Mustafa CLI girişini **bir kez** socket kapalı çalıştırdı: exit 0,
+  **60 ay / 22 hesaplanan eşleşme**, ilk ay null değişimleri/koşulu, 6 trace ve
+  bütün Gold/grafik değerleri, 60 BDDK / 3 EVDS kaynak referansı doğrulandı.
+  Aynı girdilerle açık sabit planlı wrapper **1 stub çağrısı** yaptı;
+  evidence/grafik CLI ile tam eşit. #42 teknik dosya kabulü tamamlandı ve kapandı.
+- Yeni dört dosya `out/housing-acceptance-20261018/reproduced/` altında;
+  hepsi teslim `outputs/` ile **bayt eşit**. Açılacak gerçek HTML:
+  `out/housing-acceptance-20261018/reproduced/report.html`.
+  HTML SHA-256 `81a7eef0e09880e109b41bd9c75fc26ce0f7f45525446af28f18f5c52ca6c09f`.
+- Ocak faizi Decimal `18.38800000`, CSV metni `18.387999999999998`; fark
+  **−2E−15 yüzde puan**. Pandas okuması `18.388`; tam Decimal eşitliği yok.
+  Kaynak/hash değiştirilmedi, toleransla saklanmadı; hesap/çıktı uyuşmazlığı yok.
+- Yerel `independent-audit.json` hash'i
+  `6267c389bb90634fb57bea4e8028cdb718435ae32d93922d6c89cd837fb7ac5b`.
+  Özgün ZIP, inputs/outputs ve önceki EVDS kopyası değişmedi; ağ girişimi ve
+  canlı model çağrısı **0**. Yerel veri/audit dosyaları ignored; Git'e eklenmez.
+  Kod değişmediği için gereksiz tam test tekrarı yapılmadı; belge CI'si izlenir.
+- **Görsel kabul tamamlandı:** Mustafa gerçek `reproduced/report.html` dosyasını
+  tarayıcıda inceledi; 60 ay/22, hover–zoom–pan–sıfırlama, seçtiği ayın tablo/grafik
+  uyumu, Ocak 2021'in eşleşmemesi, kaynak/birim/baz yılı ve sınırlamaların
+  okunmasını açıkça teyit etti. Bu kullanıcı beyanıdır; Codex tarayıcı testi
+  değildir. HTML hash'i yeniden aynı bulundu. #40 tamamlandı; #46 görsel maddesi
+  işaretlendi, sürüm teslimi açık bırakıldı.
+- Sürüm notu, önerilen **`v0.1.0-rc.1`** tag'i ve 60–90 saniyelik demo anlatımı
+  [mevcut kabul kaydında](release-acceptance.md) incelemeye hazır. Sunum/kayıt
+  yapılmış sayılmaz. Sonraki adım Mustafa'nın bu önerileri incelemesi ve ayrı
+  tag/release/yayınlama kararıdır; bu sınırda durulur, yeni kapsam açılmaz.
+- Bu son belge değişikliğinde uygulama/test kodu aynı; gereksiz yerel tam test
+  tekrarı yapılmadı. **62 yerel bağlantı, 12 PowerShell bloğu** ve `git diff --check`
+  geçti; merge yalnızca son kaynak başlığının zorunlu CI'si başarılı ve
+  review durumu uygunsa yapılır. Önceki Windows **794 passed, 2 skipped** kaydı
+  tarihli runtime kanıtıdır, bu belge değişikliğinin yeniden koşusu değildir.
+
+## Önceki gerçek demo hazırlığı — 18 Ekim 2026
+
+Bu bölüm EVDS tesliminden önceki tarihli kurulum kanıtıdır. O tarihteki erişim
+engeli artık kapalıdır; güncel eksik ve iş sırası yalnızca üst bölümde yer alır.
+
+- Aktif dal `docs/real-demo-readiness`, güncel main `7ee7225` tabanlı. Kullanıcı
+  yeni özellik istemiyor; mevcut demoyu gerçek veriyle doğrulama öncelikli.
+  PR #63–#66 başarılı CI ile merge edildi; #59 kapandı. Önceki onay yeni
+  belge PR'ının merge'ini veya release/yayınlamayı kapsamaz.
+- [Teslim rehberi](real-demo-delivery.md) hazır paketi yeniden istemeden kalan
+  dosya/dizin/komut/hash kanıtlarını ve Afra/Osman için ayrı mesaj taslaklarını
+  içerir. Mustafa paylaşım taleplerini [#39 yorumunda](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6250879475)
+  ve [#40 yorumunda](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40#issuecomment-6250883464)
+  yayımladı. ZIP eki veya ekip erişimli OneDrive/Google Drive bağlantısı kabul
+  ediliyor. Kullanıcı talimatı: **tekrar mesaj gönderme**; mevcut taleplerin
+  iki teslim de artık alındı; güncel durum üst bölümde kayıtlıdır.
+- Yeni `out/clean312` venv'i (Python 3.12.15, sistem paketlerine kapalı) ve
+  `git archive main` ile `out/clean-demo` kaynak kopyası kuruldu. Eski bozuk
+  `.venv` korunur. `requirements.txt` kurulumu ve `pip check` başarılı;
+  yeni ortamda tam paket **794 passed, 2 skipped in 103.97s**. Atlamalar Windows
+  symlink izinleridir. Yeni clone/Python kurulumu yapılmış sayılmaz.
+- Sentetik HTML **60 ay, 55 eşleşme, ilk 2021-02, 6 trace**; hash önceki kayıtla
+  aynı. Gerçek yerel Uvicorn TCP'de Health/Housing/TÜFE ve `/docs` **200**;
+  anlatım null. Sunucu durduruldu. CLI help/PowerShell komut kontrolleri yapıldı;
+  ayrıntı [kabul kaydında](release-acceptance.md). Önceki 12/12 ve 9/9 stub CLI
+  sonuçları gereksiz tekrar çalıştırılmadı; yeni tam paket evaluator testlerini içerir.
+- Tarayıcı yüzeyi bulunmadığından güncel HTML'nin görsel/hover/zoom kontrolü
+  yapılmadı. Kullanıcı HTML'yi açıp bunu kontrol edebilir. Canlı LLM/EVDS çağrısı, veri
+  indirme, veri silme, force push, merge, release veya yayınlama yapılmadı.
+
+## Önceki teslim ve sonraki adım — 18 Ekim 2026
+
+Aşağıdaki geliştirme kronolojisi önceki kaynak/test kanıtlarını korur. Teslim,
+merge ve erişim durumları için üstteki güncel bölüm ve açık iş tablosu esas alınır.
 
 - Aktif dal `feat/economic-question-api`; çalışma ağacı teslim commit'i sonrası
   temiz bırakılır. PR #63 çalışma düzeni (`a987a88`), #64 dosya wrapper'ı
@@ -110,16 +219,12 @@ Bu tablo 18 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumlar�
 
 | Issue | Sorumlu | Kalan sonuç |
 | --- | --- | --- |
-| [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59) | Mustafa | Çekirdek PR #62; ortak HTTP/örnekler/eval PR #66 teslimi; gerçek veri kabulü ayrı |
-| [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42) | Mustafa | Doğrulanmış dosya wrapper'ı PR #64 ile main'de; gerçek veri kabulü bekler |
-| [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39) | Afra | Gerçek CSV/coverage/manifest/raw/makbuz paketine ekip erişimi ve üç gerçek örnek ay karşılaştırması |
-| [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) | Osman | Gerçek BDDK+EVDS ile 66→60 ay ve üç örnek ayın birleşik demo kabulü |
-| [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) | Mustafa | Gerçek rapor, güncel kurulum/kabul kaydı, kısa demo ve katkı/sürüm notu |
+| [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) | Mustafa | Gerçek teknik/görsel kabul tamam; kısa sunum ve ayrı onaylı tag/release teslimi açık |
 
-#6, #41, #44, #45 ve #56 tamamlandı. PR #43 ve #58 merge edildi; yeni bir
-üretici/tüketici düzeltme PR'ı beklenmiyor. Gerçek veri dosyaları bu oturumda
-erişilebilir ve bağımsız doğrulanmış sayılmaz; ilgili yazarların yerel kabul
-beyanları ile bağımsız kabul birbirinden ayrılır.
+#6, #39, #40, #41, #42, #44, #45, #56 ve #59 tamamlandı. PR #43 ve #58 merge edildi; yeni bir
+üretici/tüketici düzeltme PR'ı beklenmiyor. Gerçek EVDS dosyaları erişilebilir ve
+Mustafa'da bağımsız doğrulandı. BDDK teslimi ve birleşik teknik kabul de tamam;
+Mustafa'nın HTML etkileşim kabulü de kendi tarayıcı teyidiyle alındı.
 
 ## #59'un ilk parçası: servis çekirdeği (PR #62 ile merge edildi)
 
