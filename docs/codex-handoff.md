@@ -3,7 +3,7 @@
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
 için bir sürüm garantisi değildir. Güncel main: `6abcfb8` (PR #62 sonrası).
-Bu belge dalının kod tabanı `45c8dcf` olarak kalır; runtime değişikliği içermez.
+Bu belge dalı PR #62 sonrası main ile güncellendi; kendi diff'i runtime değişikliği içermez.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
@@ -101,8 +101,9 @@ yetkisini izle; bir yetki veya araç eksikse yerel diff/test sonucunu teslim et.
 
 - Aktif dal `docs/autonomous-workflow`; kullanıcının devam/teslim ve onay
   sınırları `AGENTS.md` içine kaydedildi. Değişiklik belge kapsamındadır.
-- Kullanıcı yalnızca PR #62 merge'ini onayladı; işlem `6abcfb8` ile tamamlandı.
-  Yeni API/eval işi PR #66'da açık; diğer PR'lar için merge onayı beklenir.
+- PR #62 merge'i `6abcfb8` ile tamamlandı. Kullanıcı #63–#66 PR'larının sırayla
+  merge edilmesini de onayladı; her biri güncel tabanında gerekli CI'den geçer.
+  Yeni API/eval işi PR #66'dadır; diğer merge/release işlemleri ayrıca onay ister.
 - PR #62'nin önceki Windows kaydı 731 passed, 1 skipped ve Housing stub 9/9'dur;
   bu belge dalında aynı testler yeniden çalıştırılmış sayılmaz.
 - Yerel `.venv` kayıp Python yoluna işaret eder. Test ortamı Git'in yok saydığı
