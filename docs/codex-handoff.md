@@ -123,19 +123,35 @@ GitHub erişimi yoksa bu yerel kapsamla ilerle, erişilemeyen issue/PR bilgisini
 doğrulanmış gibi sunma. Commit/push/PR/merge adımlarında oturumdaki kullanıcı
 yetkisini izle; bir yetki veya araç eksikse yerel diff/test sonucunu teslim et.
 
-## Oturum kaydı — 18 Ekim 2026
+## PR #63 çalışma düzeni kaydı — 18 Ekim 2026
 
-- Aktif dal `docs/autonomous-workflow`; kullanıcının devam/teslim ve onay
-  sınırları `AGENTS.md` içine kaydedildi. Değişiklik belge kapsamındadır.
-- PR #62 merge'i `6abcfb8` ile tamamlandı. Kullanıcı #63–#66 PR'larının sırayla
-  merge edilmesini de onayladı; her biri güncel tabanında gerekli CI'den geçer.
-  Yeni API/eval işi PR #66'dadır; diğer merge/release işlemleri ayrıca onay ister.
-- PR #62'nin önceki Windows kaydı 731 passed, 1 skipped ve Housing stub 9/9'dur;
-  bu belge dalında aynı testler yeniden çalıştırılmış sayılmaz.
-- Yerel `.venv` kayıp Python yoluna işaret eder. Test ortamı Git'in yok saydığı
-  `out/python312` altında Python 3.12.15'tir.
-- Altı yerel bağlantı ve `git diff --check` doğrulanır; zorunlu PR CI'si izlenir.
-  #39/#40 gerçek dosya/kanıt teslimi #42/#46'nın kabulü için hâlâ gereklidir.
+- Kullanıcının devam/teslim ve onay sınırları `AGENTS.md` içine eklendi.
+  PR #63, güncel tabanında başarılı CI sonrası `a987a88` ile merge edildi.
+- Kullanıcı #63–#66 PR'larının sırayla merge edilmesini onayladı. Diğer
+  merge/release, canlı çağrı ve yayınlama işlemleri ayrıca onay gerektirir.
+- Önceki PR #62 test kaydı 731 passed, 1 skipped ve Housing stub 9/9'dur;
+  tarihli kaynak kanıtıdır. Yerel `.venv` kayıp Python yoluna işaret eder;
+  kullanılan `out/python312` Python 3.12.15 ortamı Git tarafından yok sayılır.
+
+## PR #65 kabul kaydı güncellemesi — 18 Ekim 2026
+
+- Aktif dal `docs/current-demo-acceptance`; ilk taban `45c8dcf`, güncel birleşik
+  taban `96031e2` (PR #62/#63/#64 main'de). Kendi diff'i yalnızca belgelerdir.
+- PR #64, başarılı güncel CI sonrasında `96031e2` ile merge edildi. Birleşik
+  odaklı soru/dosya testleri 87 passed, 1 skipped; gerçek kabul hâlâ açık.
+- #59 ortak API/eval PR #66'dadır. `a672bf3` runtime kaynağının önceki sonucu
+  96 odaklı, 772 passed/1 skipped tam paket; Economic stub 12/12, Housing 9/9.
+  Son birleşik teslim bunları yeniden doğrulayacaktır.
+- `45c8dcf` main arşivinde Python 3.12.15 ile 707 passed, 1 skipped; 60 aylık
+  sentetik HTML ve süreç içi Health/Housing/TÜFE HTTP kontrolleri başarılıydı.
+  Ayrıntı ve çıktı hash'i [kabul kaydında](release-acceptance.md); bu sonuç
+  güncel birleşik main testi veya yeni clone/ortam kurulumu değildir.
+- Belge bağlantıları ve diff kontrol edilir; zorunlu Tests CI bu PR'ın güncel
+  başlığında izlenir. Yerel `data/` yalnızca `.gitkeep` içerir.
+- #39/#40'ta erişilebilir yeni gerçek paket/kanıt teslimi görünmedi. Afra ve
+  Osman'ın görevleri devralınmadı; canlı çağrı, veri indirme veya release yok.
+- Sıradaki adım onaylı #65/#66 merge sırasını tamamlamak; ardından #42/#46
+  gerçek kabulü için #39/#40 dosya/kanıt paketine erişmektir.
 
 ## Yerel Windows başlangıcı
 
