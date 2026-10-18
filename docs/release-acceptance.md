@@ -82,7 +82,9 @@ Aşağıdaki gerçek veri kutuları yalnızca bu kayıt nedeniyle işaretlenmez.
 
 ## Windows sentetik kullanım kontrolü — 18 Ekim 2026
 
-Kod temeli `45c8dcf771b6f6b41e2b4a247b94be7607f0d40c` (PR #61 sonrası main).
+Kod temeli `45c8dcf771b6f6b41e2b4a247b94be7607f0d40c` (kontrol sırasında PR #61 sonrası main).
+Kontrol sonrası PR #62, kullanıcı onayıyla `6abcfb8` olarak merge edildi;
+aşağıdaki test/çıktı kayıtları belirtilen `45c8dcf` kaynağına aittir.
 Bu kaynak ağacı `git archive main` ile Git'in yok saydığı `out/acceptance-main`
 altına çıkarıldı. Python 3.12.15 ortamı önceki oturumda `requirements.txt` ile
 kurulmuş `out/python312` ortamıdır; bugün yeni clone/venv veya bağımlılık kurulumu

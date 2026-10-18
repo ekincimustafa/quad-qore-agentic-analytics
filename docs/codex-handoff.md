@@ -97,9 +97,11 @@ yetkisini izle; bir yetki veya araç eksikse yerel diff/test sonucunu teslim et.
 - Aktif dal `docs/current-demo-acceptance`; taban main `45c8dcf`. Bu dal yalnızca
   kabul/devir belgelerini günceller. `AGENTS.md` çalışma düzeni PR #63'te kayıtlı;
   kullanıcı talimatı bu oturumda uygulanır, PR henüz main'e merge edilmedi.
-- PR #62 (`01018ae`, #59 çekirdeği), PR #63 (`d58db6f`, çalışma düzeni) ve
-  PR #64 (`1191654`, #42 doğrulanmış dosya wrapper'ı) açık; üç Tests CI başarılı.
-  #64, #62'ye bağımlı değildir ve mevcut Housing HTTP sözleşmesini değiştirmez.
+- PR #62 kullanıcı onayıyla main'e `6abcfb8` olarak merge edildi. PR #63 çalışma
+  düzeni (`846f0f8`) ve #64 dosya wrapper'ı (`013a23e`) kendi belge düzeltmeleriyle
+  açık kalır. Runtime dosya wrapper'ı kaynağı `1191654` değişmedi.
+- #59 ortak API/eval PR #66'da (`a672bf3`) review bekler; odaklı paket 96 passed,
+  tam paket 772 passed, 1 skipped; Economic stub 12/12, Housing stub 9/9 geçti.
 - #42 dalı: odaklı testler 63 passed, 1 skipped; tam paket 729 passed, 2 skipped;
   Housing offline stub 9/9. Windows atlamaları symlink iznidir. Bu sonuçlar
   #42 dalına aittir; buradaki main tabanlı belge dalına taşınmış kod sayılmaz.
@@ -112,8 +114,8 @@ yetkisini izle; bir yetki veya araç eksikse yerel diff/test sonucunu teslim et.
 - Yerel `data/` yalnızca `.gitkeep` içerir. #39/#40'ta erişilebilir yeni gerçek
   paket/kanıt teslimi görünmedi. Afra'nın EVDS ve Osman'ın gerçek demo görevleri
   devralınmadı; hiçbir canlı model/EVDS çağrısı yapılmadı.
-- Sıradaki adım: kullanıcı review/merge kararı sonrası #59 ortak API/eval işini
-  güncel main'de ele almak; gerçek #42/#46 kabulü için #39/#40 dosya/kanıt paketine
+- Sıradaki adım: PR #66 ve diğer açık PR'lar için kullanıcı review/merge kararı;
+  gerçek #42/#46 kabulü için #39/#40 dosya/kanıt paketine
   erişmek. Merge/release/yayınlama kullanıcı onayı gerektirir; gerçek veri
   kabulü olmadan issue'lar veya release kapıları kapanmaz.
 
