@@ -54,7 +54,7 @@ Bu tablo 18 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumlar�
 
 | Issue | Sorumlu | Kalan sonuç |
 | --- | --- | --- |
-| [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59) | Mustafa | Çekirdek PR #62 merge edildi; ortak HTTP/örnekler/eval bu dalda, review/merge bekler |
+| [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59) | Mustafa | Çekirdek PR #62 main'de; ortak HTTP/örnekler/eval PR #66'da açık |
 | [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42) | Mustafa | Doğrulanmış dosya wrapper'ı PR #64'te açık; gerçek veri kabulü bekler |
 | [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39) | Afra | Gerçek CSV/coverage/manifest/raw/makbuz paketine ekip erişimi ve üç gerçek örnek ay karşılaştırması |
 | [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) | Osman | Gerçek BDDK+EVDS ile 66→60 ay ve üç örnek ayın birleşik demo kabulü |
@@ -151,8 +151,8 @@ kabulü değildir.
   kontrol edildi. Diğer PR'lar için merge onayı verilmiş sayılmaz.
 - Aktif dal `feat/economic-question-api`, güncel main `6abcfb8` tabanlıdır.
   `POST /analysis/economic/question`, iki sentetik JSON örneği ve 12 vakalık
-  offline HTTP değerlendirmesi bu dalda tamamlandı; henüz main'de değildir.
-- Python 3.12.15 (`out/python312`): odaklı paket **96 passed**;
+  offline HTTP değerlendirmesi PR #66'dadır; henüz main'de değildir.
+- `a672bf3` API/eval runtime kaynağı, Python 3.12.15 (`out/python312`): odaklı paket **96 passed**;
   tam paket **772 passed, 1 skipped**. Tek atlama mevcut BDDK Windows symlink
   kontrolüdür. Economic offline stub **12/12**, mevcut Housing offline stub
   **9/9** geçti; canlı model/EVDS çağrısı yapılmadı.
@@ -162,3 +162,11 @@ kabulü değildir.
 - PR #63 çalışma düzeni, #64 doğrulanmış dosya sorusu ve #65 kabul kaydı ayrı
   PR'lardır. #59 API kodu bunlara bağımlı değildir. #42/#46 gerçek kabulü hâlâ
   Afra/Osman'ın #39/#40 dosya ve kanıt teslimini bekler.
+- #62 sonrası #63 devir kaydı (`846f0f8`) ve #64 README/devir kaydı (`013a23e`)
+  çakışmaları kendi dallarında belge commit'leriyle giderildi. #65 (`fc1662a`)
+  kabul/devir kaydı da yeni main durumuyla düzeltildi. Runtime kodu, fixture
+  hash'leri ve paylaşılan geçmiş değiştirilmedi; force push veya başka merge yok.
+- PR #66'nın `a672bf3` CI'si başarılı; #59 ilerlemesi bu test kaynağı belirtilerek
+  güncellendi ve issue review/merge için açık bırakıldı. Sıradaki adım açık
+  #63–#66 PR'ları için kullanıcı merge onayı ve gerçek kabul için #39/#40
+  dosya/kanıt paketine erişimdir. Bu belge takibi API runtime'ını değiştirmez.
