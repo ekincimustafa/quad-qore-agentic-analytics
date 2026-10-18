@@ -1,8 +1,9 @@
-# Codex devir notu — 17 Ekim 2026
+# Codex devir notu — 18 Ekim 2026
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli: `5f34618` (PR #60 sonrası main).
+için bir sürüm garantisi değildir. Güncel main: `6abcfb8` (PR #62 sonrası).
+Bu belge dalı PR #62 sonrası main ile güncellendi; kendi diff'i runtime değişikliği içermez.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
@@ -49,12 +50,12 @@ genel tool registry, web/anomali/nedensellik araçları henüz uygulanmış değ
 
 ## Açık işler ve sahipleri
 
-Bu tablo 17 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumları oku.
+Bu tablo 18 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumları oku.
 
 | Issue | Sorumlu | Kalan sonuç |
 | --- | --- | --- |
-| [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59) | Mustafa | İki mevcut analiz arasında sınırlı konut–TÜFE soru yönlendirmesi; sıradaki geliştirme |
-| [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42) | Mustafa | Housing sorusunu sunucu kontrollü, doğrulanmış yerel dosya/manifest verisine bağlama |
+| [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59) | Mustafa | Çekirdek PR #62 main'de; ortak HTTP/örnekler/eval PR #66'da açık |
+| [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42) | Mustafa | Doğrulanmış dosya wrapper'ı PR #64'te açık; gerçek veri kabulü bekler |
 | [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39) | Afra | Gerçek CSV/coverage/manifest/raw/makbuz paketine ekip erişimi ve üç gerçek örnek ay karşılaştırması |
 | [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) | Osman | Gerçek BDDK+EVDS ile 66→60 ay ve üç örnek ayın birleşik demo kabulü |
 | [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) | Mustafa | Gerçek rapor, güncel kurulum/kabul kaydı, kısa demo ve katkı/sürüm notu |
@@ -64,7 +65,11 @@ Bu tablo 17 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumlar�
 erişilebilir ve bağımsız doğrulanmış sayılmaz; ilgili yazarların yerel kabul
 beyanları ile bağımsız kabul birbirinden ayrılır.
 
-## İlk Codex görevi: #59'un servis çekirdeği
+## #59'un ilk parçası: servis çekirdeği (PR #62 ile merge edildi)
+
+Aşağıdaki ilk parça PR #62'de (`01018ae`) tamamlandı ve kullanıcı onayıyla
+`6abcfb8` olarak main'e merge edildi. Ortak API/eval PR #66'da; bağımsız #42
+dosya wrapper'ı PR #64'tedir. İkisi de kendi review/merge adımını bekler.
 
 1. Çalışma ağacını/branch'i kontrol et, bu notu ve #59'u oku. Yerel değişiklikleri
    koru. Python 3.12 `.venv` ve offline başlangıç testini doğrula.
@@ -91,6 +96,20 @@ Bu görev gerçek veri teslimini beklemeden sentetik girdilerle yapılabilir.
 GitHub erişimi yoksa bu yerel kapsamla ilerle, erişilemeyen issue/PR bilgisini
 doğrulanmış gibi sunma. Commit/push/PR/merge adımlarında oturumdaki kullanıcı
 yetkisini izle; bir yetki veya araç eksikse yerel diff/test sonucunu teslim et.
+
+## Oturum kaydı — 18 Ekim 2026
+
+- Aktif dal `docs/autonomous-workflow`; kullanıcının devam/teslim ve onay
+  sınırları `AGENTS.md` içine kaydedildi. Değişiklik belge kapsamındadır.
+- PR #62 merge'i `6abcfb8` ile tamamlandı. Kullanıcı #63–#66 PR'larının sırayla
+  merge edilmesini de onayladı; her biri güncel tabanında gerekli CI'den geçer.
+  Yeni API/eval işi PR #66'dadır; diğer merge/release işlemleri ayrıca onay ister.
+- PR #62'nin önceki Windows kaydı 731 passed, 1 skipped ve Housing stub 9/9'dur;
+  bu belge dalında aynı testler yeniden çalıştırılmış sayılmaz.
+- Yerel `.venv` kayıp Python yoluna işaret eder. Test ortamı Git'in yok saydığı
+  `out/python312` altında Python 3.12.15'tir.
+- Altı yerel bağlantı ve `git diff --check` doğrulanır; zorunlu PR CI'si izlenir.
+  #39/#40 gerçek dosya/kanıt teslimi #42/#46'nın kabulü için hâlâ gereklidir.
 
 ## Yerel Windows başlangıcı
 
