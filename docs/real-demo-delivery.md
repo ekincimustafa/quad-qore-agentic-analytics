@@ -1,16 +1,18 @@
 # Gerçek demo teslimi ve gösterim
 
-18 Ekim 2026; kod temeli `7ee7225` (PR #66 sonrası main). Bu belge yeni özellik
-veya gerçek veri kabulü değildir. İlgili işler: [#39][39], [#40][40], [#42][42], [#46][46].
+18 Ekim 2026; kod temeli `7ee7225` (PR #66 sonrası main). Bu belge teslim ve
+EVDS alıcı doğrulamasını izler; birleşik demo kabulü değildir.
+İlgili işler: [#39][39], [#40][40], [#42][42], [#46][46].
 
 ## Kontrol edilen teslimler
 
-- #39 açıklaması ve dokuz yorumu okundu. Afra'nın [paket bildiriminde][afra]
-  66/60 aylık CSV, coverage ve manifestler, üç serinin Bronze/raw ve makbuzları
-  olmak üzere **12 dosyalık ZIP'in hazır olduğu** belirtiliyor. Üç örnek ay
-  karşılaştırması ve yeniden üretim komutları içeren teslim belgesi de hazır.
+- Afra [OneDrive teslim bağlantısını][delivery39] paylaştı. Mustafa'nın indirdiği
+  ZIP ve teslim belgesi ayrı kabul klasöründe açıldı. 66/60 aylık CSV, coverage,
+  manifest ve üç serinin raw/makbuzları için **12/12 dosya boyutu ve hash'i**,
+  fiziksel tüketici zinciri, üretici eşitliği ve üç örnek ay doğrulandı.
   ZIP SHA-256: `1c9255194c3222dccc33e056ba195c46a8d0912cdb9ccccd178e8e4b2731ebc1`.
-  Henüz erişim/indirme bağlantısı paylaşılmamış; hash bağımsız doğrulanmadı.
+  ZIP hash'i bağımsız eşleşti; [alıcı sonucu][acceptance39] #39'a kaydedildi.
+  Ayrıntılar [kabul kaydındadır](release-acceptance.md).
 - #40 açıklaması ve bir paylaşım talebi yorumu okundu; paket bağlantısı yok. Osman'ın daha önceki
   yerel BDDK kontrol beyanı korunur. Eksik olan erişilebilir dosya ve kabul kaydıdır.
 - Üretici/tüketici kodu, şema ve ortak sentetik fixture zaten teslim edildi.
@@ -19,9 +21,9 @@ veya gerçek veri kabulü değildir. İlgili işler: [#39][39], [#40][40], [#42]
 ## Yayımlanan paylaşım talepleri ve önceki taslaklar
 
 Mustafa talepleri [Afra için #39'da][request39] ve [Osman için #40'ta][request40]
-yayımladı. **Tekrar mesaj gönderilmez.** Mevcut taleplerin yanıtı beklenir;
-ZIP eki veya ekip erişimli OneDrive/Google Drive bağlantısı paylaşılabilir.
-Paketler gelince indirilip aşağıdaki mevcut offline doğrulama uygulanır.
+yayımladı. **Tekrar paket talebi gönderilmez.** EVDS teslimi Mustafa'da
+doğrulandı; Osman'ın ayrı teyidi ve BDDK paketinin erişim bağlantısı beklenir.
+BDDK paketi gelince aşağıdaki mevcut birleşik offline doğrulama uygulanır.
 Aşağıdaki taslaklar yalnızca önceki hazırlığın kaydıdır.
 
 ### Afra
@@ -133,3 +135,5 @@ stub değerlendirmelerini kullanın. Yerel TCP API için README'nin
 [afra]: https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6250215723
 [request39]: https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6250879475
 [request40]: https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40#issuecomment-6250883464
+[delivery39]: https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251399411
+[acceptance39]: https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251815563

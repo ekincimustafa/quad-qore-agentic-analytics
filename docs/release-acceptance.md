@@ -154,21 +154,76 @@ Set-Location out/clean-demo
   Güncel HTML'nin görsel/etkileşimli tarayıcı kabulü **yapılmadı**; kullanıcı
   açıp grafik hover/zoom, eşleşme tablosu, kaynak ve sınırlamaları kontrol etmeli.
 
-**Gerçek paket erişimi ayrı ve açık:** Afra [hazır EVDS ZIP'ini bildirdi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6250215723);
-henüz dosya bağlantısı yok. #40'ta BDDK/gerçek birleşik koşu paketi bağlantısı yok.
+**İlk kurulum kontrolü sırasındaki engel:** Afra [hazır EVDS ZIP'ini bildirmişti](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6250215723);
+o sırada dosya bağlantısı yoktu. Sonraki EVDS teslimi ve alıcı kontrolü aşağıdadır.
+#40'ta BDDK/gerçek birleşik koşu paketi bağlantısı hâlâ yok.
 Mustafa paylaşım taleplerini [#39'da](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6250879475)
 ve [#40'ta](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40#issuecomment-6250883464)
 yayımladı; tekrar mesaj gönderilmez. Yeni durum, kalan teslimler ve önceki taslaklar
 [teslim rehberindedir](real-demo-delivery.md). Sentetik sayılar gerçek sonuç
 olarak kabul edilmedi; #42/#46 açık kalır. Canlı LLM/EVDS çağrısı yapılmadı.
 
+## Gerçek EVDS paketi: Mustafa alıcı doğrulaması — 18 Ekim 2026
+
+Sentetik kayıtların aksine bu bölüm Afra'nın [OneDrive teslimindeki](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251399411)
+mevcut gerçek EVDS dosyalarını kullanır. Canlı kaynaktan yeniden indirme yapılmadı.
+Runtime `7ee7225`, Python 3.12.15 (`out/clean312`); uygulama kodu değişmedi.
+
+- Mustafa'nın İndirilenler klasöründeki `OneDrive_1_18.10.2026.zip`, teslim ZIP'i
+  ile `KKB_EVDS_Teslim_Belgesi.md` dosyasını içeren taşıma arşividir. Beklenen
+  hash içteki **20.344 baytlık** `EVDS_gercek_veri_teslim.zip` içindir ve eşleşti:
+  `1c9255194c3222dccc33e056ba195c46a8d0912cdb9ccccd178e8e4b2731ebc1`.
+- Paket `out/evds-acceptance-20261018/inputs/` altında güvenli göreli yollarla
+  açıldı; repo `data/` dizini korunur. Teslim belgesinin SHA-256'sı
+  `2715a66ee17338836193c5f4779107bc488c4597ba65b2cb0995d6c3fabfa25a`.
+- Belgedeki **12/12 dosyanın SHA-256 ve boyutu** eşleşti: toplam 158.914 bayt.
+  Her iki manifest `load_and_validate_manifest` ile fiziksel CSV/raw/makbuz,
+  yol, seri/frekans/birim/baz yıl ve coverage kontrollerinden geçti.
+- `build_evds_manifest` ile yeniden kurulan iki manifest teslimle yapısal
+  olarak aynı. `build_evds_silver_from_bronze` çıktıları ayrı `rebuilt/` alanına
+  yazıldı: CSV'ler teslimle **bayt düzeyinde**, coverage raporları **JSON olarak**
+  aynı. Teslim edilen dosyalar üzerine yazılmadı; 12 girdinin ilk/son hash'i aynı.
+  60 aylık dosyanın 66 aylık dosyanın ilk 60 satırına sayısal olarak tam eşitliği
+  ayrıca `pandas.testing.assert_frame_equal(check_exact=True)` ile doğrulandı.
+
+| Silver kapsamı | Ay | Bayt | Doğrulanan CSV SHA-256 |
+| --- | ---: | ---: | --- |
+| 2021-01–2026-06 | 66 | 2474 | `ae8dc5f8e69817436278fe19b377ee243d391ff63a8b40014cd1e917479f7c4c` |
+| 2021-01–2025-12 | 60 | 2289 | `1a3f90e909a5574533081a4bba19303a7b3754f25706c0582a7d2ff1bd885f3a` |
+
+Üç ayın ham haftalık faiz ortalaması/sayısı ve aylık ham TÜFE/KFE değerleri
+ayrıca hesaplanıp teslim belgesiyle tam ondalık eşitlikle karşılaştırıldı.
+Silver uyumu yalnızca bu üç satır için değil, tüm CSV'nin yeniden üretimiyle
+doğrulandı; yaklaşık eşitlik kullanılıp bir hash kontrolü gevşetilmedi.
+
+| Ay | Ham faiz ortalaması (%) | Gözlem | TÜFE | KFE |
+| --- | ---: | ---: | ---: | ---: |
+| 2021-01 | 18.388 | 5 | 16.12513498 | 16.49 |
+| 2023-06 | 21.294 | 5 | 42.45971400 | 95.66 |
+| 2025-12 | 37.290 | 4 | 110.38696292 | 204.36 |
+
+Ham faizdeki `03-07-2026` gözlemi 2026-06 ile biten kapsamdan dışlandı.
+TÜFE 2025=100, KFE 2023=100; weekly coverage `unverified/not_available`,
+`expected_count=null` kalır. Resmî yayın takvimi doğrulanmış sayılmaz.
+
+Yerel kanıt: `out/evds-acceptance-20261018/audit-report.json`, SHA-256
+`01a8160bc5e519fea88c476e0e35f78eb0192cbed73793bd891d61894981c1f4`.
+Mevcut doğrulayıcıları çağıran yerel `audit_evds.py` ile socket erişimi kapalı
+koşuda **0 ağ girişimi** görüldü. Gerçek paket, teslim belgesi ve yerel audit
+dosyaları Git'e eklenmedi. Kod testleri gereksiz tekrar edilmedi; bu kanıt gerçek
+dosya doğrulamasıdır. Sonuç [#39'a kaydedildi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251815563).
+
+**Ayrı kalan kabul:** Osman aynı ZIP hash'iyle kendi alıcı kontrolünü yapmalı.
+BDDK paketi/kabul kaydı mevcut değil; #40 birleşik Housing koşusu ve gerçek
+HTML raporu çalıştırılmadı. #39/#40/#42/#46 açık kalır.
+
 ## Açık kabul kapıları
 
 - [x] Windows'ta yeni Python 3.12 ortamında README sentetik hızlı başlangıcını doğrula (13 Ekim: clone, kurulum, rapor ve testler).
-- [ ] BDDK/EVDS gerçek girdilerinin yollarını, boyutlarını ve SHA-256 özetlerini kaydet.
-- [ ] EVDS seri kodu, frekans, baz yıl ve haftalık kapsam notlarını gerçek paketle doğrula (#39; zaman/kapsam politikası #45'te tamamlandı).
+- [ ] BDDK/EVDS gerçek girdilerinin yollarını, boyutlarını ve SHA-256 özetlerini kaydet (EVDS tamam; BDDK bekleniyor).
+- [x] EVDS seri kodu, frekans, baz yıl ve haftalık kapsam notlarını gerçek paketle doğrula (Mustafa alıcı kontrolü; Osman'ın ayrı teyidi #39'da bekler).
 - [ ] 66 aylık gerçek Silver girdisinden tam 60 aylık analiz kapsamını doğrula.
-- [ ] 2021-01, 2023-06 ve 2025-12 aylarını ham kaynak/Silver çıktısıyla karşılaştır.
+- [ ] 2021-01, 2023-06 ve 2025-12 aylarını ham kaynak/Silver çıktısıyla karşılaştır (EVDS tamam; BDDK bekleniyor).
 - [ ] BDDK satır referansları ve EVDS manifestini Gold/evidence akışında koru (#40).
 - [ ] Gerçek dosya tabanlı demo sonucunu HTML raporuna bağla; run summary ve kaynak zincirini göster (#46).
 - [x] Araç sözleşmesini güncel anlatım ve enabled/planned/disabled kapsamla uyumlu teslim et (#6 tamamlandı; ilk katkı PR #38, güncel kapsam PR #60).
@@ -184,11 +239,11 @@ Gerçek veri kabulünde doldurulacak kayıt:
 
 | Alan | Durum |
 | --- | --- |
-| Kullanılan kod commit'i | Gerçek veri koşusunda kaydedilecek |
+| Kullanılan kod commit'i | EVDS alıcı kontrolü `7ee7225`; birleşik koşu ayrıca kaydedilecek |
 | BDDK Silver yolu / boyutu / SHA-256 | Bekleniyor |
-| EVDS Silver yolu / boyutu / SHA-256 | Bekleniyor |
-| EVDS manifesti / Bronze receipt referansları | Bekleniyor |
-| 66→60 ay ve üç örnek ay karşılaştırması | Bekleniyor |
+| EVDS Silver yolu / boyutu / SHA-256 | 66/60 aylık iki dosya yukarıda doğrulandı |
+| EVDS manifesti / Bronze receipt referansları | İki manifest ve üç fiziksel raw/makbuz zinciri doğrulandı |
+| 66→60 ay ve üç örnek ay karşılaştırması | EVDS 66/60 ve üç ay doğrulandı; BDDK/birleşik koşu bekleniyor |
 | Evidence/chart/run summary/HTML dosyaları | Gerçek veri koşusunda kaydedilecek |
 
 ## Katkı kanıtları ve aktif iş paylaşımı

@@ -9,7 +9,37 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
-## Gerçek demo hazırlığı: son oturum — 18 Ekim 2026
+## EVDS gerçek paket alıcı doğrulaması: son oturum — 18 Ekim 2026
+
+- Aktif dal `docs/real-demo-readiness`; başlangıç çalışma ağacı temizdi,
+  mevcut kullanıcı değişikliği yoktu. Runtime `7ee7225`, Python 3.12.15
+  `out/clean312`; uygulama kodu değiştirilmedi.
+- Afra'nın [OneDrive teslimi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251399411)
+  Mustafa tarafından İndirilenler'e alınmış. `OneDrive_1_18.10.2026.zip` bir
+  taşıma arşivi; içindeki **20.344 baytlık** `EVDS_gercek_veri_teslim.zip` hash'i
+  `1c9255194c3222dccc33e056ba195c46a8d0912cdb9ccccd178e8e4b2731ebc1` ile eşleşti.
+  Paket `out/evds-acceptance-20261018/inputs/` altında dizin yapısı korunarak
+  açıldı. Repo `data/` dizini ve 12 teslim dosyasının ilk/son hash'leri değişmedi.
+- Teslim belgesi okundu; **12/12 boyut ve SHA-256** eşleşti. Mevcut tüketicide
+  iki fiziksel manifest/raw/makbuz/CSV zinciri geçti. Mevcut üreticinin manifest
+  yapıları birebir aynı; aynı Bronze'dan ayrı `rebuilt/` alanında üretilen
+  **66 ve 60 aylık CSV'ler bayt düzeyinde**, coverage raporları JSON olarak aynı.
+  Üç örnek ayın ham ortalama/sayı/TÜFE/KFE değerleri belgeyle ayrıca eşleşti.
+  03-07-2026 faiz gözlemi kapsam dışında; weekly coverage hâlâ `unverified`.
+- Sonuç [#39 yorumuna](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251815563)
+  kullanıcının açık yetkisiyle kaydedildi. Yeni paket talebi veya #40'a mesaj
+  gönderilmedi. Ayrıntı ve CSV hash'leri [kabul kaydında](release-acceptance.md).
+  Yerel `audit-report.json` ve `audit_evds.py` aynı ignored kabul dizinindedir;
+  gerçek paket, teslim belgesi, ham gözlemler ve yerel audit çıktıları Git'e eklenmez.
+- Ağ erişimi kapatılmış yerel audit'te **0 ağ girişimi**; canlı EVDS/LLM veya
+  yeniden veri indirme yok. Önceki tam kod testleri gereksiz tekrar edilmedi;
+  bu oturumun kanıtı gerçek EVDS paket doğrulamasıdır, sentetik test sayısı değildir.
+- **Kalan engel:** Osman'ın aynı ZIP hash'iyle ayrı alıcı doğrulaması ve gerçek
+  BDDK raw/makbuz/Silver/kabul kaydı. #40'ta yeni BDDK teslim bağlantısı yok;
+  birleşik Housing/demo çalıştırılmadı. #39/#40/#42/#46 açık bırakıldı. Sıradaki
+  adım BDDK teslimiyle mevcut offline 66→60 ay ve gerçek rapor kontrolüdür.
+
+## Önceki gerçek demo hazırlığı — 18 Ekim 2026
 
 - Aktif dal `docs/real-demo-readiness`, güncel main `7ee7225` tabanlı. Kullanıcı
   yeni özellik istemiyor; mevcut demoyu gerçek veriyle doğrulama öncelikli.
