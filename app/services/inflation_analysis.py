@@ -65,26 +65,8 @@ def _change(current: float, previous: float) -> float:
     return result
 
 
-def build_inflation_evidence(
-    cpi_monthly: pd.DataFrame,
-    *,
-    start_period: str,
-    end_period: str,
-    source_ref: str,
-) -> InflationEvidence:
-    """Compute month-over-month and same-month-last-year CPI changes.
-
-    Earlier rows in the supplied continuous series remain available as history;
-    only the requested interval is returned. No fetching, filling or model calls.
-    """
-    start, end = _period(start_period), _period(end_period)
-    if start > end:
-        raise InflationAnalysisError("Başlangıç dönemi bitiş döneminden sonra olamaz.")
-    if (
-        not isinstance(source_ref, str)
-        or source_ref.strip().lower() in {"", "none", "nan", "<na>"}
-    ):
-        raise InflationAnalysisError("Kaynak referansı boş olmayan bir metin olmalıdır.")
+def validated_cpi_monthly(cpi_monthly: pd.DataFrame) -> pd.DataFrame:
+    """Validate the complete supplied CPI history for coverage and calculation."""
     if not isinstance(cpi_monthly, pd.DataFrame) or cpi_monthly.empty:
         raise InflationAnalysisError("Aylık TÜFE tablosu boş olmayan bir DataFrame olmalıdır.")
     if not cpi_monthly.columns.is_unique:
@@ -111,6 +93,31 @@ def build_inflation_evidence(
         check_missing_periods(frame["period"], available_start, available_end)
     except ValueError:
         raise InflationAnalysisError("Verilen TÜFE serisinde eksik ay bulunamaz.") from None
+    return frame
+
+
+def build_inflation_evidence(
+    cpi_monthly: pd.DataFrame,
+    *,
+    start_period: str,
+    end_period: str,
+    source_ref: str,
+) -> InflationEvidence:
+    """Compute month-over-month and same-month-last-year CPI changes.
+
+    Earlier rows in the supplied continuous series remain available as history;
+    only the requested interval is returned. No fetching, filling or model calls.
+    """
+    start, end = _period(start_period), _period(end_period)
+    if start > end:
+        raise InflationAnalysisError("Başlangıç dönemi bitiş döneminden sonra olamaz.")
+    if (
+        not isinstance(source_ref, str)
+        or source_ref.strip().lower() in {"", "none", "nan", "<na>"}
+    ):
+        raise InflationAnalysisError("Kaynak referansı boş olmayan bir metin olmalıdır.")
+    frame = validated_cpi_monthly(cpi_monthly)
+    available_start, available_end = frame["period"].iloc[0], frame["period"].iloc[-1]
     if start < available_start or end > available_end:
         raise InflationAnalysisError("İstenen dönem, verilen TÜFE serisinin kapsamı dışında.")
 
