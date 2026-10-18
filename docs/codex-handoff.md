@@ -15,7 +15,10 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   mevcut kullanıcı değişikliği yoktu. Runtime `7ee7225`, Python 3.12.15
   `out/clean312`; uygulama kodu değiştirilmedi. Yeni özellik veya takip belgesi
   açılmaz. #39/#40/#42/#46 açıklamaları ve mevcut PR #67 güncellenir;
-  yeni yorum/paket talebi gönderilmez. PR #67 açık; merge/release yapılmadı.
+  yeni yorum/paket talebi gönderilmez. Bu kayıt PR #67'nin son kabul teslimidir;
+  Mustafa uygun güncel diff/CI/review sonrası merge'e bu oturumda onay verdi.
+  Gerçek merge sonucu [PR #67 kaydından](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/67)
+  kontrol edilir; tag/release/yayınlama onayı verilmedi.
 - Afra'nın [OneDrive teslimi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6251399411)
   Mustafa tarafından İndirilenler'e alınmış. `OneDrive_1_18.10.2026.zip` bir
   taşıma arşivi; içindeki **20.344 baytlık** `EVDS_gercek_veri_teslim.zip` hash'i
@@ -66,11 +69,21 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   Özgün ZIP, inputs/outputs ve önceki EVDS kopyası değişmedi; ağ girişimi ve
   canlı model çağrısı **0**. Yerel veri/audit dosyaları ignored; Git'e eklenmez.
   Kod değişmediği için gereksiz tam test tekrarı yapılmadı; belge CI'si izlenir.
-- **Kalan kapı:** Mustafa'nın yeni HTML için 60 ay/22, hover–zoom–pan–sıfırlama,
-  tablo/grafik, kaynak/birim/yöntem ve sınırlamaları görsel teyidi. Kullanıcıya
-  dosya ve liste verildi; henüz onay gelmedi, etkileşimler tamamlandı sayılmaz.
-  #40/#46 bu nedenle açık. Sonra kısa demo/sürüm notu taslağı sonlandırılır;
-  merge/release öncesi sonucu bildirip ayrıca onay alınır.
+- **Görsel kabul tamamlandı:** Mustafa gerçek `reproduced/report.html` dosyasını
+  tarayıcıda inceledi; 60 ay/22, hover–zoom–pan–sıfırlama, seçtiği ayın tablo/grafik
+  uyumu, Ocak 2021'in eşleşmemesi, kaynak/birim/baz yılı ve sınırlamaların
+  okunmasını açıkça teyit etti. Bu kullanıcı beyanıdır; Codex tarayıcı testi
+  değildir. HTML hash'i yeniden aynı bulundu. #40 tamamlandı; #46 görsel maddesi
+  işaretlendi, sürüm teslimi açık bırakıldı.
+- Sürüm notu, önerilen **`v0.1.0-rc.1`** tag'i ve 60–90 saniyelik demo anlatımı
+  [mevcut kabul kaydında](release-acceptance.md) incelemeye hazır. Sunum/kayıt
+  yapılmış sayılmaz. Sonraki adım Mustafa'nın bu önerileri incelemesi ve ayrı
+  tag/release/yayınlama kararıdır; bu sınırda durulur, yeni kapsam açılmaz.
+- Bu son belge değişikliğinde uygulama/test kodu aynı; gereksiz yerel tam test
+  tekrarı yapılmadı. **62 yerel bağlantı, 12 PowerShell bloğu** ve `git diff --check`
+  geçti; merge yalnızca son kaynak başlığının zorunlu CI'si başarılı ve
+  review durumu uygunsa yapılır. Önceki Windows **794 passed, 2 skipped** kaydı
+  tarihli runtime kanıtıdır, bu belge değişikliğinin yeniden koşusu değildir.
 
 ## Önceki gerçek demo hazırlığı — 18 Ekim 2026
 
@@ -206,13 +219,12 @@ Bu tablo 18 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumlar�
 
 | Issue | Sorumlu | Kalan sonuç |
 | --- | --- | --- |
-| [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) | Osman | Teslim ve Mustafa teknik tekrar koşusu tamam; Mustafa'nın gerçek HTML görsel kabulü açık |
-| [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) | Mustafa | Gerçek HTML görsel kabulü, kısa demo/sürüm notunun sonlandırılması ve ayrı merge/release onayı |
+| [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) | Mustafa | Gerçek teknik/görsel kabul tamam; kısa sunum ve ayrı onaylı tag/release teslimi açık |
 
-#6, #39, #41, #42, #44, #45, #56 ve #59 tamamlandı. PR #43 ve #58 merge edildi; yeni bir
+#6, #39, #40, #41, #42, #44, #45, #56 ve #59 tamamlandı. PR #43 ve #58 merge edildi; yeni bir
 üretici/tüketici düzeltme PR'ı beklenmiyor. Gerçek EVDS dosyaları erişilebilir ve
 Mustafa'da bağımsız doğrulandı. BDDK teslimi ve birleşik teknik kabul de tamam;
-Osman'ın yerel görsel beyanı Mustafa'nın HTML etkileşim kabulü yerine geçmez.
+Mustafa'nın HTML etkileşim kabulü de kendi tarayıcı teyidiyle alındı.
 
 ## #59'un ilk parçası: servis çekirdeği (PR #62 ile merge edildi)
 

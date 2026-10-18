@@ -1,7 +1,7 @@
 # Gerçek demo teslimi ve gösterim
 
 18 Ekim 2026; kod temeli `7ee7225` (PR #66 sonrası main). Bu belge teslim ve
-EVDS/BDDK alıcı ve birleşik teknik doğrulamayı izler; Mustafa'nın görsel kabulü açıktır.
+EVDS/BDDK alıcı ve birleşik teknik doğrulamayı izler; Mustafa'nın görsel kabulü tamamdır.
 İlgili işler: [#39][39], [#40][40], [#42][42], [#46][46].
 
 ## Kontrol edilen teslimler
@@ -19,7 +19,7 @@ EVDS/BDDK alıcı ve birleşik teknik doğrulamayı izler; Mustafa'nın görsel 
   Mustafa'da doğrulandı. EVDS'nin 12 dosyası eski kabul kopyasıyla bayt eşit.
 - Mustafa'nın bağımsız **tek CLI koşusu 60 ay/22 eşleşme** verdi; yeni dört çıktı
   teslim `outputs/` ile bayt eşit. Aynı girdilerle açık sabit planlı #42 wrapper'ı
-  aynı evidence/grafiği verdi. #39/#42 tamamlandı; #40/#46 görsel/demo kabulü açık.
+  aynı evidence/grafiği verdi. #39/#40/#42 tamamlandı; #46 kısa sunum ve sürüm teslimi açık.
 - Üretici/tüketici kodu, şema ve ortak sentetik fixture zaten teslim edildi.
   Bu işler yeniden istenmez. Yerel `data/` yalnızca `.gitkeep` içerir.
 
@@ -27,7 +27,7 @@ EVDS/BDDK alıcı ve birleşik teknik doğrulamayı izler; Mustafa'nın görsel 
 
 Mustafa talepleri [Afra için #39'da][request39] ve [Osman için #40'ta][request40]
 yayımladı. **Tekrar paket talebi gönderilmez.** İki teslim ve teknik kabul
-tamamlandı; beklenen şey Mustafa'nın yeniden üretilen gerçek HTML'yi incelemesidir.
+tamamlandı; Mustafa yeniden üretilen gerçek HTML'yi de tarayıcıda teyit etti.
 Aşağıdaki taslaklar yalnızca önceki hazırlığın kaydıdır.
 
 ### Afra
@@ -108,7 +108,7 @@ Bu CLI yalnızca yerel dosyaları kullanır. 60 tekil ay, ilk ay null değişiml
 mevcut hesap kuralı, evidence/grafik uyumu ve üç gerçek örnek ay kontrol edilir.
 Gerçek eşleşme sayısı şimdiden varsayılmaz. Kaynak dosyalarının ilk/son hash'leri,
 komut sonuçları ve dört çıktı kaydedilir. [Kabul kaydı](release-acceptance.md)
-gerçek sonuçlarla güncellendi; #42 teknik kabulü kapandı, #46 görsel/demo kapısını bekler.
+gerçek sonuçlarla güncellendi; #40/#42 tamamlandı, #46 kısa sunum ve sürüm teslimini bekler.
 
 ## Şimdi açılacak gerçek rapor
 
@@ -116,10 +116,13 @@ gerçek sonuçlarla güncellendi; #42 teknik kabulü kapandı, #46 görsel/demo 
 Start-Process .\out\housing-acceptance-20261018\reproduced\report.html
 ```
 
-60 ay/22 eşleşme; hover–zoom–pan–sıfırlama, bir tablo/grafik eşleşmesi,
-2021-01'in eşleşmemesi, kaynak/birim/baz yılları ve sınırlamalar kontrol edilmeli.
-Osman'ın görsel beyanı Mustafa'nın teyidi yerine geçmez. Kullanıcının bu dosya
-için onayı henüz yoktur. Teslimdeki orijinal `outputs/` ve inputs değiştirilmedi.
+Mustafa 18 Ekim'de bu gerçek dosyada 60 ay/22 eşleşmeyi, hover–zoom–pan–sıfırlamayı,
+seçtiği ayda tablo/grafik uyumunu, 2021-01'in eşleşmemesini ve kaynak/birim/baz yılı
+ile sınırlamaların okunabilirliğini teyit etti. Bu kullanıcı incelemesidir;
+Codex'in tarayıcı testi değildir. Teslimdeki orijinal `outputs/` ve inputs değişmedi.
+Sürüm notu, önerilen `v0.1.0-rc.1` tag'i ve 60–90 saniyelik anlatım
+[mevcut kabul kaydındadır](release-acceptance.md). Sunum/sürüm teslimi tamamlanmış
+sayılmaz; tag/release/yayınlama öncesinde ayrı kullanıcı onayı beklenir.
 
 ## Önceki sentetik örnek
 

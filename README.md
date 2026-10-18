@@ -35,14 +35,15 @@ physical consumer checks and the file-to-report CLI are implemented and tested
 with shared synthetic fixtures. Real-data delivery and acceptance of the complete
 Bronze-to-report source chain were independently checked on the delivered real
 data (60 months, 22 matching months). EVDS delivery [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39)
-is complete; user visual acceptance and the final demo remain open in
-[#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) and
+and the real-data demo [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40)
+are complete, including Mustafa's browser acceptance on 18 October 2026.
+The short presentation and release delivery remain open in
 [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
 Weekly publication coverage is explicitly unverified without an official calendar;
 the timestamp and coverage policy is documented in the [EVDS guide](docs/evds-ingestion.md).
 See the [acceptance record](docs/release-acceptance.md) for verified checks and open gates.
-The [real-data delivery guide](docs/real-demo-delivery.md) records the available
-package notice, remaining access requirements, message drafts and offline demo steps.
+The [real-data delivery guide](docs/real-demo-delivery.md) records verified
+packages, historical request drafts and offline demo steps.
 The [tool contracts](docs/tool-contracts.md) map current code to the planned and
 disabled generic tools; those generic adapters are not implemented runtime tools.
 
