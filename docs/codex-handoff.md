@@ -8,6 +8,32 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## #42 dosya wrapper'ı geliştirme kaydı — 18 Ekim 2026
+
+Bu bölüm geliştirme sırasındaki kanıtı korur. Dal `45c8dcf` tabanından açıldı;
+PR #62/#63 sonrası main (`a987a88`) ile merge öncesinde güncellendi.
+Ortak API/eval PR #66'da açıktır. #63–#66 merge sırası kullanıcı tarafından onaylıdır.
+
+- Aktif dal `feat/verified-housing-question`, doğrudan `45c8dcf` tabanından açıldı.
+  #42'nin sunucu kontrollü yerel dosya wrapper'ı, fiziksel paket kontrolleri ve
+  [kısa belgesi](housing-question-files.md) bu dalda tamamlandı.
+- BDDK Silver mevcut üreticiyle doğrulanmış Bronze'dan yeniden türetilen tabloyla
+  karşılaştırılır; EVDS mevcut manifest tüketicisiyle doğrulanır. Ortak kapsam
+  türetildikten sonra mevcut soru/hesap servisi kullanılır. Yeni HTTP endpoint'i
+  ve anlatım çağrısı eklenmedi; gerçek veri kabulü tamamlanmış sayılmaz.
+- `1191654` runtime kaynağı, Python 3.12.15 (`out/python312`): odaklı paket **63 passed, 1 skipped**;
+  tam paket **729 passed, 2 skipped**. Atlamalar Windows symlink izinlerindendir.
+  Housing offline stub değerlendirmesi **9/9** geçti; canlı çağrı yapılmadı.
+  46 yerel belge bağlantısı ve bir Python örneğinin sözdizimi kontrol edildi.
+- Yerel `.venv` kayıp Python kurulumuna işaret eder. `out/python312` ve çıktılar
+  Git tarafından yok sayılır. Yerel `data/` yalnızca `.gitkeep` dosyaları içerir.
+- #46 sentetik kabul kaydı PR #65'te, #59 API/eval PR #66'da review bekler.
+  #42/#46 gerçek kabulü #39/#40'ın erişilebilir gerçek dosya/kanıt paketini bekler.
+  Bu belge düzeltmesi runtime kodunu değiştirmez; birleşik PR CI'si izlenir.
+- Güncel main ile birleşik kaynakta odaklı dosya/iki analiz/Housing soru paketi
+  **87 passed, 1 skipped** (Windows symlink); 49 yerel bağlantı ve diff kontrolü
+  başarılıdır. Tam paket zorunlu PR CI'sinde ve son birleşik teslimde doğrulanır.
+
 ## Temel karar
 
 Hesaplanabilen işler Python ile yapılır. LLM soru → sınırlı plan dönüşümü ve
