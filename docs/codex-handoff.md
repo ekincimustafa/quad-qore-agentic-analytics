@@ -2,11 +2,39 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Güncel main: `6abcfb8` (PR #62 sonrası).
-Bu belge dalı PR #62 sonrası main ile güncellendi; kendi diff'i runtime değişikliği içermez.
+için bir sürüm garantisi değildir. Son teslim PR #66; main entegrasyon tabanı
+`909f8c7` (PR #62–#65 sonrası). Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır;
+son teslim kaydı güncel durumu belirtir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
+
+## Son teslim ve sonraki adım — 18 Ekim 2026
+
+- Aktif dal `feat/economic-question-api`; çalışma ağacı teslim commit'i sonrası
+  temiz bırakılır. PR #63 çalışma düzeni (`a987a88`), #64 dosya wrapper'ı
+  (`96031e2`) ve #65 tarihli kabul kaydı (`909f8c7`) başarılı güncel CI ile
+  kullanıcı onayı kapsamında main'e merge edildi.
+- PR #66 teslimi: ortak `POST /analysis/economic/question`, iki sentetik istek,
+  12 vakalı offline HTTP evaluator ve davranış testleri tamamlandı. Sınırlı
+  plan mevcut Housing/TÜFE servislerinden en fazla birini yürütür; mevcut
+  endpoint'ler korunur. #59'un çekirdek ve API/eval kapsamı tamamlanmıştır.
+- Birleşik runtime test kaynağı `624d176a37e8f7e1714cd395700270932fbe582e`
+  (PR #62–#65 main + #66), Python 3.12.15 `out/python312`: tam offline paket
+  **794 passed, 2 skipped in 92.08s**. İki atlama BDDK ve dosya soru testlerinin
+  Windows symlink iznidir. Önceki birleşik odaklı paket **87 passed, 1 skipped**.
+- Aynı kaynakta Economic offline stub **12/12**, Housing offline stub **9/9**;
+  canlı çağrı **0**. İki HTTP örneği, 12 vaka şeması ve 51 yerel bağlantı
+  doğrulandı; `git diff --check` temiz. Son belge commit'inin zorunlu PR CI'si
+  ayrıca geçmelidir; merge son başlık SHA'sı kontrol edilerek yapılır.
+- Kullanıcı #63–#66 merge sırasını onayladı. Canlı model/EVDS çağrısı, gerçek
+  veri indirme, veri silme, force push, tag/release veya yayınlama yapılmadı.
+- Güncel açık issue'lar kontrol edildi: Mustafa'nın kalan #42/#46 gerçek kabulü,
+  Afra #39 ve Osman #40'ın erişilebilir gerçek CSV/coverage/manifest/raw/makbuz,
+  BDDK Silver ve üç örnek ay karşılaştırma paketine bağlıdır. Yerel `data/`
+  yalnızca `.gitkeep` içerir. Bağımsız yeni özellik uydurulmaz; bu paket
+  erişilebilir olunca önce sabit planla offline doğrulama ve rapor incelemesi
+  yapılır. Diğer ekip üyelerinin görevleri/dalları devralınmaz.
 
 ## #42 dosya wrapper'ı geliştirme kaydı — 18 Ekim 2026
 
@@ -53,7 +81,9 @@ genel tool registry, web/anomali/nedensellik araçları henüz uygulanmış değ
 | LLM istemcisi | `app/connectors/llm_client.py` | Yapılandırılabilir OpenAI-compatible Chat Completions; kontrollü hatalar ve SDK retry=0 |
 | Housing sorusu | `app/services/housing_question.py`, `app/api/housing_question.py` | Normalize satırlarda tek izinli analiz ve üç karar: ready, clarification_required, unsupported |
 | Housing değerlendirmesi | `scripts/evaluate_housing_questions.py`, `evals/housing_question_cases.json` | Dokuz vakalı offline stub; ayrı, açık bütçeli canlı mod |
-| TÜFE hesabı | `app/services/inflation_analysis.py`, `app/api/inflation.py` | Aylık/yıllık değişimler ve ilk-son endeks değişimi; henüz soru yönlendirmesinde değil |
+| TÜFE hesabı | `app/services/inflation_analysis.py`, `app/api/inflation.py` | Aylık/yıllık değişimler ve ilk-son endeks değişimi; iki analizli soru çekirdeğine PR #62 ile bağlı |
+| İki analizli soru API/eval | `app/api/economic_question.py`, `scripts/evaluate_economic_questions.py` | PR #66 teslimi: ortak HTTP yüzeyi ve 12 offline vaka |
+| Doğrulanmış dosya sorusu | `app/services/housing_question_files.py` | PR #64 main'de; sunucu kontrollü fiziksel paket doğrulanır, mevcut Housing servisi kullanılır |
 
 İlgili belgeler: [Housing question](housing-question.md),
 [eval](housing-question-evals.md), [inflation](inflation-analysis.md),
@@ -80,8 +110,8 @@ Bu tablo 18 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumlar�
 
 | Issue | Sorumlu | Kalan sonuç |
 | --- | --- | --- |
-| [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59) | Mustafa | Çekirdek PR #62 main'de; ortak HTTP/örnekler/eval PR #66'da açık |
-| [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42) | Mustafa | Doğrulanmış dosya wrapper'ı PR #64'te açık; gerçek veri kabulü bekler |
+| [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59) | Mustafa | Çekirdek PR #62; ortak HTTP/örnekler/eval PR #66 teslimi; gerçek veri kabulü ayrı |
+| [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42) | Mustafa | Doğrulanmış dosya wrapper'ı PR #64 ile main'de; gerçek veri kabulü bekler |
 | [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39) | Afra | Gerçek CSV/coverage/manifest/raw/makbuz paketine ekip erişimi ve üç gerçek örnek ay karşılaştırması |
 | [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) | Osman | Gerçek BDDK+EVDS ile 66→60 ay ve üç örnek ayın birleşik demo kabulü |
 | [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) | Mustafa | Gerçek rapor, güncel kurulum/kabul kaydı, kısa demo ve katkı/sürüm notu |
@@ -94,8 +124,8 @@ beyanları ile bağımsız kabul birbirinden ayrılır.
 ## #59'un ilk parçası: servis çekirdeği (PR #62 ile merge edildi)
 
 Aşağıdaki ilk parça PR #62'de (`01018ae`) tamamlandı ve kullanıcı onayıyla
-`6abcfb8` olarak main'e merge edildi. Ortak API/eval PR #66'da; bağımsız #42
-dosya wrapper'ı PR #64'tedir. İkisi de kendi review/merge adımını bekler.
+`6abcfb8` olarak main'e merge edildi. Ortak API/eval PR #66 teslimidir;
+bağımsız #42 dosya wrapper'ı PR #64 ile main'dedir.
 
 1. Çalışma ağacını/branch'i kontrol et, bu notu ve #59'u oku. Yerel değişiklikleri
    koru. Python 3.12 `.venv` ve offline başlangıç testini doğrula.
@@ -203,3 +233,32 @@ ettiği için testlerde Git tarafından yok sayılan `out/python312` ortamında 
 çekirdek sonrası tam paket **731 passed, 1 skipped**. Housing offline stub
 değerlendirmesi **9/9** geçti. Bunlar canlı model başarı ölçümü veya gerçek veri
 kabulü değildir.
+
+## #59 ortak HTTP ilk geliştirme kaydı — 18 Ekim 2026
+
+Bu bölüm `a672bf3` kaynağının tarihçesidir; son entegrasyon kaydı aşağıdadır.
+
+- Kullanıcı onayıyla PR #62, `6abcfb8` commit'iyle main'e merge edildi. Öncesinde
+  aynı `01018ae` başlığı, temiz diff, başarılı CI ve boş review/yorum durumu
+  kontrol edildi. Diğer PR'lar için merge onayı verilmiş sayılmaz.
+- Aktif dal `feat/economic-question-api`, güncel main `6abcfb8` tabanlıdır.
+  `POST /analysis/economic/question`, iki sentetik JSON örneği ve 12 vakalık
+  offline HTTP değerlendirmesi PR #66'dadır; henüz main'de değildir.
+- `a672bf3` API/eval runtime kaynağı, Python 3.12.15 (`out/python312`): odaklı paket **96 passed**;
+  tam paket **772 passed, 1 skipped**. Tek atlama mevcut BDDK Windows symlink
+  kontrolüdür. Economic offline stub **12/12**, mevcut Housing offline stub
+  **9/9** geçti; canlı model/EVDS çağrısı yapılmadı.
+- İki HTTP JSON örneği ve vaka şeması doğrulandı; 48 yerel belge bağlantısı ile
+  üç PowerShell bloğunun sözdizimi kontrol edildi. HTTP örnekleri canlı modele
+  gönderilmedi. Stub geçişleri model anlama başarısı değildir.
+- PR #63 çalışma düzeni, #64 doğrulanmış dosya sorusu ve #65 kabul kaydı ayrı
+  PR'lardır. #59 API kodu bunlara bağımlı değildir. #42/#46 gerçek kabulü hâlâ
+  Afra/Osman'ın #39/#40 dosya ve kanıt teslimini bekler.
+- #62 sonrası #63 devir kaydı (`846f0f8`) ve #64 README/devir kaydı (`013a23e`)
+  çakışmaları kendi dallarında belge commit'leriyle giderildi. #65 (`fc1662a`)
+  kabul/devir kaydı da yeni main durumuyla düzeltildi. Runtime kodu, fixture
+  hash'leri ve paylaşılan geçmiş değiştirilmedi; force push veya başka merge yok.
+- PR #66'nın `a672bf3` CI'si başarılı; #59 ilerlemesi bu test kaynağı belirtilerek
+  güncellendi ve issue review/merge için açık bırakıldı. Sıradaki adım açık
+  #63–#66 PR'ları için kullanıcı merge onayı ve gerçek kabul için #39/#40
+  dosya/kanıt paketine erişimdir. Bu belge takibi API runtime'ını değiştirmez.
