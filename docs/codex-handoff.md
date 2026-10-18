@@ -2,7 +2,8 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli: `45c8dcf` (PR #61 sonrası main).
+için bir sürüm garantisi değildir. Güncel main: `6abcfb8` (PR #62 sonrası).
+Bu belge dalının kod tabanı `45c8dcf` olarak kalır; runtime değişikliği içermez.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
@@ -49,12 +50,12 @@ genel tool registry, web/anomali/nedensellik araçları henüz uygulanmış değ
 
 ## Açık işler ve sahipleri
 
-Bu tablo 17 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumları oku.
+Bu tablo 18 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumları oku.
 
 | Issue | Sorumlu | Kalan sonuç |
 | --- | --- | --- |
-| [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59) | Mustafa | Servis çekirdeği PR #62'de açık; ortak API/eval ona bağımlı ve henüz main'de değil |
-| [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42) | Mustafa | Housing sorusunu sunucu kontrollü, doğrulanmış yerel dosya/manifest verisine bağlama |
+| [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59) | Mustafa | Çekirdek PR #62 main'de; ortak HTTP/örnekler/eval PR #66'da açık |
+| [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42) | Mustafa | Doğrulanmış dosya wrapper'ı PR #64'te açık; gerçek veri kabulü bekler |
 | [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39) | Afra | Gerçek CSV/coverage/manifest/raw/makbuz paketine ekip erişimi ve üç gerçek örnek ay karşılaştırması |
 | [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) | Osman | Gerçek BDDK+EVDS ile 66→60 ay ve üç örnek ayın birleşik demo kabulü |
 | [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) | Mustafa | Gerçek rapor, güncel kurulum/kabul kaydı, kısa demo ve katkı/sürüm notu |
@@ -64,11 +65,11 @@ Bu tablo 17 Ekim tarihli durumdur; GitHub erişimin varsa güncel body/yorumlar�
 erişilebilir ve bağımsız doğrulanmış sayılmaz; ilgili yazarların yerel kabul
 beyanları ile bağımsız kabul birbirinden ayrılır.
 
-## #59 servis çekirdeğinin görev sınırı
+## #59'un ilk parçası: servis çekirdeği (PR #62 ile merge edildi)
 
-Aşağıdaki ilk parça PR #62'de (`01018ae`) tamamlandı; PR henüz merge edilmedi.
-Kod bu belge dalının tabanı olan `main` içinde bulunmaz. Sonraki API/eval işi bu
-PR'ı bekler; bağımsız #42 dosya/manifest wrapper'ı mevcut main ile ilerleyebilir.
+Aşağıdaki ilk parça PR #62'de (`01018ae`) tamamlandı ve kullanıcı onayıyla
+`6abcfb8` olarak main'e merge edildi. Ortak API/eval PR #66'da; bağımsız #42
+dosya wrapper'ı PR #64'tedir. İkisi de kendi review/merge adımını bekler.
 
 1. Çalışma ağacını/branch'i kontrol et, bu notu ve #59'u oku. Yerel değişiklikleri
    koru. Python 3.12 `.venv` ve offline başlangıç testini doğrula.
@@ -95,6 +96,19 @@ Bu görev gerçek veri teslimini beklemeden sentetik girdilerle yapılabilir.
 GitHub erişimi yoksa bu yerel kapsamla ilerle, erişilemeyen issue/PR bilgisini
 doğrulanmış gibi sunma. Commit/push/PR/merge adımlarında oturumdaki kullanıcı
 yetkisini izle; bir yetki veya araç eksikse yerel diff/test sonucunu teslim et.
+
+## Oturum kaydı — 18 Ekim 2026
+
+- Aktif dal `docs/autonomous-workflow`; kullanıcının devam/teslim ve onay
+  sınırları `AGENTS.md` içine kaydedildi. Değişiklik belge kapsamındadır.
+- Kullanıcı yalnızca PR #62 merge'ini onayladı; işlem `6abcfb8` ile tamamlandı.
+  Yeni API/eval işi PR #66'da açık; diğer PR'lar için merge onayı beklenir.
+- PR #62'nin önceki Windows kaydı 731 passed, 1 skipped ve Housing stub 9/9'dur;
+  bu belge dalında aynı testler yeniden çalıştırılmış sayılmaz.
+- Yerel `.venv` kayıp Python yoluna işaret eder. Test ortamı Git'in yok saydığı
+  `out/python312` altında Python 3.12.15'tir.
+- Altı yerel bağlantı ve `git diff --check` doğrulanır; zorunlu PR CI'si izlenir.
+  #39/#40 gerçek dosya/kanıt teslimi #42/#46'nın kabulü için hâlâ gereklidir.
 
 ## Yerel Windows başlangıcı
 
@@ -130,19 +144,3 @@ Her teslim sonunda testleri, diff kapsamını ve kalan parçayı kısaca kaydet.
 Bu nottaki planlı işi yapılmış gibi işaretleme. Gerçek 60 aylık kabul yapılmadan
 release tamamlandı veya ekonomik analiz/model doğruluğu ölçüldü deme. Aynı
 görev üzerinde bu sohbet ve yerel Codex oturumu eşzamanlı farklı kod üretmesin.
-
-## Oturum kaydı — 18 Ekim 2026
-
-- Aktif dal: `docs/autonomous-workflow`; değişiklik yalnızca çalışma kuralları ve
-  bu devir notudur. Kullanıcının devam/teslim ve onay sınırları `AGENTS.md` içine
-  kaydedildi.
-- PR #62 açık, başlık `01018ae`, Tests CI başarılı, review/yorum yok. Önceki
-  Windows testleri: 731 passed, 1 skipped; Housing offline stub 9/9. Bunlar bu
-  belge dalında yeniden çalıştırılmış sonuçlar değildir.
-- Yerel `.venv` kayıp Python yoluna işaret ediyor. Kullanılabilir test ortamı,
-  Git'in yok saydığı `out/python312` altında Python 3.12.15.
-- Belge kontrolü: altı yerel bağlantı geçerli, `git diff --check` temiz. Gerekli
-  PR CI'si ayrıca takip edilir.
-- Sıradaki bağımsız küçük iş: #42 için fiziksel veriyi modelden önce doğrulayan,
-  mevcut manifest tüketicisini ve Housing hesabını kullanan servis wrapper'ı.
-  #39/#40 gerçek veri kabulü ve #59 ortak API/eval bu teslimle tamamlanmış sayılmaz.
