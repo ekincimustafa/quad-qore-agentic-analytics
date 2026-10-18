@@ -115,6 +115,51 @@ Arşiv kökünde çalıştırılan komutlar:
 Bu kayıt belirtilen `45c8dcf` kaynağının sentetik kullanımını doğrular; gerçek 66→60 ay,
 üç örnek ay karşılaştırması ve gerçek veriyle sunum kapıları açık kalır.
 
+## Güncel main: temiz Windows venv ve yerel HTTP — 18 Ekim 2026
+
+Kod temeli `7ee7225a2d70af4c0a58a4b7f7b2a6245ff98b8f` (PR #62–#66 merge sonrası).
+Mevcut `.venv`, kayıp Python kurulumuna işaret ettiği için korunup kullanılmadı.
+Mevcut Python 3.12.15 ile **yeni**, `include-system-site-packages = false` olan
+`out/clean312` venv'i oluşturuldu; bağımlılıklar mevcut `requirements.txt` ile
+kuruldu ve `pip check` başarılı oldu. Kod `git archive main` üzerinden
+`out/clean-demo` dizinine açıldı. Yeni uzak clone veya yeni Python kurulumu
+yapılmadı; önceki ortamın site-packages dizini kopyalanmadı.
+
+Repo kökünde kurulum, ardından arşiv kökünde kontroller:
+
+```powershell
+.\out\python312\python.exe -m venv out/clean312
+.\out\clean312\Scripts\python.exe -m pip install -r out/clean-demo/requirements.txt
+Set-Location out/clean-demo
+..\clean312\Scripts\python.exe -m pip check
+..\clean312\Scripts\python.exe -m pytest tests -q -rs --basetemp "$env:TEMP\qq46clean" --tb=short
+..\clean312\Scripts\python.exe -m scripts.render_housing_sample
+..\clean312\Scripts\python.exe -m uvicorn app.api.main:app --host 127.0.0.1 --port 8765
+```
+
+- Yeni ortamda tam offline paket **794 passed, 2 skipped in 103.97s**. İki atlama
+  `test_bddk_silver.py:813` ve `test_housing_question_files.py:244` Windows
+  symlink izinleridir. Önceki ortam testleri yeni kurulum kanıtı yerine kullanılmadı.
+- Sentetik HTML **60 ay / 55 eşleşme / ilk 2021-02 / 6 trace**; 4.376.582 bayt,
+  SHA-256 `0796af39622e9b3e1cd13fbb3ad188ef923cc838cb29aa73fc122fa5a77952a4`.
+  Sentetik etiket ve dış `script src` yokluğu kontrol edildi; önceki kayıtla aynı.
+  Dosya `out/clean-demo/out/housing-sample.html` altında korunur.
+- Gerçek Uvicorn TCP sunucusunda README'nin PowerShell `Invoke-RestMethod`
+  health/Housing örneği (port 8765) ve TÜFE JSON örneği **200** döndü. Housing
+  3 ay, 2021-02 eşleşmesi, 6 trace ve null anlatım; TÜFE 3 ay. `/docs` HTTP **200**.
+  Kontrol bitince yalnızca bu oturumun sunucusu durduruldu. Bu dış servis çağrısı değildir.
+- Dosya demo, BDDK Silver ve EVDS manifest CLI'larının `--help` çıktıları güncel
+  bayraklarla uyumlu. Veri indirme veya yeniden gerçek veri üretme komutu çalıştırılmadı.
+- Tarayıcı kontrol yüzeyi bulunamadı (`browsers: []`, `iab` erişilemiyor).
+  Güncel HTML'nin görsel/etkileşimli tarayıcı kabulü **yapılmadı**; kullanıcı
+  açıp grafik hover/zoom, eşleşme tablosu, kaynak ve sınırlamaları kontrol etmeli.
+
+**Gerçek paket erişimi ayrı ve açık:** Afra [hazır EVDS ZIP'ini bildirdi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39#issuecomment-6250215723);
+henüz dosya bağlantısı yok. #40'ta BDDK/gerçek birleşik koşu paketi bağlantısı
+veya yorum yok. Yeni durum, kalan teslimler ve gönderilmemiş mesajlar
+[teslim rehberindedir](real-demo-delivery.md). Sentetik sayılar gerçek sonuç
+olarak kabul edilmedi; #42/#46 açık kalır. Canlı LLM/EVDS çağrısı yapılmadı.
+
 ## Açık kabul kapıları
 
 - [x] Windows'ta yeni Python 3.12 ortamında README sentetik hızlı başlangıcını doğrula (13 Ekim: clone, kurulum, rapor ve testler).
@@ -130,7 +175,8 @@ Bu kayıt belirtilen `45c8dcf` kaynağının sentetik kullanımını doğrular; 
 Yapılandırılabilir LLM istemcisi #41 ile tamamlandı; önceki sınırlı canlı kontrol
 [LLM kabul kaydındadır](llm-client.md). Legacy `scripts.smoke_test_mia` yalnızca
 temel bağlantıyı sınar. Güncel sentetik kontrol canlı LLM gerektirmedi.
-Dosya destekli soru kabulü #42'de, iki analizli yönlendirme #59'da açık kalır.
+Dosya destekli sorunun gerçek veri kabulü #42'de açık kalır. İki analizli
+yönlendirme #59, PR #62/#66 ile tamamlandı; gerçek veri kabulünü kapatmaz.
 
 Gerçek veri kabulünde doldurulacak kayıt:
 
@@ -150,7 +196,7 @@ Kişisel katkılar ilgili PR'ların kod farklarıyla değerlendirilir.
 
 | PR sahibi | Birleşmiş katkı örnekleri | Açık teslimat |
 | --- | --- | --- |
-| Mustafa / ekincimustafa | [#27 Gold](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/27), [#30 API](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/30), [#47 anlatım doğrulaması](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/47), [#48 HTML raporu](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/48) | #42 gerçek dosya destekli soru kabulü, #59 iki analizli yönlendirme, #46 gerçek rapor/kabul/sunum |
+| Mustafa / ekincimustafa | [#27 Gold](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/27), [#30 API](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/30), [#47 anlatım doğrulaması](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/47), [#48 HTML raporu](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/48), [#62](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/62)/[#66 soru yönlendirmesi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/66), [#64 dosya wrapper'ı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/64) | #42 gerçek dosya destekli soru kabulü, #46 gerçek rapor/kabul/sunum |
 | Osman / OsmanerdemDutar | [#36 BDDK Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/36), [#43 kaynak zinciri ve offline demo CLI](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/43) | #40 gerçek BDDK/EVDS birleşik demo kabulü |
 | Afra / afratopcu | [#23 EVDS Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/23), [#35 EVDS ingestion](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/35), [#38 ilk araç sözleşmesi katkısı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/38), [#58 manifest üretimi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/58) | #39 gerçek dosya/komut/hash ve örnek ay teslimi |
 

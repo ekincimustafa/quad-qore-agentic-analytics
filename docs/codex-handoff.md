@@ -2,14 +2,48 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Son teslim PR #66; main entegrasyon tabanı
-`909f8c7` (PR #62–#65 sonrası). Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır;
-son teslim kaydı güncel durumu belirtir.
+için bir sürüm garantisi değildir. Kod temeli `7ee7225` (PR #66 sonrası main).
+Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
+güncel durumu belirtir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
-## Son teslim ve sonraki adım — 18 Ekim 2026
+## Gerçek demo hazırlığı: son oturum — 18 Ekim 2026
+
+- Aktif dal `docs/real-demo-readiness`, güncel main `7ee7225` tabanlı. Kullanıcı
+  yeni özellik istemiyor; mevcut demoyu gerçek veriyle doğrulama öncelikli.
+  PR #63–#66 başarılı CI ile merge edildi; #59 kapandı. Önceki onay yeni
+  belge PR'ının merge'ini veya release/yayınlamayı kapsamaz.
+- #39 açıklaması ve **8 yorum**, #40 açıklaması ve **0 yorum** kontrol edildi.
+  Afra 12 dosyalık gerçek EVDS ZIP'i ile karşılaştırma/yeniden üretim belgesini
+  hazırlamış; yalnızca paylaşım kanalı/erişim bağlantısı eksik. Bildirdiği ZIP
+  SHA-256 `1c9255194c3222dccc33e056ba195c46a8d0912cdb9ccccd178e8e4b2731ebc1`
+  dosya erişimi olmadan bağımsız doğrulanmış sayılmaz. #40'ta gerçek BDDK ve
+  birleşik demo dosya/kanıt bağlantısı yok. Yerel `data/` yalnızca `.gitkeep`.
+- [Teslim rehberi](real-demo-delivery.md) hazır paketi yeniden istemeden kalan
+  dosya/dizin/komut/hash kanıtlarını ve Afra/Osman için ayrı mesaj taslaklarını
+  içerir. Mesajlar **gönderilmedi**; paylaşım kanalını Mustafa belirler.
+- Yeni `out/clean312` venv'i (Python 3.12.15, sistem paketlerine kapalı) ve
+  `git archive main` ile `out/clean-demo` kaynak kopyası kuruldu. Eski bozuk
+  `.venv` korunur. `requirements.txt` kurulumu ve `pip check` başarılı;
+  yeni ortamda tam paket **794 passed, 2 skipped in 103.97s**. Atlamalar Windows
+  symlink izinleridir. Yeni clone/Python kurulumu yapılmış sayılmaz.
+- Sentetik HTML **60 ay, 55 eşleşme, ilk 2021-02, 6 trace**; hash önceki kayıtla
+  aynı. Gerçek yerel Uvicorn TCP'de Health/Housing/TÜFE ve `/docs` **200**;
+  anlatım null. Sunucu durduruldu. CLI help/PowerShell komut kontrolleri yapıldı;
+  ayrıntı [kabul kaydında](release-acceptance.md). Önceki 12/12 ve 9/9 stub CLI
+  sonuçları gereksiz tekrar çalıştırılmadı; yeni tam paket evaluator testlerini içerir.
+- Tarayıcı yüzeyi bulunmadığından güncel HTML'nin görsel/hover/zoom kontrolü
+  yapılmadı. Kullanıcı HTML'yi açıp bunu kontrol edebilir. Canlı LLM/EVDS çağrısı, veri
+  indirme, veri silme, force push, merge, release veya yayınlama yapılmadı.
+- **Engel ve durma noktası:** erişilebilir EVDS ZIP/teslim belgesi ve BDDK
+  raw/makbuz/Silver/üç örnek ay/birleşik koşu kaydı. Kod beklenmiyor. Paketler
+  gelince önce ZIP hash'i ve fiziksel zincir, sonra sabit planlı dosya sorusu,
+  66→60 ay ve gerçek rapor kontrol edilir. #42/#46 gerçek kabulü açık kalır;
+  Afra/Osman'ın görevleri veya dalları devralınmadı. Bağımsız yeni kapsam açılmaz.
+
+## Önceki teslim ve sonraki adım — 18 Ekim 2026
 
 - Aktif dal `feat/economic-question-api`; çalışma ağacı teslim commit'i sonrası
   temiz bırakılır. PR #63 çalışma düzeni (`a987a88`), #64 dosya wrapper'ı
