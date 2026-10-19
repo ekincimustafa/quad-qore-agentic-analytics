@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from fastapi.staticfiles import StaticFiles
 
 from app.api.housing import router as housing_router
 from app.api.housing_question import router as housing_question_router
 from app.api.inflation import router as inflation_router
 from app.api.economic_question import router as economic_question_router
+from app.api.question_ui import STATIC_ROOT, router as question_ui_router
 
 
 APP_VERSION = "0.1.0"
@@ -29,6 +31,8 @@ def create_app() -> FastAPI:
     application.include_router(housing_question_router)
     application.include_router(inflation_router)
     application.include_router(economic_question_router)
+    application.include_router(question_ui_router)
+    application.mount("/ui-assets", StaticFiles(directory=STATIC_ROOT), name="ui-assets")
 
     @application.get(
         "/health",

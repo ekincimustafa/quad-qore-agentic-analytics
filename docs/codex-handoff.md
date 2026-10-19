@@ -9,7 +9,52 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
-## Yeni yerel soru ürünü: Aşama 1 — 19 Ekim 2026
+## Yerel soru ekranı: Aşama 2 — 19 Ekim 2026
+
+- Başlangıç ağacı temizdi. Mustafa'nın açık onayıyla PR #72'nin tam başlığı
+  `545a285`, diff, başarılı Tests #122 (**840 passed**) ve boş review/thread
+  listesi yeniden kontrol edildi; **`23a820ba525b4d829a65698d2d13b80b9bc64cae`**
+  olarak main'e merge edildi. #69 `closed/completed` olarak doğrulandı.
+- Aktif dal **`feat/local-question-screen`**, doğrudan bu güncel main'den açıldı.
+  PR #68 kendi dalında korunur ve merge edilmedi. `v0.1.0-rc.1` hâlâ `abea431`;
+  tag/release değiştirilmedi. Bu ekranın PR'si onay olmadan merge edilmez.
+- #70: FastAPI `GET /`, yerel CSS/JS ve kurulu Plotly paketinden sunulan JS.
+  Tarayıcı yalnız `/analysis/economic/question/files` adresine `question` yollar.
+  Örnekler yalnız alanı doldurur; gönderme kullanıcı eylemidir. Konutun mevcut
+  grafiği/eşleşme tablosu, TÜFE tablosu, evidence'dan kısa Türkçe özet, kaynak,
+  kapsam, birim ve sınırlamalar gösterilir. Sayısal hesap veya ek model yok.
+- Bekleme/tek istek, başarı, netleştirme, unsupported, veri/sağlayıcı/ağ hataları
+  ayrı gösterilir; eski sonuç yeni istekte temizlenir. Kullanıcı/kaynak metni
+  `textContent` ile yazılır; ham sağlayıcı gövdesi gösterilmez. CSP aynı origin
+  script/connect kuralını uygular; GET/asset yükleme LLM ayarını okumaz.
+- `python -m scripts.preview_question_ui` iki örneğe açık sabit plan verir;
+  diğer sorulara netleştirme döner. Offline etiketi görünür. Mevcut
+  `out/clean312` Python 3.12.15 kullanılır; kurulum/dependency tekrarı yok.
+  Gerçek paket kökü ve 8000 adresi için [README](../README.md#local-question-screen--offline-preview).
+- CUA'da tarayıcı yüzeyi yok (`browsers: []`, iab kullanılamıyor). İstenen
+  yazılım UI testi/görüntüsü kurulu Chrome'un ayrı geçici profilli başsız
+  oturumunda, yalnız 127.0.0.1 test sunucusuna karşı yapıldı. Sandbox ilk Chrome
+  GPU sürecini engelledi; gerekli izinle aynı test geçti. Kontroller gerçek DOM,
+  gerçek Plotly, HTTP/dosya yükleme ve açık stub planları kullanır; canlı **0**.
+- Gerçek paketli offline ekran görüntüleri `out/question-ui-housing.png` ve
+  `out/question-ui-cpi.png`; incelendi. Konut **60 ay/22**, TÜFE **2023 için 12 ay**.
+  Görülen lejant/başlık çakışması yalnız sunum layout'unda düzeltildi; trace/veri
+  değişmedi. **145 kaynak dosyasının hash'i aynı**; görseller/veri/audit Git dışında.
+- #71 **açık**: gerçek model kabulü yapılmadı; vaka/bütçe onayı ve Mustafa'nın son
+  ekran/etkileşim kontrolü eksik. #46 videosu isteğe bağlıdır, çekilmedi. Bu
+  ekran PR'si main'e alınmış veya canlı kabul tamamlanmış sayılmaz.
+- Kontroller: odaklı UI/API paketi **46 passed in 10.21s**; tam yerel offline
+  paket **840 passed, 2 skipped in 82.78s** (mevcut Windows symlink izinleri).
+  Housing stub **9/9**, canlı **0**. Tarayıcı testi açılış/örnek, bekleme/tek istek,
+  grafik/tablolar, netleştirme/unsupported, veri/sağlayıcı/ağ hatası ve XSS metin
+  sınırlarını gerçek DOM'da kontrol eder. Chrome geçici profili LLM/EVDS/GitHub
+  anahtar ortam değişkenlerini devralmaz. 56 yerel bağlantı, 7 PowerShell bloğu
+  ve `git diff --check` geçti; son commit'in CI'si ayrıca izlenir.
+
+## Yeni yerel soru ürünü: Aşama 1 kaydı — 19 Ekim 2026
+
+Bu bölüm PR #72 öncesinin tarihli kaynak/test kanıtıdır; güncel merge/dal ve
+sonraki adım üstteki Aşama 2 bölümündedir.
 
 - Mustafa önceki “yeni özellik açma” sınırını bu ürün için açıkça kaldırdı.
   Hedef yalnız Türkçe soru girilen yerel web ekranı; mevcut Python hesapları,

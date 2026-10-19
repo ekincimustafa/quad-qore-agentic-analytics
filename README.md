@@ -198,8 +198,33 @@ The API is at <http://127.0.0.1:8000/docs>. The new endpoint takes only:
 Another supported question is `2023 Ocak-Aralık TÜFE aylık ve yıllık değişimlerini özetle.`
 Question planning uses the configured model: **do not submit a live request until
 the separate case list/call-budget approval in #71**. Offline tests use stub plans.
-This PR supplies the API; the question screen is the next separate #70 task after
-backend merge. It is not available yet. No extra model call generates narration.
+The API was merged in PR #72. The separate #70 screen uses it at
+<http://127.0.0.1:8000/>; summaries only format evidence, with no extra model call.
+
+### Local question screen — offline preview
+
+Use the existing environment and verified package from the repository root:
+
+```powershell
+$env:ANALYTICS_DATA_ROOT = (Resolve-Path .\out\housing-acceptance-20261018\inputs).Path
+.\out\clean312\Scripts\python.exe -m scripts.preview_question_ui
+```
+
+Open <http://127.0.0.1:8000/>. This explicit **offline preview** runs fixed plans for
+the two example questions; click an example, then **Analiz et**. The Housing example
+uses 2021–2025 (60 months / 22 matches in the verified delivery); CPI uses 2023
+(12 monthly rows). Other preview questions ask for clarification. The visible
+offline label distinguishes fixed-plan behavior from live model understanding.
+No installation, model key, data download or live model call is needed for preview.
+
+The normal `uvicorn app.api.main:app` command serves the same screen with configured
+model planning. **Live acceptance in #71 still requires its case list and call-budget
+approval.** Opening the page or filling an example never sends a question automatically.
+Press Ctrl+C in the server terminal to stop it.
+
+Check both examples, hover/zoom/pan/reset in the Housing chart, the matching-month
+table, CPI monthly/annual values, and expandable sources/limitations. This user
+review is still pending; offline browser tests do not replace live acceptance.
 
 ## Real-data preparation
 
