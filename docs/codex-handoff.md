@@ -11,6 +11,12 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 
 ## v0.1.0-rc.1 yayımlandı; ekran kaydı açık — 18 Ekim 2026
 
+19 Ekim ürün kararı: #46 videosu **isteğe bağlı portföy işi**, kaydedilmedi;
+ürün geliştirmesinin zorunlu kabul kapısı değildir. Yalnızca soruyla çalışan
+yerel ürün artık açıkça yetkili: backend #69, ekran #70, uçtan uca kabul #71.
+Önceki “yeni özellik açma” sınırı bu kapsam için geçersizdir. PR #68 açık,
+başarılı CI'li belge teslimidir; main'de varmış gibi kullanılmaz. rc.1 değişmez.
+
 - Başlangıç çalışma ağacı temizdi; kullanıcının değişikliği yoktu. Aktif dal
   **`docs/rc1-publication`**, güncel main `abea431` tabanlıdır. PR #67 main'e
   merge edilmiştir; runtime `7ee7225` ile aynı, yalnızca kabul belgeleri değişti.
@@ -26,16 +32,15 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   notlar bağımsız GET ile kontrol edildi. Gerçek veri, HTML, yerel audit veya
   operasyon script'i eklenmedi; kaynak arşivleri yalnızca Git'teki dosyalardır.
 - #39/#40/#42 tamamdır. #46'da prerelease/onay maddeleri işaretlendi;
-  **60–90 saniyelik ekran kaydı alınmadı**, kısa demo teslimi bu nedenle açık.
+  **60–90 saniyelik ekran kaydı alınmadı**, isteğe bağlı portföy işi olarak açık.
   Kullanıcının önceki gerçek HTML görsel kabulü kayıt yapıldığı anlamına gelmez.
 - Bu dal yalnızca mevcut README/kabul/teslim/devir kaydını günceller; sürüm
   tag'i bu yayın sonrası belge commit'lerine taşınmaz. Belge commit/push/PR
   rutini uygulanır; yeni PR'nin merge'i veya kararlı release için onay yoktur.
   Bu belgelerde **63 yerel bağlantı**, **12 PowerShell bloğu** ve
   `git diff --check` geçti; zorunlu belge PR CI'si son commit için izlenir.
-  Sonraki adım: Mustafa gerçek `reproduced/report.html` dosyasıyla anlatımı
-  kaydeder, MP4'ü açıp ses/okunabilirlik/süreyi kontrol eder ve sonucu paylaşır.
-  Yeni özellik veya takip belgesi açılmaz; canlı EVDS/LLM çağrısı yapılmaz.
+  Bu yayın kaydının tarihli sonraki adımı videoydu; 19 Ekim ürün kararıyla artık
+  geliştirmeyi bekletmez. Yeni geliştirme #69 ile başlar; canlı EVDS/LLM yok.
 
 ## PR #67 gerçek demo kabul teslimi — 18 Ekim 2026
 

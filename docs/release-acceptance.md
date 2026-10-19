@@ -3,8 +3,8 @@
 İlk kayıt: 12 Ekim 2026. Güncelleme: 18 Ekim 2026. Takip: [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
 Durum: Gerçek BDDK+EVDS teknik kabulü ve sabit planlı dosya sorusu doğrulandı;
 Mustafa yeniden üretilen HTML'nin görsel kabulünü 18 Ekim'de teyit etti.
-#40 tamamlandı; `v0.1.0-rc.1` prerelease yayımlandı. Ekran kaydı ve kısa demo
-teslimi #46'da açık; kaydedilmiş demo sayılmaz.
+#40 tamamlandı; `v0.1.0-rc.1` prerelease yayımlandı. 19 Ekim kararıyla #46 ekran
+kaydı isteğe bağlı portföy işidir; kaydedilmedi ve yeni ürünün kabulünü bloke etmez.
 
 İlk kontrollerin kod temeli: `f9d02099b2fc97a7a8588a022e4c0c04ce07b652` (PR #48 sonrası main).
 13 Ekim temiz Windows kontrolü: `8943608b807f791ea6af92436724d9db4dcc7115`
@@ -373,7 +373,7 @@ yeni onay gerekir. Yukarıdaki anlatım sunulmuş/kaydedilmiş demo değildir.
 - [x] Sürüm notu, önerilen tag ve 60–90 saniyelik demo anlatımını incelemeye hazırla.
 - [x] `v0.1.0-rc.1` tag/prerelease için Mustafa'nın ayrı yayın onayını al.
 - [x] Başarılı main commit'ini tag'le ve notlarla GitHub prerelease yayımla; veri/audit eki yükleme.
-- [ ] Gerçek veri kullanılan 60–90 saniyelik ekran kaydını al; MP4 süre/ses/görünümünü kontrol et ve demo teslimini tamamla.
+- [ ] İsteğe bağlı portföy: 60–90 saniyelik ekran kaydı; ürün kabul şartı değildir, henüz kaydedilmedi.
 
 Yapılandırılabilir LLM istemcisi #41 ile tamamlandı; önceki sınırlı canlı kontrol
 [LLM kabul kaydındadır](llm-client.md). Legacy `scripts.smoke_test_mia` yalnızca
@@ -404,4 +404,5 @@ Kişisel katkılar ilgili PR'ların kod farklarıyla değerlendirilir.
 | Afra / afratopcu | [#23 EVDS Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/23), [#35 EVDS ingestion](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/35), [#38 ilk araç sözleşmesi katkısı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/38), [#58 manifest üretimi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/58) | #39 teslim ve iki alıcı kabulü tamam; bu kapsamda açık veri teslimi yok |
 
 Açık görevler tamamlanmış katkı olarak raporlanmaz. Sürüm adayı yayını ekran
-kaydını veya kısa demo teslimini tamamlamaz; #46 bu kapsamda açık kalır.
+kaydını tamamlamaz; #46 isteğe bağlı portföy işi olarak açık kalır. 19 Ekim'de
+yetkilendirilen yerel soru ürününün backend/ekran/kabul işleri #69/#70/#71'dir.

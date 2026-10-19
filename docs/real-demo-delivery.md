@@ -20,7 +20,7 @@ EVDS/BDDK alıcı ve birleşik teknik doğrulamayı izler; Mustafa'nın görsel 
 - Mustafa'nın bağımsız **tek CLI koşusu 60 ay/22 eşleşme** verdi; yeni dört çıktı
   teslim `outputs/` ile bayt eşit. Aynı girdilerle açık sabit planlı #42 wrapper'ı
   aynı evidence/grafiği verdi. #39/#40/#42 tamamlandı; rc.1 yayımlandı,
-  #46 ekran kaydı ve kısa demo teslimi açık.
+  #46 ekran kaydı isteğe bağlı portföy işi olarak açık; ürün geliştirmesini bloke etmez.
 - Üretici/tüketici kodu, şema ve ortak sentetik fixture zaten teslim edildi.
   Bu işler yeniden istenmez. Yerel `data/` yalnızca `.gitkeep` içerir.
 
@@ -109,7 +109,7 @@ Bu CLI yalnızca yerel dosyaları kullanır. 60 tekil ay, ilk ay null değişiml
 mevcut hesap kuralı, evidence/grafik uyumu ve üç gerçek örnek ay kontrol edilir.
 Gerçek eşleşme sayısı şimdiden varsayılmaz. Kaynak dosyalarının ilk/son hash'leri,
 komut sonuçları ve dört çıktı kaydedilir. [Kabul kaydı](release-acceptance.md)
-gerçek sonuçlarla güncellendi; #40/#42 tamamlandı, #46 ekran kaydı ve kısa demo teslimini bekler.
+gerçek sonuçlarla güncellendi; #40/#42 tamamlandı, #46 isteğe bağlı portföy kaydıdır.
 
 ## Şimdi açılacak gerçek rapor
 
@@ -125,7 +125,8 @@ Sürüm notu ve 60–90 saniyelik anlatım [mevcut kabul kaydındadır](release-
 Mustafa'nın ayrı onayıyla `abea431` main commit'i
 [`v0.1.0-rc.1` prerelease](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
 olarak yayımlandı; veri/HTML/audit eki yüklenmedi. Ekran kaydı henüz alınmadı;
-sunum ve demo teslimi tamamlanmış sayılmaz.
+sunum ve demo teslimi tamamlanmış sayılmaz. 19 Ekim kararıyla bu video isteğe
+bağlıdır; yeni yerel soru ürününün geliştirmesini veya kabulünü bloke etmez.
 
 ### 60–90 saniyelik ekran kaydı
 

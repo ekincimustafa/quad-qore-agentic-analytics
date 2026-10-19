@@ -38,8 +38,9 @@ data (60 months, 22 matching months). EVDS delivery [#39](https://github.com/eki
 and the real-data demo [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40)
 are complete, including Mustafa's browser acceptance on 18 October 2026.
 The [v0.1.0-rc.1 prerelease](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
-is published from `abea431`. The 60–90 second screen recording remains open in
+is published from `abea431`. The optional portfolio screen recording remains open in
 [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
+It does not block the newly authorized local question product (#69–#71).
 Weekly publication coverage is explicitly unverified without an official calendar;
 the timestamp and coverage policy is documented in the [EVDS guide](docs/evds-ingestion.md).
 See the [acceptance record](docs/release-acceptance.md) for verified checks and open gates.
