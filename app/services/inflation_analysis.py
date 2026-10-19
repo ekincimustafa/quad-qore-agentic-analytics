@@ -31,7 +31,7 @@ class InflationEvidence(BaseModel):
     analysis_id: Literal["cpi_inflation_summary"] = "cpi_inflation_summary"
     series_code: Literal["TP.TUKFIY2025.GENEL"] = "TP.TUKFIY2025.GENEL"
     cpi_base_year: Literal[2025] = 2025
-    input_origin: Literal["caller_supplied"] = "caller_supplied"
+    input_origin: Literal["caller_supplied", "verified_files"] = "caller_supplied"
     source_ref: str
     period_start: str
     period_end: str

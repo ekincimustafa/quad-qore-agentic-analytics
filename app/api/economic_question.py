@@ -1,9 +1,12 @@
 """Typed HTTP boundary for the bounded Housing/CPI question service."""
 
 from collections.abc import Callable, Coroutine
+import os
+from pathlib import Path
 from typing import Annotated, Any, Literal, NoReturn, Union
 
 import pandas as pd
+from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
@@ -25,12 +28,18 @@ from app.services.economic_question import (
     EconomicPlanningError,
     EconomicPlanValidationError,
     EconomicReadyPlan,
+    EconomicQuestionRun,
     EconomicUnsupported,
     HousingQuestionData,
     InflationQuestionData,
     ModelCall,
     run_economic_question,
 )
+from app.services.economic_question_files import (
+    VerifiedEconomicQuestionDataError,
+    run_verified_economic_question,
+)
+from app.services.housing_question_files import VerifiedHousingQuestionPaths
 from app.services.housing_analysis import HousingAnalysisRun
 from app.services.inflation_analysis import InflationAnalysisError, InflationEvidence
 from app.tools.housing_chart import HousingChartError
@@ -101,10 +110,8 @@ class EconomicInflationInput(_StrictModel):
         return _source_ref(value)
 
 
-class EconomicQuestionRequest(_StrictModel):
+class EconomicQuestionText(_StrictModel):
     question: str = Field(min_length=1, max_length=MAX_QUESTION_CHARACTERS)
-    housing: EconomicHousingInput | None = None
-    inflation: EconomicInflationInput | None = None
 
     @field_validator("question")
     @classmethod
@@ -112,6 +119,11 @@ class EconomicQuestionRequest(_StrictModel):
         if not value.strip():
             raise ValueError("Soru boş olamaz.")
         return value.strip()
+
+
+class EconomicQuestionRequest(EconomicQuestionText):
+    housing: EconomicHousingInput | None = None
+    inflation: EconomicInflationInput | None = None
 
 
 class HousingQuestionAnalysis(_StrictModel):
@@ -175,6 +187,23 @@ class EconomicErrorResponse(_StrictModel):
     detail: EconomicErrorDetail
 
 
+class EconomicFileErrorDetail(_StrictModel):
+    code: Literal["economic_data_unavailable"] = "economic_data_unavailable"
+    message: str
+
+
+class EconomicFileErrorResponse(_StrictModel):
+    detail: EconomicFileErrorDetail
+
+
+def get_verified_economic_paths() -> VerifiedHousingQuestionPaths:
+    """Only the server selects a package root; request/model fields cannot override it."""
+    repo_root = Path(__file__).resolve().parents[2]
+    load_dotenv(repo_root / ".env", override=False)
+    configured = os.getenv("ANALYTICS_DATA_ROOT", "").strip()
+    return VerifiedHousingQuestionPaths(project_root=Path(configured) if configured else repo_root)
+
+
 def get_economic_question_model() -> ModelCall:
     from app.connectors.llm_client import ask_llm
 
@@ -215,6 +244,39 @@ def analyze_economic_question(
     except (EconomicInputError, GoldAnalysisError, InflationAnalysisError, EvidenceBuildError, HousingChartError):
         raise _invalid_input() from None
 
+    return _question_response(result)
+
+
+@router.post(
+    "/economic/question/files", response_model=EconomicQuestionResponse,
+    responses={422: {"model": EconomicErrorResponse}, 502: {"model": EconomicErrorResponse},
+               503: {"model": EconomicFileErrorResponse}},
+    summary="Ask a Turkish question using server-configured, physically verified BDDK/EVDS files",
+)
+def analyze_verified_economic_question(
+    request: EconomicQuestionText,
+    paths: VerifiedHousingQuestionPaths = Depends(get_verified_economic_paths),
+    model_call: ModelCall = Depends(get_economic_question_model),
+) -> EconomicQuestionResponse:
+    try:
+        result = run_verified_economic_question(request.question, paths, model_call=model_call)
+    except EconomicPlanningError:
+        _error("question_planning_failed", "Modelden analiz planı alınamadı.")
+    except EconomicPlanValidationError:
+        _error("invalid_question_plan", "Modelin analiz planı doğrulanamadı.")
+    except (
+        VerifiedEconomicQuestionDataError, EconomicInputError, GoldAnalysisError,
+        InflationAnalysisError, EvidenceBuildError, HousingChartError,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": "economic_data_unavailable",
+                    "message": "Sunucu veri paketi eksik, okunamıyor veya bütünlük doğrulamasını geçemedi."},
+        ) from None
+    return _question_response(result)
+
+
+def _question_response(result: EconomicQuestionRun) -> EconomicQuestionResponse:
     common = {"available_periods": result.coverage, "decision": result.decision}
     if isinstance(result.decision, EconomicClarification):
         messages = {

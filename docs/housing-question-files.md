@@ -16,8 +16,9 @@ Housing soru servisini kullanır.
 
 Artefakt yolları köke göreli olmalı ve fiziksel olarak kökün içinde kalmalıdır.
 Soru veya model JSON'u dosya yolu, kaynak, model veya anahtar seçemez.
-Bu wrapper henüz bir HTTP endpoint'ine bağlı değildir; mevcut normalize-satır
-soru endpoint'inin girdi/çıktı sözleşmesi korunur.
+Bu tek konut wrapper'ının sözleşmesi korunur. Ortak fiziksel yükleyiciyi kullanan
+iki analizli `POST /analysis/economic/question/files` [#69 kapsamında](economic-question.md#yalnızca-soru-alan-doğrulanmış-dosya-apisi)
+eklenmiştir; mevcut normalize-satır endpoint'leri değişmez.
 
 ## Doğrulama ve yürütme sırası
 
