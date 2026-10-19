@@ -198,8 +198,9 @@ The API is at <http://127.0.0.1:8000/docs>. The new endpoint takes only:
 Another supported question is `2023 Ocak-Aralık TÜFE aylık ve yıllık değişimlerini özetle.`
 Question planning uses the configured model: **do not submit a live request until
 the separate case list/call-budget approval in #71**. Offline tests use stub plans.
-The API was merged in PR #72. The separate #70 screen uses it at
-<http://127.0.0.1:8000/>; summaries only format evidence, with no extra model call.
+The API was merged in PR #72; the #70 screen was merged in PR #73 (`5bc12a7`).
+The screen at <http://127.0.0.1:8000/> calls this API; summaries only format
+evidence, with no extra model call.
 
 ### Local question screen — offline preview
 
@@ -222,9 +223,15 @@ model planning. **Live acceptance in #71 still requires its case list and call-b
 approval.** Opening the page or filling an example never sends a question automatically.
 Press Ctrl+C in the server terminal to stop it.
 
-Check both examples, hover/zoom/pan/reset in the Housing chart, the matching-month
-table, CPI monthly/annual values, and expandable sources/limitations. This user
-review is still pending; offline browser tests do not replace live acceptance.
+Mustafa confirmed both offline examples, the Housing chart/table and interactions,
+the CPI table, and sources/limitations on 19 October 2026. This offline user review
+is complete; live model acceptance remains open in
+[#71](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/71).
+That issue holds the four prospective cases and expected decisions/periods.
+The proposed budget is at most four calls to the locally configured
+`gemini-3.5-flash-lite`, 60 seconds per request, zero retries; explicit approval
+is still required. No automatic paid-plan/provider switch. No live calls were
+made for this preparation.
 
 ## Real-data preparation
 

@@ -9,7 +9,47 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
-## Yerel soru ekranı: Aşama 2 — 19 Ekim 2026
+## Ekran merge ve canlı kabul hazırlığı — 19 Ekim 2026
+
+- Başlangıç ağacı temizdi. PR #73'ün son head'i
+  `440ad0d0a78ec9c652db660f1f82453bdfe96f87`, 10 dosyalık diff'i,
+  başarılı PR CI'si (**842 passed**), boş review/thread listeleri ve temiz
+  merge durumu yeniden kontrol edildi. Mustafa'nın açık onayıyla
+  **`5bc12a7213cd4f3a47d691803c443e1ad463b445`** olarak main'e merge edildi;
+  #70 **closed/completed** doğrulandı. #70 ve PR açıklamaları güncellendi.
+- Mustafa offline önizlemede iki örneği denediğini; konut grafiği/eşleşme
+  tablosu, TÜFE tablosu, kaynaklar/sınırlamalar ve grafik etkileşimlerini uygun
+  bulduğunu teyit etti. Bu kullanıcı teyididir; canlı model kabulü değildir.
+- [#71](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/71)
+  içinde dört soru ve beklenen analiz/dönem/karar **çalıştırılmadan önce**
+  yazıldı: konut 2021-01–2025-12, TÜFE 2023-01–2023-12, dönem eksikliği ve
+  kapsam dışı tahmin. Aynı vaka listesi yeni bir takip belgesine kopyalanmadı.
+- Yerel yapılandırmadan yalnız model/zaman aşımı ağsız okundu:
+  **`gemini-3.5-flash-lite`, 60 saniye**. Öneri: **azami 4 toplam çağrı**,
+  vaka başına 1 planlama, **yeniden deneme 0** (`max_retries=0`). Hatalı
+  deneme bütçeye dahildir; ilk sağlayıcı/plan/doğruluk hatasında durulur.
+  Ek anlatım, ücretli plana/sağlayıcıya otomatik geçiş veya EVDS çağrısı yok.
+  **Canlı çağrı 0; vaka/bütçe onayı bekleniyor. #71 açık.**
+- Aktif dal **`docs/live-acceptance-plan`**, merge edilmiş güncel main'den
+  açıldı. Bu dal yalnız README/devir kaydıdır; ürün kodu/veri/anahtar/audit
+  değiştirilmedi. PR #68 kendi dalında korunur. rc.1 tag'i `abea431`;
+  yeni release yok. Bu dokümantasyon dalı ayrıca onay olmadan merge edilmez.
+- Test durumu: merge edilen ekran head'inin CI'si **842 passed**; önceki
+  yerel tam paket **840 passed, 2 skipped**, odaklı UI/API **46 passed**,
+  Housing stub **9/9**. Dokümantasyon değişikliği için tam yerel test tekrarı
+  yapılmadı. Bu oturumda **56 yerel belge bağlantısı**, **7 PowerShell bloğu**
+  ve `git diff --check` geçti. Bu dokümantasyon dalı commit/push edilip ayrı
+  PR olarak teslim edilir; CI'nin güncel sonucu PR'dan izlenir, merge bekler.
+- Sonraki adım: Mustafa dört vaka/model/azami çağrı bütçesini açıkça onaylarsa,
+  mevcut doğrulanmış yerel dosyalarla normal endpoint'te bu sırayla çalıştır;
+  gerçek sonuçları offline kanıttan ayrı kaydet, genel başarı oranı çıkarma.
+  Onaya kadar normal ekrandan soru gönderme veya canlı smoke testi çalıştırma.
+  #46 videosu isteğe bağlıdır, çekilmedi ve ürün kabulünü bekletmez.
+
+## Yerel soru ekranı: Aşama 2 tarihli uygulama kaydı — 19 Ekim 2026
+
+Bu bölüm merge öncesinin kaynak/test kanıtıdır; güncel merge ve kullanıcı teyidi
+üstteki bölümde kayıtlıdır. Aşağıdaki eski bekleyen durumlar güncel engel değildir.
 
 - Başlangıç ağacı temizdi. Mustafa'nın açık onayıyla PR #72'nin tam başlığı
   `545a285`, diff, başarılı Tests #122 (**840 passed**) ve boş review/thread
