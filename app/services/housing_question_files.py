@@ -51,13 +51,24 @@ class VerifiedHousingQuestionRun:
     analysis: HousingAnalysisRun | None
 
 
+@dataclass(frozen=True)
+class VerifiedQuestionInputs:
+    """Verified in-memory snapshot shared by both question entry points."""
+
+    bddk_monthly: pd.DataFrame
+    evds_monthly: pd.DataFrame
+    housing_coverage: HousingDataCoverage
+    evds_source_refs: str
+    cpi_source_ref: str
+
+
 def _server_path(root: Path, relative: Path) -> Path:
     return resolve_secure_raw_path(root, str(relative))
 
 
 def _load_inputs(
     paths: VerifiedHousingQuestionPaths,
-) -> tuple[pd.DataFrame, pd.DataFrame, HousingDataCoverage, str]:
+) -> VerifiedQuestionInputs:
     root = Path(paths.project_root).resolve(strict=True)
     bddk_path = _server_path(root, paths.bddk_silver)
     manifest_path = _server_path(root, paths.evds_manifest)
@@ -101,7 +112,31 @@ def _load_inputs(
     shared_start = max(start, manifest.silver.start_period)
     shared_end = min(end, manifest.silver.end_period)
     coverage = HousingDataCoverage(start_period=shared_start, end_period=shared_end)
-    return stored, evds, coverage, refs
+    cpi_refs = tuple(dict.fromkeys(
+        bronze.receipt_path.strip()
+        for series in manifest.series if series.series_code == "TP.TUKFIY2025.GENEL"
+        for bronze in series.bronze
+    ))
+    return VerifiedQuestionInputs(stored, evds, coverage, refs, "; ".join(cpi_refs))
+
+
+def load_verified_question_inputs(paths: VerifiedHousingQuestionPaths) -> VerifiedQuestionInputs:
+    """Load the complete physical package before any question planner is called."""
+    if not isinstance(paths, VerifiedHousingQuestionPaths):
+        raise TypeError("paths must be VerifiedHousingQuestionPaths.")
+    try:
+        return _load_inputs(paths)
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError):
+        raise VerifiedHousingQuestionDataError("Yerel konut veri paketi doğrulanamadı.") from None
+
+
+def with_verified_housing_notes(analysis: HousingAnalysisRun) -> HousingAnalysisRun:
+    evidence = analysis.evidence.model_copy(update={
+        "data_quality_notes": tuple(dict.fromkeys((
+            *analysis.evidence.data_quality_notes, WEEKLY_COVERAGE_NOTE,
+        )))
+    })
+    return replace(analysis, evidence=evidence)
 
 
 def run_verified_housing_question(
@@ -111,27 +146,15 @@ def run_verified_housing_question(
     model_call: ModelCall | None = None,
 ) -> VerifiedHousingQuestionRun:
     """Verify all supplied files, then plan once and run the existing Housing service."""
-    if not isinstance(paths, VerifiedHousingQuestionPaths):
-        raise TypeError("paths must be VerifiedHousingQuestionPaths.")
-    try:
-        bddk, evds, coverage, refs = _load_inputs(paths)
-    except (OSError, ValueError, TypeError, KeyError, RuntimeError):
-        raise VerifiedHousingQuestionDataError(
-            "Yerel konut veri paketi doğrulanamadı."
-        ) from None
+    inputs = load_verified_question_inputs(paths)
     result = run_housing_question(
-        question, bddk, evds, coverage=coverage,
-        bddk_source_ref=DEFAULT_BDDK_SOURCE_REF, evds_source_refs=refs,
+        question, inputs.bddk_monthly, inputs.evds_monthly, coverage=inputs.housing_coverage,
+        bddk_source_ref=DEFAULT_BDDK_SOURCE_REF, evds_source_refs=inputs.evds_source_refs,
         model_call=model_call,
     )
     analysis = result.analysis
     if analysis is not None:
-        evidence = analysis.evidence.model_copy(update={
-            "data_quality_notes": tuple(dict.fromkeys((
-                *analysis.evidence.data_quality_notes, WEEKLY_COVERAGE_NOTE,
-            )))
-        })
-        analysis = replace(analysis, evidence=evidence)
+        analysis = with_verified_housing_notes(analysis)
     return VerifiedHousingQuestionRun(
-        available_period=coverage, decision=result.decision, analysis=analysis,
+        available_period=inputs.housing_coverage, decision=result.decision, analysis=analysis,
     )

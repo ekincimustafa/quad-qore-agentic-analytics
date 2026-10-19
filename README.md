@@ -37,8 +37,11 @@ Bronze-to-report source chain were independently checked on the delivered real
 data (60 months, 22 matching months). EVDS delivery [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39)
 and the real-data demo [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40)
 are complete, including Mustafa's browser acceptance on 18 October 2026.
-The short presentation and release delivery remain open in
-[#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
+The published [v0.1.0-rc.1](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
+still targets `abea431`. The unrecorded video in
+[#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) is optional
+portfolio work; it does not block the authorized local question product
+(backend #69, screen #70, acceptance #71).
 Weekly publication coverage is explicitly unverified without an official calendar;
 the timestamp and coverage policy is documented in the [EVDS guide](docs/evds-ingestion.md).
 See the [acceptance record](docs/release-acceptance.md) for verified checks and open gates.
@@ -124,6 +127,7 @@ Interactive API documentation: <http://127.0.0.1:8000/docs>.
 | `POST /analysis/housing/question` | Turkish question + normalized rows; validates the model plan before analysis, or returns clarification/unsupported |
 | `POST /analysis/inflation` | Normalized monthly CPI rows and period; deterministic monthly/annual changes, no model or narration |
 | `POST /analysis/economic/question` | Turkish question + optional Housing/CPI row groups; typed plan, one analysis, clarification/unsupported or data unavailable |
+| `POST /analysis/economic/question/files` | Only `question`; verifies server-configured BDDK/EVDS files before planning, then runs at most one existing analysis |
 
 `include_narration` defaults to `false`, so normalized-row analysis needs no key.
 Try [the three-month synthetic request](docs/housing-api-example.json) in a second terminal.
@@ -165,9 +169,37 @@ The file-backed endpoint expects these paths relative to the repository root:
 
 These data files are not shipped in Git. Missing/unreadable files produce
 HTTP 503 (`demo_data_unavailable`); invalid analytical input produces HTTP 422.
-The current file-backed service uses generic source references. Full per-file
-manifest/source binding is tracked in #40; connecting its verified output to
-the HTML report remains part of #46.
+The older `/housing/demo` service uses generic source references. The new
+`/economic/question/files` endpoint uses the existing physical raw/receipt/hash,
+BDDK Bronze-to-Silver and EVDS manifest verifier; its provenance is preserved.
+
+### Question-only API with verified server files
+
+The server's `ANALYTICS_DATA_ROOT` selects the package root **containing `data/`**.
+It can be set in the process environment or local `.env`; the process value wins.
+If empty, the repository root is used. The fixed relative paths are documented in
+[the existing question guide](docs/economic-question.md#yalnızca-soru-alan-doğrulanmış-dosya-apisi).
+Paths, data rows, model names and keys are not request fields.
+
+For Mustafa's already installed Python 3.12.15 environment and verified package,
+run from the repository root (no installation or download needed):
+
+```powershell
+$env:ANALYTICS_DATA_ROOT = (Resolve-Path .\out\housing-acceptance-20261018\inputs).Path
+.\out\clean312\Scripts\python.exe -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000
+```
+
+The API is at <http://127.0.0.1:8000/docs>. The new endpoint takes only:
+
+```json
+{"question":"2021-2025 faiz düşerken reel konut kredisi stokunun artmadığı aylar hangileri?"}
+```
+
+Another supported question is `2023 Ocak-Aralık TÜFE aylık ve yıllık değişimlerini özetle.`
+Question planning uses the configured model: **do not submit a live request until
+the separate case list/call-budget approval in #71**. Offline tests use stub plans.
+This PR supplies the API; the question screen is the next separate #70 task after
+backend merge. It is not available yet. No extra model call generates narration.
 
 ## Real-data preparation
 

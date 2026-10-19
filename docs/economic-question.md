@@ -96,6 +96,47 @@ $result = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/analysis/eco
 $result.analysis.evidence
 ```
 
+## Yalnızca soru alan doğrulanmış dosya API'si
+
+Takip: [#69](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/69).
+`POST /analysis/economic/question/files` yalnızca `{"question":"..."}` alır;
+`housing`, `inflation`, yol, dönem, model veya anahtar üst alanları reddedilir.
+Eski normalize-satır endpoint'lerinin istek/yanıt davranışı korunur.
+
+Sunucu `ANALYTICS_DATA_ROOT` değişkeninden (process environment veya yerel `.env`)
+`data/` klasörünü içeren kökü seçer; boşsa depo kökü kullanılır. Göreli yollar:
+
+- `data/silver/bddk/housing_loans.parquet`
+- `data/bronze/bddk/aylik/raw/` ve `data/bronze/bddk/aylik/receipts/`
+- `data/silver/evds/monthly/manifest.json`; CSV ve EVDS raw/makbuz yolları manifestten.
+
+Mevcut [fiziksel yükleyici](housing-question-files.md) tam paketi her istekte
+modelden önce doğrular. Bu ilk sürümde iki analiz için de tam BDDK+EVDS paketi
+gerekir; bir dosya bozuksa diğer analize sessiz geçiş veya eski veri cache'i yoktur.
+BDDK Bronze→Silver eşitliği, EVDS fiziksel hash/kaynak/metadata ve sürekli kapsam
+kontrolleri gevşetilmedi. Doğrulanmış bellek kopyası plan sonrasında tekrar okunmaz.
+
+`run_verified_economic_question()` iki mevcut hesabı aynı `run_economic_question()`
+çekirdeğine verir. Konut kapsamı ortak aylardır; TÜFE tüm doğrulanmış EVDS geçmişini
+kullanır, konut kapsamına kırpılmaz. Soru başına en fazla bir plan ve bir hesap
+çağrısı vardır; netleştirme/unsupported/kapsam dışı planda hesap çalışmaz.
+Yanıt aynı `status/decision/available_periods/analysis` yapısındadır. Konutta mevcut
+evidence/grafik ve weekly coverage notu korunur. TÜFE'de hesaplar aynı kalırken
+`input_origin=verified_files`, yalnız TÜFE makbuz referansları ve fiziksel doğrulama
+notu döner; eski satır API'sinde `caller_supplied` varsayılanı değişmez.
+
+| HTTP / kod | Davranış |
+| --- | --- |
+| 503 / `economic_data_unavailable` | Paket yüklenemiyor/doğrulanamıyor; bu durumda model/analiz çağrısı 0. Plan sonrası hesap doğrulanamazsa da güvenli 503 döner, başka analize geçilmez |
+| 422 / `invalid_economic_input` | Boş/uzun soru, ek istek alanı veya bozuk JSON; ham girdi dönmez |
+| 502 / `question_planning_failed` | Tek model denemesi başarısız; sağlayıcı gövdesi/anahtarı/yolu dönmez |
+| 502 / `invalid_question_plan` | Şema/izin/dönem sırası hatası; hesap çalışmaz |
+
+Kullanım/başlatma komutu [README'dedir](../README.md#question-only-api-with-verified-server-files).
+Bu endpoint anlatım modeli çağırmaz. Ekran #70, sınırlı canlı kabul #71'dir;
+canlı Gemini çağrısı öncesinde vaka listesi ve azami çağrı sayısı ayrıca onaylanır.
+Offline stub sonuçları modelin Türkçe anlama başarısı değildir.
+
 ## Offline değerlendirme
 
 ```powershell

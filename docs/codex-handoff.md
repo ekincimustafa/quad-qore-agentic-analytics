@@ -1,4 +1,4 @@
-# Codex devir notu — 18 Ekim 2026
+# Codex devir notu — 19 Ekim 2026
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
@@ -9,7 +9,53 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
-## İlk gerçek demo: güncel durum ve sıra — 18 Ekim 2026
+## Yeni yerel soru ürünü: Aşama 1 — 19 Ekim 2026
+
+- Mustafa önceki “yeni özellik açma” sınırını bu ürün için açıkça kaldırdı.
+  Hedef yalnız Türkçe soru girilen yerel web ekranı; mevcut Python hesapları,
+  fiziksel veri kontrolleri ve izinli iki analiz korunur. Canlı/merge/release
+  öncesinde ayrı onay gerekir. #46 videosu **isteğe bağlı portföy işi**, çekilmedi;
+  ürün geliştirmesini veya kabulünü bekleten zorunlu kapı değildir.
+- Başlangıç ağacı temizdi. PR #68 (`docs/rc1-publication`) açık ve önceki CI'si
+  başarılıydı; yayın kayıtları korunup video isteğe bağlı olarak güncellendi.
+  PR #68'in son başlığı `b6fc985` için Tests #121 başarılı; bu belge dalı main
+  değildir. **`v0.1.0-rc.1` değiştirilmedi**, hedefi `abea431`;
+  prerelease yayımlıdır. Yeni kod dalı **`feat/verified-economic-question-api`**,
+  doğrudan güncel main `abea431` tabanından açıldı; #68'e bağımlı değildir.
+- İşler: [#69 backend](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/69),
+  [#70 ekran](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/70),
+  [#71 uçtan uca kabul](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/71).
+  Tamamlanmış #42/#59 yeniden açılmadı; yeni iş onların çekirdeklerini kullanır.
+- #69: `POST /analysis/economic/question/files` yalnız `question` alır.
+  `ANALYTICS_DATA_ROOT` sunucu yapılandırmasıdır; tam BDDK/EVDS paketi mevcut
+  fiziksel yükleyiciyle modelden önce doğrulanır. Konut/TÜFE aynı ekonomik soru
+  çekirdeğine bağlandı; hesap tekrarı veya ek anlatım modeli yok. Netleştirme,
+  desteklenmeyen soru ve dönem doğrulaması korunur. Eski endpoint'ler değişmez.
+  Eksik/bozuk pakette güvenli 503; model/analiz çağrısı 0. Kullanım README ve
+  mevcut [soru belgesindedir](economic-question.md).
+- Mevcut `.venv` kayıp kurulum yoluna bağlı; korunur. Yeni kurulum yapılmadı,
+  Python **3.12.15 `out/clean312`** kullanıldı. Temiz başlangıç main testleri
+  **794 passed, 2 skipped in 97.71s** (Windows symlink izinleri). İlk bağlantı
+  regresyonu **97 passed, 1 skipped**, yeni HTTP/dosya odaklı paket
+  **103 passed, 1 skipped in 14.84s**. Son tam offline paket **838 passed,
+  2 skipped in 81.37s**; atlamalar aynı Windows symlink izinleri. Housing
+  stub **9/9**, Economic HTTP stub **12/12**, canlı çağrı **0**. 60 yerel belge
+  bağlantısı, 9 PowerShell bloğu ve `git diff --check` geçti. Son commit'in
+  zorunlu PR CI'si ayrıca izlenir; bu dalın değişiklikleri henüz main'de değildir.
+- Gerçek teslim üzerinde TestClient + **2 açık sabit plan**: konut HTTP evidence/
+  grafiği önceki gerçek CLI çıktısıyla tam eşit (**60 ay/22**), TÜFE 60 ayın
+  hesapları doğrudan `build_inflation_evidence` ile tam eşit. Bu gerçek dosya
+  kabulüdür; stub model anlama testi değildir. **145 girdi dosyasının hash'i
+  değişmedi**, canlı LLM/EVDS **0**. Yerel kontrol script'i ve veriler Git dışında.
+- Sonraki adım #69 PR'sinin review/merge onayı; backend merge edilmeden #70'i
+  güncel main'de varmış gibi başlatma. Sonra #71'de küçük vaka/bütçe listesini
+  canlı Gemini çağrısından önce Mustafa'ya göster. Bu oturumda ekran, canlı
+  kabul veya yeni release tamamlandı sayılmaz.
+
+## PR #67 ilk gerçek demo kabul kaydı — 18 Ekim 2026
+
+Bu ve aşağıdaki bölümler tarihli kanıttır; ürün kapsamı/onay/dal ve sonraki iş
+için üstteki 19 Ekim güncellemesi geçerlidir.
 
 - Aktif dal `docs/real-demo-readiness`; başlangıç çalışma ağacı temizdi,
   mevcut kullanıcı değişikliği yoktu. Runtime `7ee7225`, Python 3.12.15
