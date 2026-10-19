@@ -9,7 +9,61 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
-## Ekran merge ve canlı kabul hazırlığı — 19 Ekim 2026
+## Sınırlı canlı kabul sonucu — 19 Ekim 2026
+
+- Başlangıç ağacı temiz, aktif dal **`docs/live-acceptance-plan`**; açık
+  **PR #74** güncellenir, merge edilmedi. Ürün kodu main `5bc12a7` ile aynı;
+  mevcut kullanıcı değişiklikleri/veri/anahtar korunur. #70 kapalı; #71 açık.
+- Mustafa #71'deki dört sabit vaka için mevcut Gemini yapılandırmasında
+  **azami 4 toplam çağrı, retry 0, ilk sağlayıcı/plan/hesap hatasında durma**
+  onayı verdi. Normal `create_app()` ve `/analysis/economic/question/files`
+  kullanıldı; **stub veya dependency override yok**. CUA tarayıcısı/native
+  pipe kullanılamadı; kurulu Chrome ayrı başsız profille gerçek formu gönderdi.
+  Gözlem katmanı yalnız sayım/karşılaştırma yaptı, plan veya yanıt üretmedi.
+- 19 Ekim **23:34 TRT**: **4 orijinal model çağrısı, retry 0**, model
+  `gemini-3.5-flash-lite`, timeout 60 saniye; her soru yalnız bir gönderim.
+  Aynı yanıtla plan/hesap ve ekran kontrol edildi. API'den sonra ekran için
+  ikinci istek yok. Hata/uyuşmazlık görülmedi; bütçe tamamen tüketildi.
+- Vaka 1: konut `ready`, **2021-01–2025-12**. Evidence **ve grafik JSON'u**
+  önceki doğrudan CLI ile birebir aynı, **60 ay/22 eşleşme**. Ekranın 22 satırı,
+  altı trace'in x/y/adları ve özet aynı yanıtla eşleşti; ilk ay eşleşme dışında.
+- Vaka 2: TÜFE `ready`, **2023-01–2023-12**, **12 ay**. Hesap alanları ve
+  aylık/yıllık oranlar aynı doğrulanmış geçmişten doğrudan mevcut Python
+  servisiyle eşit; verified_files kökeni/sınırlamaları ayrıca kontrol edildi.
+  Ekranda 12 satır ve ilk-son endeks değişimi **%54,5003**; bu Aralık/Aralık
+  yıllık oranı değildir.
+- Vaka 3: `clarification_required / period_required`; dönem varsayılmadı.
+  Vaka 4: `unsupported / unsupported_analysis`; döviz tahmini reddedildi.
+  Bu iki vakada analiz çağrısı 0, evidence/grafik yok; ekran doğru mesajları
+  gösterdi ve önceki sonucu temizledi. Dört HTTP yanıtı 200; toplam iki analiz.
+- Aynı yanıtlarla kaydedilen DOM ek çağrı olmadan incelendi: konut 22 satır/
+  **132 hücre**, TÜFE 12 satır/**48 hücre**; dönemler ve sayılar dört ondalık
+  gösterim hassasiyetinde API evidence ile uyumlu. Hesap eşitliği ayrıca tam
+  JSON/değer eşitliğiyle kontrol edildi; gösterim yuvarlamasıyla karıştırılmadı.
+- Modelden önce mevcut fiziksel doğrulayıcı: BDDK/EVDS **66 ay**, kapsam
+  2021-01–2026-06. **145 girdi SHA-256'sı aynı**. EVDS/yeniden indirme, ek
+  anlatım, ücretli plana/model/sağlayıcıya geçiş, yeni özellik/merge/release yok.
+- Gerçek yanıtlar, özgün/annotasyonlu audit ve ekranlar
+  `out/live-acceptance-20261019/` altında, **Git dışında**. Agent dört
+  `case-1.png` … `case-4.png` görselini inceledi. Çağrı sayımı orijinal
+  `ask_llm` sınırında 4 ve SDK retry 0 üzerinden; opsiyonel httpx sayacı SDK'nin
+  httpx2 transport'unu görmedi, bu sınırlama audit'te açıklanmıştır. Sayacı
+  düzeltmek için yeni çağrı yapılmadı; sağlayıcı logları sorgulanmadı.
+- #71'e vaka bazında sonuçlar işlendi; **kalan iş Mustafa'nın bu canlı çıktı
+  görsellerine son kullanıcı teyidi**. Önceki offline teyit ayrı kanıttır;
+  yeni canlı kullanıcı teyidi tamamlandı sayılmaz. Dört vaka genel model
+  başarı oranı değildir. Ek canlı gönderim için yeni açık onay gerekir.
+- Python 3.12.15 için mevcut `out/clean312` kullanıldı; eski `.venv` Python
+  yolu hâlâ eksik, değiştirilmedi. Ürün kodu değişmedi; tam yerel test tekrarı
+  yok. **56 yerel belge bağlantısı**, **7 PowerShell bloğu** ve diff kontrolü
+  geçti; README/devir değişikliği mevcut PR #74'e commit/push edilir.
+  Önceki head `87b4b24` CI'si 842 passed; yeni head'in CI'si PR'dan izlenir.
+  rc.1 `abea431` aynı, #46 videosu isteğe bağlı/çekilmedi, PR #68 korunur.
+
+## Ekran merge ve canlı kabul hazırlığı tarihli kaydı — 19 Ekim 2026
+
+Bu bölüm canlı koşu öncesinin kaydıdır; eski onay bekleme/canlı0 ifadeleri
+güncel durum değildir. Güncel sonuç ve kalan kullanıcı teyidi üsttedir.
 
 - Başlangıç ağacı temizdi. PR #73'ün son head'i
   `440ad0d0a78ec9c652db660f1f82453bdfe96f87`, 10 dosyalık diff'i,

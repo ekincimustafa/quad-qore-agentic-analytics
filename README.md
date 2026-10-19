@@ -196,8 +196,9 @@ The API is at <http://127.0.0.1:8000/docs>. The new endpoint takes only:
 ```
 
 Another supported question is `2023 Ocak-Aralık TÜFE aylık ve yıllık değişimlerini özetle.`
-Question planning uses the configured model: **do not submit a live request until
-the separate case list/call-budget approval in #71**. Offline tests use stub plans.
+Question planning uses the configured model. The approved four-call live run
+in #71 is complete; additional automated live requests need separate approval.
+Offline tests use stub plans.
 The API was merged in PR #72; the #70 screen was merged in PR #73 (`5bc12a7`).
 The screen at <http://127.0.0.1:8000/> calls this API; summaries only format
 evidence, with no extra model call.
@@ -219,19 +220,25 @@ offline label distinguishes fixed-plan behavior from live model understanding.
 No installation, model key, data download or live model call is needed for preview.
 
 The normal `uvicorn app.api.main:app` command serves the same screen with configured
-model planning. **Live acceptance in #71 still requires its case list and call-budget
-approval.** Opening the page or filling an example never sends a question automatically.
+model planning. **The four-call acceptance budget in #71 has been consumed; do not
+resubmit to reproduce its screenshots.** Opening the page or filling an example
+never sends a question automatically.
 Press Ctrl+C in the server terminal to stop it.
 
 Mustafa confirmed both offline examples, the Housing chart/table and interactions,
 the CPI table, and sources/limitations on 19 October 2026. This offline user review
-is complete; live model acceptance remains open in
+is complete. The four live cases ran on 19 October; final user review of their
+saved screenshots remains open in
 [#71](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/71).
-That issue holds the four prospective cases and expected decisions/periods.
-The proposed budget is at most four calls to the locally configured
-`gemini-3.5-flash-lite`, 60 seconds per request, zero retries; explicit approval
-is still required. No automatic paid-plan/provider switch. No live calls were
-made for this preparation.
+That issue preserves the expectations written before execution and per-case results.
+The normal screen used `gemini-3.5-flash-lite`: **four calls, zero retries**,
+one submission per case, no extra narration or paid-plan/provider switch.
+Housing evidence/chart matched the prior CLI (60 months/22 matches); CPI matched
+the direct Python service (12 months). Missing period requested clarification;
+the forecast was unsupported, both without analysis. The same responses rendered
+the screen. Local `out/live-acceptance-20261019/case-1.png` through `case-4.png`
+can be reviewed without making another model call. Real data/audits remain outside
+Git; 145 input hashes were unchanged. These four cases are not an accuracy metric.
 
 ## Real-data preparation
 
