@@ -181,12 +181,35 @@ If empty, the repository root is used. The fixed relative paths are documented i
 [the existing question guide](docs/economic-question.md#yalnızca-soru-alan-doğrulanmış-dosya-apisi).
 Paths, data rows, model names and keys are not request fields.
 
-For Mustafa's already installed Python 3.12.15 environment and verified package,
-run from the repository root (no installation or download needed):
+Use the Python 3.12 `.venv` from the quick start above, or an existing working
+Python 3.12 environment. Run from the repository root. The real data is delivered
+separately; it is not included in a clone. Reuse the verified
+`Housing_tam_teslim_20261018.zip` delivery; no new data download is needed.
+
+If the package is not already extracted, replace the ZIP path below with its
+local location and extract once into a new directory. Do not overwrite an
+existing data directory. The example deliberately uses a path containing spaces:
 
 ```powershell
-$env:ANALYTICS_DATA_ROOT = (Resolve-Path .\out\housing-acceptance-20261018\inputs).Path
-.\out\clean312\Scripts\python.exe -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000
+$packagePath = 'C:\path\to\Housing_tam_teslim_20261018.zip'
+$deliveryPath = Join-Path $PWD 'out\question data'
+Expand-Archive -LiteralPath $packagePath -DestinationPath $deliveryPath
+```
+
+In each server terminal, point to the extracted **`inputs` directory containing
+`data/`**, not the ZIP's outer directory. If already extracted elsewhere, replace
+the quoted path with that existing `inputs` path. Keep paths quoted when they
+contain spaces. This changes only the current terminal's environment; no `.env`
+edit is needed:
+
+```powershell
+$env:ANALYTICS_DATA_ROOT = (Resolve-Path -LiteralPath '.\out\question data\inputs').Path
+```
+
+For the normal API server (question submission uses the configured live model):
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.api.main:app --host 127.0.0.1 --port 8000
 ```
 
 The API is at <http://127.0.0.1:8000/docs>. The new endpoint takes only:
@@ -203,11 +226,11 @@ The API was merged in PR #72. The separate #70 screen uses it at
 
 ### Local question screen — offline preview
 
-Use the existing environment and verified package from the repository root:
+Set `ANALYTICS_DATA_ROOT` in this terminal as described above, then run from
+the repository root with the same Python 3.12 environment:
 
 ```powershell
-$env:ANALYTICS_DATA_ROOT = (Resolve-Path .\out\housing-acceptance-20261018\inputs).Path
-.\out\clean312\Scripts\python.exe -m scripts.preview_question_ui
+.\.venv\Scripts\python.exe -m scripts.preview_question_ui
 ```
 
 Open <http://127.0.0.1:8000/>. This explicit **offline preview** runs fixed plans for
@@ -215,12 +238,16 @@ the two example questions; click an example, then **Analiz et**. The Housing exa
 uses 2021–2025 (60 months / 22 matches in the verified delivery); CPI uses 2023
 (12 monthly rows). Other preview questions ask for clarification. The visible
 offline label distinguishes fixed-plan behavior from live model understanding.
-No installation, model key, data download or live model call is needed for preview.
+Once the environment and data package are ready, preview needs no model key,
+additional installation, data download or live model call. A missing or invalid
+data root produces a safe data-package error after **Analiz et**; it does not
+create or download replacement data.
 
 The normal `uvicorn app.api.main:app` command serves the same screen with configured
 model planning. **Live acceptance in #71 still requires its case list and call-budget
 approval.** Opening the page or filling an example never sends a question automatically.
-Press Ctrl+C in the server terminal to stop it.
+Both launchers use port 8000. Stop your own server with Ctrl+C before switching
+between them; do not stop another application's process to free the port.
 
 Check both examples, hover/zoom/pan/reset in the Housing chart, the matching-month
 table, CPI monthly/annual values, and expandable sources/limitations. This user

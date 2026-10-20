@@ -9,6 +9,51 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## Osman #76 — yerel kurulum ve ekran kabulü, 20 Ekim 2026
+
+- Kullanıcı planı inceledikten sonra uygulama ve kontrolleri onayladı. Temiz
+  `feat/housing-demo-e2e` dalından `main` dalına geçilip fast-forward pull yapıldı.
+  Kabulün runtime kaynağı `5bc12a7213cd4f3a47d691803c443e1ad463b445`;
+  çalışma dalı `codex/issue-76-local-setup`. #72/#73 birleşmiş, #68/#74 açık.
+- Windows 11 (10.0.26200), mevcut `.venv` Python 3.12.4 kullanıldı. Temiz checkout
+  veya yeni venv kurulumu iddiası yok. `pip check` ve gerekli importlar geçti.
+- Önceki `Housing_tam_teslim_20261018.zip` (SHA-256
+  `956e47c3a7d922b4da7b755635379ccc357423aeceed2bcdef817a1098ca312f`)
+  bir kez ayrı, boşluklu `out/issue-076 setup/delivery/` altına açıldı. Arşiv
+  envanteri ve 145 kaynak doğrulandı; `ANALYTICS_DATA_ROOT` buradaki `inputs/`.
+- Repo kökünde çalışan PowerShell akışı:
+
+  ```powershell
+  $env:ANALYTICS_DATA_ROOT = (Resolve-Path -LiteralPath '.\out\issue-076 setup\delivery\inputs').Path
+  .\.venv\Scripts\python.exe -m scripts.preview_question_ui
+  ```
+
+- Gerçek in-app tarayıcıda iki örnek yalnız soru alanını doldurdu; Analiz et
+  sonrası konut **60 ay/22 eşleşme**, 22 tablo satırı ve Plotly grafiği; TÜFE
+  **2023-01–2023-12 için 12 satır** gösterildi. TÜFE sonucunda eski konut grafiği
+  temizlendi. BDDK kaynak bölümü açıldı; Pan modu ve Reset axes düğmeleri denendi.
+  Grafik sürükleme/hover için bu oturumda ayrı bir kabul iddiası yapılmıyor.
+- Ayrı preview oturumunda bulunmayan veri kökü güvenli UI hatası ve HTTP 503
+  `economic_data_unavailable` verdi. Sonuç gizli, düğme tekrar kullanılabilir;
+  ekranda ham hata, anahtar veya yerel dosya yolu görünmedi. Geçerli veri bozulmadı.
+- Aynı veri köküyle normal `.\.venv\Scripts\python.exe -m uvicorn app.api.main:app
+  --host 127.0.0.1 --port 8000` oturumunda yalnız GET `/`, `/health`, `/docs`
+  kontrol edildi: üçü de 200. Normal sunucudan soru gönderilmedi. Kendi açtığımız
+  dört sunucu süreci kapatıldı; 145 kaynak ve özgün ZIP hash'i değişmedi.
+- README'deki makineye özel `out/clean312` ve veri yolu örnekleri yerine mevcut
+  `.venv`, bir kez ayrı çıkarma, `inputs` kökü, boşluklu yol yazımı ve sunucular
+  arasında Ctrl+C ile geçiş anlatıldı. Runtime/hesap kodu değişmedi.
+- Ek offline kontroller: `tests/test_question_ui.py` ve
+  `tests/test_economic_question_files_api.py` **46 passed in 15.14s**. İlk kısıtlı
+  çalıştırma Windows `socketpair` oluştururken takıldı; aynı testler gerekli
+  sandbox izniyle geçti. Tam pytest paketi bu belge değişikliğinde tekrar koşulmadı.
+- 56 yerel belge bağlantısı, PowerShell bloklarının sözdizimi ve
+  `git diff --check` geçti. Kayıtlar/görüntüler `out/issue-076 setup/` altında,
+  Git dışında. Canlı LLM/EVDS **0**; yeni veri indirme veya `.env` değişikliği yok.
+- Kullanıcı push öncesi son inceleme istedi. Bu teslim henüz push/PR veya #76
+  yorumu olarak yayımlanmadı; zorunlu PR CI'si push sonrasında kontrol edilecek.
+  Sıradaki adım yerel belge diff'inin teslimi, küçük PR ve #76'ya tek kabul kaydı.
+
 ## Yerel soru ekranı: Aşama 2 — 19 Ekim 2026
 
 - Başlangıç ağacı temizdi. Mustafa'nın açık onayıyla PR #72'nin tam başlığı
