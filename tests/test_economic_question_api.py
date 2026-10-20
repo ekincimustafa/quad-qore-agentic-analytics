@@ -111,6 +111,8 @@ def test_non_ready_results_never_execute_analysis(monkeypatch, payload, decision
         payload.pop("inflation")
     elif mode == "none":
         payload = {"question": payload["question"]}
+    elif decision.get("start_period") == "2020-12":
+        payload["question"] = "2020 Aralık-2021 Mart TÜFE değişimlerini göster."
 
     def forbidden(*args, **kwargs):
         raise AssertionError("Non-ready results must not execute either analysis")
@@ -130,6 +132,38 @@ def test_non_ready_results_never_execute_analysis(monkeypatch, payload, decision
     assert len(calls) == (0 if mode == "none" else 1)
     if decision.get("start_period") == "2020-12":
         assert body["decision"]["reason"] == "outside_coverage"
+
+
+@pytest.mark.parametrize("question", [
+    "2021 Ocak ayından itibaren TÜFE değişimlerini göster.",
+    "2021 Ocak'tan sonraki TÜFE değişimlerini göster.",
+])
+def test_open_ended_single_month_ready_plan_is_blocked_before_analysis(
+    monkeypatch, payload, question,
+):
+    cpi = json.loads((ROOT / "docs/economic-question-cpi-example.json").read_text(encoding="utf-8"))
+    payload["inflation"] = cpi["inflation"]
+    payload["question"] = question
+    model_calls = []
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Open-ended period must not execute an analysis")
+
+    def model(prompt):
+        model_calls.append(prompt)
+        return json.dumps(ready(service.INFLATION_ID, end_period="2021-01"))
+
+    monkeypatch.setattr(service, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(service, "build_inflation_evidence", forbidden)
+    with client_with_model(model) as client:
+        response = client.post(ENDPOINT, json=payload)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "clarification_required"
+    assert body["decision"] == {"status": "clarification_required", "reason": "period_required"}
+    assert body["analysis"] is None
+    assert len(model_calls) == 1
 
 
 @pytest.mark.parametrize("problem", [

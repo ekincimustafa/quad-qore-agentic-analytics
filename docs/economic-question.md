@@ -3,7 +3,7 @@
 Takip: [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59).
 `app/services/economic_question.py`, Türkçe bir soruyu tek model çağrısında
 doğrulanmış plana dönüştürür ve en fazla bir mevcut Python analizini çalıştırır.
-Ortak HTTP yüzeyi `POST /analysis/economic/question` ve 12 vakalık offline HTTP
+Ortak HTTP yüzeyi `POST /analysis/economic/question` ve 28 vakalık offline HTTP
 değerlendirme seti mevcuttur. Mevcut `/analysis/housing/question` yalnızca konut
 analizini desteklemeye devam eder.
 
@@ -36,11 +36,32 @@ gereği `null` kalır. TÜFE sonucu, sağlanan seçim öncesi geçmişi kullanı
 karşılaştırma ayı yoksa ilgili oran `null` olur. İlk-son endeks değişimi aylık
 oranların toplamı değildir. İki formül de yönlendirme servisinde tekrarlanmaz.
 
-Bu sınırlama kodda şema, dönem ve servis seçimi için uygulanır. Modelin sorudaki
-anlamı doğru seçtiği offline stub testleriyle kanıtlanmaz; prompt injection
-metninin geçerli fakat yanlış bir plan ürettirmesi ancak ayrıca gerçek model
-değerlendirmesinde ölçülebilir. Canlı model veya resmî veri kabulü bu parçanın
-parçası değildir.
+Şema, kapsam ve aşağıdaki açık dönem/metrik kontrolü Python'da uygulanır.
+Modelin soruyu doğru anladığı offline stub testleriyle kanıtlanmaz; Python'ın
+yanlış bir `ready` planı engellemesi model başarısı değildir.
+
+### `ready` planı için analiz öncesi kontrol
+
+Sorudaki döneme yalnız şu açık biçimlerde karşılık aranır: `2021 Ocak-Mart` veya
+`Ocak-Mart 2021`, `2020 Aralık-2021 Mart`, `2021-02`, `01/2021 ile 03/2021`,
+`1 Ocak 2021–31 Mart 2021` (tam ay sınırları), `2021'in ilk çeyreği/ilk üç ayı`
+ve tam yıl aralığı `2021-2025`. `2021 Ocak TÜFE...` gibi gerçekten tek ay isteyen
+ifade de kabul edilir. Tek ayın ardından `itibaren`, `sonra/sonraki`, `sonrası`
+veya `başlayarak` gelirse bitiş eksik sayılır; tanınan ay kapalı tek aya çevrilmez.
+Planın iki ucu sorudaki kapalı ifadeyle aynı olmalıdır; eksik yıl veya bitiş,
+başka/çelişkili yıl, kısmi günlük sınır veya tanınmayan biçim `period_required`
+döndürür. Veri
+kapsamından veya bugünden yıl/bitiş tamamlanmaz. Bu sınırlı kontrol genel bir
+Türkçe tarih ayrıştırıcısı değildir.
+
+Konut `ready` kararı için kredi metriği açıkça `reel`, `enflasyondan
+arındırılmış` veya eşdeğer TÜFE ile arındırılmış kredi/stok/bakiye/tutar olmalıdır.
+`Reel faiz` tek başına kredi metriği sayılmaz; olumsuz veya çelişkili metrik
+ifadeleri güvenli biçimde netleştirilir. Yalnız nominal kredi isteği
+`unsupported_analysis` olur. Bu kontroller mevcut tek model çağrısından sonra,
+her iki soru API'sinin ortak çekirdeğinde ve analizden önce uygulanır; reddedilen
+planda analiz **0** kez çalışır. Bunlar sınırlı açık ifade kontrolleridir;
+modelin tüm ekonomik niyeti doğru seçtiğini garanti etmez.
 
 ## Soru API'si
 
@@ -143,19 +164,142 @@ Offline stub sonuçları modelin Türkçe anlama başarısı değildir.
 .\.venv\Scripts\python.exe -m scripts.evaluate_economic_questions
 ```
 
-`evals/economic_question_cases.json` içindeki 12 vaka gerçek HTTP doğrulaması ve
+`evals/economic_question_cases.json` içindeki 28 vaka gerçek HTTP doğrulaması ve
 Python analizleriyle, sabit model yanıtları kullanılarak çalışır. Housing/TÜFE
 sonuçları aynı girdili doğrudan hesap endpoint'leriyle karşılaştırılır;
 soru başına plan/analiz çağrıları sayılır. Referans hesap istekleri soru
 yürütme sayacına dahil değildir. Rapor `out/economic-question-eval-offline.json`
 altındadır; `--output` yalnızca `out/` içinde başka bir rapor seçebilir.
 
-Set; iki analiz, geçmişli/tek aylık TÜFE, belirsizlik, kapsam dışı dönem,
-tahmin/nedensellik, iki analizi birlikte isteme, injection talebi ve veri
-yokluğunu kapsar. Bozuk model JSON'u, model hatası ve geçersiz HTTP sayıları
-ayrıca davranış testlerindedir. Offline komutta canlı mod yoktur. Rapor
-`harness_behavior_only` olarak etiketlenir; vaka geçişleri modelin Türkçe
-anlama başarısı veya injection dayanıklılığı ölçümü değildir.
+İlk 12 vakanın soru/beklenti/stub yanıtları korunmuştur. Ek 16 vaka; farklı Türkçe
+ifadeler ve tarih biçimleri, eksik yıl/bitiş, göreli dönem, nominal/reel belirsizliği,
+genel analiz isteği, kapsam dışı dönem, ters faiz koşulu, dönem karşılaştırması ve
+alakasız isteği kapsar. Beklentiler model çıktısı görülmeden yazıldı; yeni vakaların
+`rationale` alanı gerekçeyi açıklar. Anlamlı fakat desteklenmeyen ekonomik sorular
+anlamsız olarak etiketlenmez. Dağılım: 9 ready, 10 netleştirme, 7 unsupported,
+2 veri yokluğu. Tahmin/nedensellik/şema değiştirme talepleri eski sette de vardır.
+
+Rapor **`offline_stub / harness_behavior_only`** olarak etiketlenir; 28/28 gibi
+bir stub sonucu modelin Türkçe anlama başarısı veya injection dayanıklılığı değildir.
+Hazırlıkta gerçek model/EVDS çağrısı yapılmadı. 20 Ekim'deki ayrı onaylı canlı
+koşunun sonucu aşağıda kaydedildi; #71'in dört gerçek vaka kaydı ayrı kanıttır
+ve tüketilen bütçesi bu değerlendirmeye yetki vermez.
+
+### Seçilmiş canlı planlama yolu — ayrı onay gerekir
+
+Varsayılan hâlâ offline'dır. `--live` **açık `--case` seçimi ve pozitif
+`--max-model-calls`** olmadan çalışmaz; seçim sırası korunur, bilinmeyen/tekrarlı
+kimlik reddedilir. Canlı yol mevcut LLM istemcisini, ekonomik çekirdeği ve aynı
+HTTP endpoint'ini kullanır. Sentetik girdiler/coverage ve doğrudan Python referans
+hesapları modelden önce doğrulanır; gerçek veri paketi veya EVDS indirmesi gerekmez.
+Modele yalnız soru ve veri kapsamı gider, beklenen karar/stub yanıtı gitmez.
+
+- Soru başına en fazla 1 planlama çağrısı, toplamda kesin bütçe. Başarısız istek
+  de bütçeyi tüketir; SDK retry 0, ek anlatım/model hakemi/sağlayıcı geçişi yok.
+- İlk sağlayıcı, geçersiz plan, yanlış karar/analiz/dönem veya hesap hatasında durur;
+  sonraki vakalar `not_run_after_failure` olur. Bütçe yetmezse kalanlar
+  `budget_exhausted` olarak atlanır ve komut başarısız döner; sınır artırılmaz.
+- Hem modelin ham planının **doğrulanmış alanları** hem çekirdeğin son kararı
+  önceden sabitlenen beklentiyle karşılaştırılır. Şemaya uyan yanlış analiz/dönem
+  başarısızdır. Kapsam dışı vakalarda tam istenen ready planın çekirdekte
+  reddedilmesi veya doğrudan güvenli `outside_coverage` netleştirmesi önceden
+  kabul edilmiştir (`accepted_model_decisions`); başka tarih uydurmak kabul edilmez.
+- Rapor `actual_model_decision` ve `actual_decision` yanında model ve uygulama
+  beklenti eşitliğini ayrı alanlarda gösterir. `python_blocked_ready_plan=true`
+  ve doğru son netleştirme olsa bile yanlış ham model planının vaka sonucu
+  **başarısız** kalır; analiz çağrısı ayrıca sayılır.
+- Varsayılan raporlar ayrı: `out/economic-question-eval-offline.json` ve
+  `out/economic-question-eval-live.json`. Canlı raporun üzerine yazılmaz;
+  sonraki onaylı koşuda yeni `--output` gerekir. Offline yol da canlı raporu ezmez.
+  Raporlarda vaka kimliği/sorusu, beklenen/gerçek model ve son karar, deneme sayısı,
+  başarısızlık/atlama nedeni, seçilen kimlikler, kaynak commit/dirty bilgisi,
+  evaluator/vaka/fixture hash'leri bulunur. Anahtar/ham sağlayıcı hata gövdesi yoktur.
+- Sahte sağlayıcıyla test edilen live kontrol akışı gerçek model ölçümü değildir.
+  Gerçek koşu `live_model / selected_live_cases` etiketi taşır; seçilmiş birkaç
+  vakanın sonucu genel başarı oranı olarak sunulmaz.
+
+20 Ekim'de ayrıca onaylanan ilk alt küme: **EQ-013, EQ-016, EQ-020, EQ-022, EQ-024, EQ-025,
+EQ-026, EQ-010**. İki farklı analiz ifadesi, eksik yıl, belirsiz metrik, kapsam
+dışı dönem, ters koşul, karşılaştırma ve şema değiştirme talepleri. **Azami 8 toplam
+çağrı, retry 0, timeout 60 saniye, ilk hatada durma** sınırı kullanıldı.
+Mevcut yerel model `gemini-3.5-flash-lite`; sağlayıcı/model değiştirilmez.
+Sorular ve dönem/karar beklentileri JSON setinde sabit kaldı. Aşağıdaki komut
+`dd149d9c4d94cea64bec76e2975a510b5900f920` PR head'inde bir kez çalıştırıldı;
+**yeniden çalıştırma yetkisi yoktur**:
+
+```powershell
+.\out\clean312\Scripts\python.exe -m scripts.evaluate_economic_questions --live `
+  --case EQ-013 --case EQ-016 --case EQ-020 --case EQ-022 `
+  --case EQ-024 --case EQ-025 --case EQ-026 --case EQ-010 `
+  --max-model-calls 8 --output out/economic-question-eval-77-live.json
+```
+
+Sonuç: **3 çağrı denemesi; 2 geçen, 1 başarısız, 5 çalıştırılmayan vaka**.
+EQ-013 konut ve EQ-016 TÜFE için 2021-01–2021-03 planları ve hesaplar mevcut
+doğrudan Python referansına eşitti. EQ-020, “Ocak-Mart TÜFE aylık ve yıllık
+oranlarını göster.” sorusunda beklenen `clarification_required / period_required`
+yerine `ready / cpi_inflation_summary / 2021-01–2021-03` döndürdü. Yıl sorulmadan
+bir TÜFE analizi çalıştı; kullanıcı istemediği yılın sonucunu alabilirdi.
+Evaluator `status_mismatch` kaydedip diğer beş vakayı `not_run_after_failure`
+olarak atladı. Retry/ek çağrı yok; kullanılmayan beş deneme yeni yetki değildir.
+
+Özgün rapor `out/economic-question-eval-77-live.json` Git dışında korunur;
+SHA-256: `208728435b2a72290cc9066927cc0219662779d48c110a46373147cb678084e4`.
+Rapor kaynak head'i/temiz ağaç bilgisini, sabit beklenti ve fixture hash'lerini taşır.
+Vaka beklentileri veya girdiler sonuç görüldükten sonra değiştirilmedi. Bu küçük
+ve ilk hatada kesilmiş koşu genel model başarı oranı değildir; UI kabulü de değildir.
+
+İlk offline düzeltmede prompt, eksik yıl/başlangıç/bitiş bilgisinin kullanıcı sorusundan
+gelmesi ve `available_periods` veya bugünden tamamlanmaması kuralını genelleştirdi.
+Gözlenen hatalı plan ağsız sahte sağlayıcı regresyonunda hâlâ başarısız sayılır ve
+sonraki vaka durur; oracle gevşetilmedi. Bu test evaluator davranışını doğrular,
+prompt'un gerçek modelde hatayı giderdiğini kanıtlamaz. Sonraki ayrı onaylı
+canlı gözlem aşağıdadır; gerçek sağlayıcı/plan hatası otomatik tekrar denenmez.
+
+### Düzeltmenin canlı kontrolü — 20 Ekim 2026
+
+Mustafa'nın yeni onayıyla **`204de1ebfe0225f2c0badee01c65f1bbcd75d387`**
+PR head'i ve [başarılı Tests #133 CI'si](https://github.com/ekincimustafa/quad-qore-agentic-analytics/actions/runs/39432710748)
+doğrulandı. Temiz ağaçta tek koşu, sırasıyla **EQ-020, EQ-013, EQ-016, EQ-022,
+EQ-024, EQ-025, EQ-026, EQ-010**. Aynı Gemini modeli; azami 8 toplam deneme,
+retry 0, timeout 60 saniye, ilk hatada durma. Beklentiler/fixture'lar değişmedi.
+
+| Vaka | Modelin kararı ve gözlem | Deneme |
+| --- | --- | --- |
+| EQ-020 | `clarification_required/period_required`; yıl varsaymadı. Analiz 0; geçti. | 1 |
+| EQ-013 | Konut `ready`, 2021-01–2021-03; evidence/grafik doğrudan Python referansına eşit. | 1 |
+| EQ-016 | TÜFE `ready`, 2021-01–2021-03; evidence doğrudan Python referansına eşit. | 1 |
+| EQ-022 | Beklenen `metric_ambiguous` yerine konut `ready`, 2021-01–2021-03; `status_mismatch`. | 1 |
+| EQ-024/025/026/010 | İlk hatadan sonra `not_run_after_failure`; çalıştırılmadı. | 0 |
+
+**Toplam 4 deneme; 3 geçen, 1 başarısız, 4 atlanan; ek çağrı yok.** EQ-020'de
+netleştirmeyi **model kendisi üretti**; Python yanlış dönemi engellemedi. Bu tek
+gözlem genel güvenilirlik kanıtı değildir. Yıl varsayımı tekrarlanmadığından
+koşullu Python dönem kontrolü eklenmedi.
+
+EQ-022'nin “2021 Ocak-Mart'ta konut kredisi faizi düşerken kredi bakiyesinin
+artmadığı ayları göster.” sorusu nominal/reel ayrımını belirtmiyordu. Model reel
+analizi seçti; mevcut Python şema/kapsam kontrolü bunu engellemedi ve **1 konut
+analizi çalıştı**. Kullanıcıdan ayrım istenmeliydi. Bu bir anlam/plan hatasıdır;
+EQ-022 hesap eşitliği başarısı olarak kaydedilmedi. Sentetik HTTP koşusudur,
+gerçek dosyalı UI kabulü veya genel model başarı oranı değildir.
+
+Yeni rapor `out/economic-question-eval-77-live-recheck.json` Git dışında:
+SHA-256 `acdffd6645d3e813fa58ed7ddfa2fabcb45061791449468b387b8e5ecfbd29f0`.
+Önceki rapor/hash korundu; iki rapor ayrı kaynak commit'lerini kaydeder.
+
+Yalnız offline hazırlanan sonraki düzeltme: konut planında nominal/reel ayrımı
+belirsizse `metric_ambiguous` istenmesi genel prompt kuralında açıklaştırıldı.
+Gözlenen EQ-022 yanıtı da sahte sağlayıcı regresyonunda başarısız sayılır ve
+kalanları durdurur. Bu test prompt'un modele etkisini kanıtlamaz; runtime'da
+semantik metrik engeli eklenmedi. Düzeltmenin canlı etkisi **doğrulanmadı**.
+Kullanılmayan dört deneme yeni yetki değildir; yeni koşu açık onay ve yeni rapor
+yolu gerektirir. Merge/release yapılmadı.
+
+Mustafa'nın mevcut Python 3.12.15 ortamında offline komut için de `.venv` yerine
+`out/clean312/Scripts/python.exe` kullanılabilir; eski `.venv` yolu onarılmadı,
+yeni kurulum/dependency yok. Python hesapları ve HTTP sözleşmeleri değişmedi;
+son metrik prompt düzeltmesi yalnız offline hazırlanmıştır.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/test_economic_question.py tests/test_housing_question.py -q

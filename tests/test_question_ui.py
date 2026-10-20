@@ -83,7 +83,7 @@ def test_browser_question_flow_with_offline_plans(tmp_path, monkeypatch):
     app.dependency_overrides[get_economic_question_model] = lambda: model
     payload = json.loads((Path(__file__).parents[1] / "docs/economic-question-api-example.json").read_text(encoding="utf-8"))
     housing = payload["housing"]
-    run = run_economic_question("stub", housing=HousingQuestionData(
+    run = run_economic_question("2021 Ocak-Mart faiz düşerken reel konut kredisi stokunu incele.", housing=HousingQuestionData(
         pd.DataFrame(housing["bddk_monthly"]), pd.DataFrame(housing["evds_monthly"]),
         housing["bddk_source_ref"], housing["evds_source_refs"],
     ), model_call=lambda _: json.dumps({"status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up", "start_period": "2021-01", "end_period": "2021-03"}))

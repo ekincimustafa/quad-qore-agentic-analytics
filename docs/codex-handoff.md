@@ -1,4 +1,4 @@
-# Codex devir notu — 19 Ekim 2026
+# Codex devir notu — 20 Ekim 2026
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
@@ -9,7 +9,148 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
-## Yerel soru ekranı: Aşama 2 — 19 Ekim 2026
+## #77 ekonomik soru değerlendirmesi — 20 Ekim 2026
+
+### Güncel oturum: analiz öncesi Python kontrolü, yalnız offline
+
+- Başlangıç temiz `feat/economic-question-evaluation` dalı, PR #78 head
+  `babd3690bb8f4ca0863d7d559b913d34a900a177`; #77/PR açık. Mustafa canlı
+  denemeleri durdurdu. Önceki iki gerçek rapor ve SHA-256 değerleri aşağıda
+  korunur; vaka beklentileri/fixture'lar değiştirilmez.
+- Ortak ekonomik soru çekirdeği, modelin `ready` yanıtındaki açık dönem ve konut
+  kredi metriğini analizden önce soruyla karşılaştırır. Yılı veya sınırı
+  varsayılmış/uyuşmayan dönem `period_required`; belirtilmemiş ya da çelişkili
+  reel/nominal metrik `metric_ambiguous`; yalnız nominal kredi isteği
+  `unsupported_analysis`. Her durumda analiz 0. Açık tarih ve “enflasyondan
+  arındırılmış bakiye” gibi geçerli ifadeler çalışır; genel NLU/dependency yok.
+- Gözlenen EQ-020/EQ-022 kötü `ready` kararları sahte sağlayıcıyla gerçek
+  servis/HTTP yolunda yeniden oynatıldı: Python beklenen netleştirmeyi verir,
+  model kararı ise **yanlış** olarak kalır. Evaluator ham ve son kararın beklenti
+  eşitliğini ayrı gösterir; güvenli uygulama sonucu model anlama başarısı sayılmaz.
+- İncelemede bulunan açık uç boşluğu offline kapatıldı: sahte modelin “2021 Ocak
+  ayından itibaren...” ve “2021 Ocak'tan sonraki...” için verdiği `ready /
+  2021-01–2021-01` planı artık hem normalize hem doğrulanmış dosya API yolunda
+  `period_required` olur ve analiz 0 kez çalışır. `2021 Ocak TÜFE...` gerçek tek ay
+  isteği çalışmaya devam eder. Kontrol yalnız tanınmış tek ayın yanındaki sınırlı
+  açık uç belirteçlerini ayırır; genel tarih ayrıştırıcısı veya bağımlılık eklenmedi.
+  Sahte modelin ham `ready` kararı evaluator'da yine model hatası; Python engeli
+  yalnız uygulamanın güvenli davranışıdır.
+- Mevcut Python 3.12.15 `out/clean312`: odaklı servis/API/evaluator
+  son koşu **166 passed in 22.69s**; tam depo takımı `pytest -q tests` ile
+  **897 passed, 2 skipped in 105.78s**
+  (Windows symlink izinleri). Economic stub **28/28**, Housing stub **9/9**;
+  gerçek çağrı 0. Önceki vaka seti, fixture ve iki canlı rapor SHA-256 değerleri
+  değişmedi. Bunlar yeni canlı model başarısı değildir.
+- Önceki canlı gözlemler tarihli kanıttır; bu değişikliğin gerçek model veya
+  gerçek veriyle yeni kabulü yapılmadı. Düzeltme `f6b2fc00b11d361c78d4b47bda90882168df9a0f`
+  olarak aynı PR #78 dalına commit/push edildi; PR ve #77 güncel teslim bölümleri
+  değiştirildi. Bu kod head'i için Tests #136 başarılı: **899 passed in 28.06s**.
+  Sıradaki adım PR incelemesidir; canlı çağrı, merge ve release durdurulmuştur.
+
+### Önceki oturum: ikinci onaylı canlı koşu ve offline metrik düzeltmesi
+
+- Aktif dal **`feat/economic-question-evaluation`**, PR #78 açık ve merge edilmedi.
+  Başlangıç temizdi. PR head **`204de1ebfe0225f2c0badee01c65f1bbcd75d387`** ve
+  başarılı Tests #133 CI (**865 passed**) doğrulanarak tek koşu çalıştırıldı.
+- Mustafa'nın onayladığı sıra EQ-020,013,016,022,024,025,026,010; aynı
+  `gemini-3.5-flash-lite`, azami 8 deneme, retry 0, timeout 60 saniye.
+  **4 gerçek deneme: 3 geçen, 1 başarısız, 4 atlanan**. İlk hata sonrası duruldu.
+- EQ-020'de **model kendisi** `period_required` üretti; analiz 0. Python'ın yanlış
+  planı engellediği bir sonuç değildir. EQ-013/016 doğru analiz/dönemle
+  2021-01–2021-03 için doğrudan Python evidence/grafik referanslarıyla eşleşti.
+- EQ-022'de nominal/reel ayrımı eksik “kredi bakiyesi” için beklenen
+  `metric_ambiguous` yerine konut `ready/2021-01–2021-03` geldi; Python bunu
+  engellemedi, konut analizi 1 kez çalıştı. Kullanıcıya yanlış metrik sunulabilirdi.
+  Hesap eşitliği başarısı sayılmadı. EQ-024/025/026/010 çağrılmadı.
+- Yeni rapor `out/economic-question-eval-77-live-recheck.json`, SHA-256
+  `acdffd6645d3e813fa58ed7ddfa2fabcb45061791449468b387b8e5ecfbd29f0`.
+  Önceki `out/economic-question-eval-77-live.json` ve hash'i korundu. Beklentiler,
+  case set/fixture hash'leri değişmedi; raporlar Git dışında. Sentetik HTTP
+  değerlendirmesi, gerçek paketli UI kabulü veya genel model başarı ölçümü değildir.
+- EQ-020 tekrarlanmadığından koşullu Python dönem kontrolü eklenmedi. EQ-022 için
+  genel nominal/reel netleştirme prompt kuralı ve gözlenen kötü planın sahte sağlayıcı
+  regresyonu yalnız **offline** hazırlandı; gerçek modele etkisi henüz doğrulanmadı.
+  Python'a semantik metrik engeli eklenmedi; oracle gevşetilmedi.
+- Mevcut Python 3.12.15 `out/clean312`: odaklı **133 passed in 21.30s**;
+  tam offline **864 passed, 2 skipped in 102.61s** (Windows symlink izinleri).
+  Ekonomik stub **28/28**, Housing stub **9/9**, canlı çağrı 0; bunlar yalnız
+  harness davranışı. **61 yerel belge bağlantısı**, **11 PowerShell bloğu** ve
+  diff kontrolü başarılı. O metrik düzeltmesi `4aae841` olarak PR'a gönderildi;
+  tam head'in Tests #134 CI'si **866 passed**.
+- Sıradaki adım bu offline düzeltmenin PR incelemesi; tekrar canlı çalışma için
+  yeni açık onay gerekir. Kullanılmayan 4 deneme yeni koşuya yetki vermez.
+  Merge/release/tag değişimi, EVDS indirmesi, yeni özellik yok; #75/#76 korunur.
+
+### Önceki hazırlık ve ilk canlı koşu (tarihli kanıt)
+
+- Başlangıç ağacı temizdi; güncel main **`5bc12a7`** üzerinden ayrı aktif dal
+  **`feat/economic-question-evaluation`** açıldı. #74'ün merge edilmemiş belge
+  değişiklikleri main'de var sayılmadı veya bu dala taşınmadı. #71 tamamlandı;
+  önceki dört canlı çağrı bu görev için yeni yetki değildir. #75/#76'ya dokunulmadı.
+- Mevcut ekonomik evaluator genişletildi, ikinci sistem kurulmadı. İlk 12 vakanın
+  soru/beklenti/stub alanları korunarak **28 vaka** yapıldı: 9 ready, 10 netleştirme,
+  7 unsupported, 2 veri yokluğu. Yeni beklenti ve gerekçeler model çıktısı görülmeden
+  yazıldı. Türkçe ifadeler/tarihler, eksik veya göreli dönem, nominal/reel belirsizliği,
+  kapsam dışı dönem, ters koşul, karşılaştırma ve alakasız istek kapsanır.
+- Varsayılan offline. Live CLI açık vaka seçimi + pozitif toplam bütçe ister;
+  soru başına en fazla 1 çağrı, başarısız istek de bütçede, retry 0. İlk sağlayıcı,
+  plan veya hesap hatasında durur; bütçe bitince kalan vakaları atlar. Şemaya uyan
+  yanlış analiz/dönem de başarısızdır; kapsam kontrolü sonrası kararın yanında
+  modelin doğrulanmış plan alanları da karşılaştırılır. Python hesapları ve
+  HTTP sözleşmeleri değişmedi; karşılaştırma özelliği eklenmedi.
+- Raporlar `out/` altında offline/live ayrı adlarla; canlı raporun üzerine yazılmaz.
+  Beklenen/gerçek kararlar, vaka kimlikleri, denemeler, hata nedenleri, kaynak
+  commit/dirty bilgisi ve evaluator/vaka/fixture hash'leri kaydedilir. Gerçek veri,
+  `.env`, anahtar veya ham sağlayıcı hatası Git'e eklenmez.
+- Hazırlıkta gerçek SDK + sahte HTTP sağlayıcıyla ağsız testler yapıldı; bunlar
+  model anlama ölçümü değildir. **20 Ekim'de ayrı açık onayla** PR head
+  **`dd149d9c4d94cea64bec76e2975a510b5900f920`**, temiz ağaçta sekiz vaka sırasıyla
+  seçildi: EQ-013,016,020,022,024,025,026,010. Mevcut Gemini
+  `gemini-3.5-flash-lite`, timeout 60 saniye, azami 8 deneme, retry 0.
+- **Canlı sonuç: 3 deneme, 2 geçen, 1 hata, 5 çalıştırılmayan vaka.** EQ-013/016
+  2021-01–2021-03 için doğru analiz ve doğrudan Python hesabıyla eşleşti.
+  EQ-020'de yıl eksik soruya beklenen `clarification_required/period_required`
+  yerine `ready/cpi_inflation_summary/2021-01–2021-03` geldi. Yıl varsayıldı,
+  TÜFE analizi 1 kez çalıştı; kullanıcı yanlış yılın sonucunu görebilirdi.
+  Evaluator `status_mismatch` kaydetti ve ilk hatada kalan 5 vakayı atladı.
+  Retry/ek çağrı/EVDS yok; kullanılmayan 5 deneme otomatik devam yetkisi değildir.
+- Özgün rapor `out/economic-question-eval-77-live.json` Git dışında; SHA-256
+  `208728435b2a72290cc9066927cc0219662779d48c110a46373147cb678084e4`.
+  Beklentiler/fixture'lar değişmedi; case set hash'i hâlâ
+  `e2c0db23e3ad02febc466a653afa51e8ff31c8b746591df5644c3d8fe8d76d2f`.
+  Bu gerçek sonuç offline kanıttan ayrıdır; küçük/erken kesilmiş seçimi genel
+  başarı metriği olarak sunma. Bu değerlendirme **sentetik fixture** kapsamını
+  kullanır; gerçek dosyalı #71 kabulünü tekrar etmez. Kullanım/sorular
+  [mevcut rehberdedir](economic-question.md#seçilmiş-canlı-planlama-yolu--ayrı-onay-gerekir).
+- Offline düzeltme: prompt'ta yıl/başlangıç/bitişin sorudan gelmesi, eksik bilginin
+  kapsamdan veya bugünden tamamlanmaması genel kuralı belirginleştirildi. EQ-020'nin
+  gözlenen kötü planı sahte sağlayıcı regresyonuna eklendi; oracle hâlâ reddeder ve
+  kalanları durdurur. O aşamada prompt düzeltmesinin canlı etkisi bilinmiyordu;
+  sonraki ayrı onaylı koşu ve yeni kalan eksik üstte kaydedilmiştir.
+- Python 3.12.15 için mevcut `out/clean312` kullanıldı; bozuk `.venv` korunur,
+  yeni kurulum/dependency yok. Başlangıç odaklı **65 passed**; son odaklı
+  **107 passed in 18.35s**. Tam offline **862 passed, 2 skipped in 115.30s**
+  (Windows symlink izinleri). Housing stub **9/9**, ekonomik stub **28/28**;
+  ikisi `harness_behavior_only`, Türkçe anlama başarısı değildir. Raporlar
+  `out/*-question-eval-77-offline.json` altında Git dışında.
+- İlk teslimde son rapor etiketi kontrolünden sonra evaluator **26 passed in 14.28s**;
+  **61 yerel belge bağlantısı**, **11 PowerShell bloğu** ve `git diff --check`
+  geçti. PR CI'si kendi tam head'i için ayrıca izlenir; yerel sonuç CI yerine
+  sayılmaz. İlk hazırlıkta canlı kontrol yolu yalnız sahte sağlayıcıyla sınandı.
+- Canlı gözlemden sonraki offline düzeltmede odaklı servis/API/evaluator paketi
+  **132 passed in 21.84s**; tam offline **863 passed, 2 skipped in 104.18s**
+  (Windows symlink izinleri). Ekonomik stub **28/28**, Housing stub **9/9**;
+  bunlar prompt'un gerçek modelde sorunu giderdiği kanıtı değildir. Belge kontrolleri
+  yine **61 bağlantı/11 PowerShell bloğu**, diff temiz. Özgün canlı rapor,
+  beklentiler ve fixture hash'leri sabit kaldı; yeni canlı çağrı yapılmadı.
+- Teslim: **PR #78 açık**, dal commit/push edildi; main'e merge edilmedi.
+  Bu ilk teslimin ardından ayrı onayla yapılan kontrol üsttedir. Yeni özellik,
+  merge, release veya tag değişimi bu görevin dışında.
+
+## Yerel soru ekranı: Aşama 2 tarihli kaydı — 19 Ekim 2026
+
+Bu bölüm eski kaynak/test kanıtıdır; güncel dal/teslim durumu üsttedir. #73 main'e
+alınmıştır, #70/#71 kapanmıştır; aşağıdaki eski bekleyen ifadeler güncel engel değildir.
 
 - Başlangıç ağacı temizdi. Mustafa'nın açık onayıyla PR #72'nin tam başlığı
   `545a285`, diff, başarılı Tests #122 (**840 passed**) ve boş review/thread

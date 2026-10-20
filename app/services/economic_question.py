@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import calendar
 import json
+import re
 from dataclasses import dataclass
 from typing import Annotated, Literal, Union
 
@@ -91,6 +93,113 @@ ModelDecision = Annotated[
 ]
 EconomicDecision = ModelDecision | EconomicDataUnavailable
 _MODEL_DECISION = TypeAdapter(ModelDecision)
+
+_MONTHS = {
+    "ocak": "01", "şubat": "02", "mart": "03", "nisan": "04",
+    "mayıs": "05", "haziran": "06", "temmuz": "07", "ağustos": "08",
+    "eylül": "09", "ekim": "10", "kasım": "11", "aralık": "12",
+}
+_YEAR = r"(?:19|20)\d{2}"
+_MONTH_NAME = "(?:" + "|".join(_MONTHS) + ")"
+_YEAR_TOKEN = re.compile(rf"(?<!\d){_YEAR}(?!\d)")
+_DAY_MONTH_YEAR = re.compile(rf"(?<!\d)(\d{{1,2}})\s+({_MONTH_NAME})\s+({_YEAR})\b")
+_YEAR_SPAN = re.compile(rf"(?<!\d)({_YEAR})\s*[-–—]\s*({_YEAR})(?!\d)")
+_NAMED_SPAN = re.compile(rf"(?<!\d)({_YEAR})\s+({_MONTH_NAME})\s*[-–—]\s*({_MONTH_NAME})\b")
+_NAMED_SPAN_YEAR_LAST = re.compile(rf"\b({_MONTH_NAME})\s*[-–—]\s*({_MONTH_NAME})\s+({_YEAR})\b")
+_FIRST_QUARTER = re.compile(
+    rf"(?<!\d)({_YEAR})(?:['’](?:in|ın|un|ün))?\s+ilk\s+(?:üç\s+ay\w*|çeyre(?:k|ğ)\w*)\b"
+)
+_MONTH_POINTS = (
+    re.compile(rf"(?<!\d)({_YEAR})-(0[1-9]|1[0-2])(?![-/\d])"),
+    re.compile(rf"(?<!\d)(0?[1-9]|1[0-2])/({_YEAR})(?!\d)"),
+    re.compile(rf"(?<!\d)({_YEAR})\s+({_MONTH_NAME})\b"),
+    re.compile(rf"\b({_MONTH_NAME})\s+({_YEAR})\b"),
+)
+_OPEN_ENDED_PERIOD = re.compile(r"\b(?:itibaren|sonra(?:ki)?|sonrası(?:nda)?|başlayarak)\b")
+_CREDIT_METRIC = r"(?:(?:konut\s+)?kredi\w*|stok\w*|bakiy\w*|tutar\w*)"
+_REAL_CREDIT = re.compile(
+    rf"\b(?:reel|enflasyondan\s+arındırılmış|tüfe\s+ile\s+arındırılmış|"
+    rf"enflasyona\s+göre\s+düzeltilmiş)\s+{_CREDIT_METRIC}\b"
+)
+_NOMINAL_CREDIT = re.compile(rf"\bnominal\s+{_CREDIT_METRIC}\b|\b{_CREDIT_METRIC}\s+nominal\b")
+_MIXED_METRICS = re.compile(r"\b(?:reel|nominal)\s+(?:ve|veya|ya\s+da|ile|mi)\s+(?:reel|nominal)\b")
+_NEGATED_METRIC = re.compile(r"(?:\s+\w+){0,2}\s+(?:değil\w*|olmayan|hariç|yerine|dışında\w*)\b")
+
+
+def _question_text(question: str) -> str:
+    """Lowercase Turkish text without changing the user's original prompt."""
+    return question.translate(str.maketrans("IİŞĞÜÖÇ", "ıişğüöç")).casefold()
+
+
+def _explicit_period(question: str) -> tuple[str, str] | None:
+    """Recognize only the month expressions already used by this bounded analysis."""
+    text = _question_text(question)
+    years = set(_YEAR_TOKEN.findall(text))
+    if not years:
+        return None
+
+    def supported(start: str, end: str) -> tuple[str, str] | None:
+        return (start, end) if start <= end and years == {start[:4], end[:4]} else None
+
+    days = list(_DAY_MONTH_YEAR.finditer(text))
+    if days:
+        if len(days) != 2:
+            return None
+        first, last = days
+        end_month = int(_MONTHS[last[2]])
+        if int(first[1]) != 1 or int(last[1]) != calendar.monthrange(int(last[3]), end_month)[1]:
+            return None
+        return supported(f"{first[3]}-{_MONTHS[first[2]]}", f"{last[3]}-{end_month:02d}")
+
+    spans = list(_YEAR_SPAN.finditer(text))
+    if spans:
+        return supported(f"{spans[0][1]}-01", f"{spans[0][2]}-12") if len(spans) == 1 else None
+    spans = list(_NAMED_SPAN.finditer(text))
+    if spans:
+        span = spans[0]
+        return supported(f"{span[1]}-{_MONTHS[span[2]]}", f"{span[1]}-{_MONTHS[span[3]]}") if len(spans) == 1 else None
+    spans = list(_NAMED_SPAN_YEAR_LAST.finditer(text))
+    if spans:
+        span = spans[0]
+        return supported(f"{span[3]}-{_MONTHS[span[1]]}", f"{span[3]}-{_MONTHS[span[2]]}") if len(spans) == 1 else None
+    quarters = list(_FIRST_QUARTER.finditer(text))
+    if quarters:
+        return supported(f"{quarters[0][1]}-01", f"{quarters[0][1]}-03") if len(quarters) == 1 else None
+
+    points = []
+    for index, pattern in enumerate(_MONTH_POINTS):
+        for match in pattern.finditer(text):
+            year, month = (match[2], match[1]) if index in {1, 3} else (match[1], match[2])
+            points.append((match.start(), f"{year}-{_MONTHS.get(month, month.zfill(2))}"))
+    points.sort()
+    if len(points) == 1:
+        if _OPEN_ENDED_PERIOD.search(text):
+            return None
+        return supported(points[0][1], points[0][1])
+    if len(points) == 2:
+        return supported(points[0][1], points[1][1])
+    return None
+
+
+def _ready_plan_guard(question: str, plan: EconomicReadyPlan) -> EconomicClarification | EconomicUnsupported | None:
+    requested = _explicit_period(question)
+    if requested != (plan.start_period, plan.end_period):
+        return EconomicClarification(status="clarification_required", reason="period_required")
+    if plan.analysis_id != HOUSING_ID:
+        return None
+    text = _question_text(question)
+    real = any(
+        not _NEGATED_METRIC.match(text[match.end():match.end() + 48])
+        for match in _REAL_CREDIT.finditer(text)
+    )
+    nominal = bool(_NOMINAL_CREDIT.search(text)) or "enflasyondan arındırılmamış" in text
+    if _MIXED_METRICS.search(text) or (real and nominal):
+        return EconomicClarification(status="clarification_required", reason="metric_ambiguous")
+    if nominal:
+        return EconomicUnsupported(status="unsupported", reason="unsupported_analysis")
+    if not real:
+        return EconomicClarification(status="clarification_required", reason="metric_ambiguous")
+    return None
 
 
 @dataclass(frozen=True)
@@ -189,6 +298,13 @@ Kurallar:
 - Yalnızca analiz ve istenen dönemin anlamı açıksa ready üret.
 - Dönem yoksa period_required; metrik belirsizse metric_ambiguous;
   hangi izinli analizin istendiği belirsizse question_ambiguous kullan.
+- Konut analizinde kredi tutarının nominal mi reel mi olduğu açık olmalıdır.
+  Bu ayrım belirtilmemişse metric_ambiguous iste; kredi tutarını kendiliğinden
+  enflasyondan arındırılmış kabul ederek ready üretme.
+- Dönemin yıl, başlangıç ve bitiş bilgilerini kullanıcı sorusundan çıkar.
+  Bu bilgiler eksik veya belirsizse period_required üret; yıl veya sınır varsayma.
+  available_periods yalnız veri uygunluk sınırıdır, kullanıcının dönem tercihi değildir.
+  Kapsam tek bir yılı içerse bile eksik yılı/sınırı kapsamdan veya bugünden tamamlama.
 - Tahmin, nedensellik, serbest ekonomik yorum, web araştırması, başka analiz
   veya iki analizin birlikte çalıştırılması istenirse unsupported üret.
 - Tam yıl aralığını aylara aç: 2021-2025 -> 2021-01 / 2025-12.
@@ -204,7 +320,9 @@ KARAR_ŞEMASI:
 """
 
 
-def validate_economic_question_plan(response: str, coverage: EconomicCoverage) -> ModelDecision | EconomicDataUnavailable:
+def validate_economic_question_plan(
+    response: str, coverage: EconomicCoverage, *, question: str | None = None,
+) -> ModelDecision | EconomicDataUnavailable:
     if not isinstance(coverage, EconomicCoverage):
         raise TypeError("coverage must be EconomicCoverage.")
     if not isinstance(response, str) or not response.strip() or len(response) > MAX_PLAN_CHARACTERS:
@@ -217,6 +335,10 @@ def validate_economic_question_plan(response: str, coverage: EconomicCoverage) -
         available = coverage.housing if decision.analysis_id == HOUSING_ID else coverage.inflation
         if available is None:
             return EconomicDataUnavailable(status="data_unavailable", analysis_id=decision.analysis_id)
+        if question is not None:
+            guarded = _ready_plan_guard(question, decision)
+            if guarded is not None:
+                return guarded
         if decision.start_period < available.start_period or decision.end_period > available.end_period:
             return EconomicClarification(status="clarification_required", reason="outside_coverage")
     return decision
@@ -247,7 +369,7 @@ def run_economic_question(
         response = model_call(prompt)
     except Exception:
         raise EconomicPlanningError("Modelden analiz planı alınamadı.") from None
-    decision = validate_economic_question_plan(response, coverage)
+    decision = validate_economic_question_plan(response, coverage, question=question)
     if not isinstance(decision, EconomicReadyPlan):
         return EconomicQuestionRun(decision=decision, coverage=coverage, analysis=None)
     if decision.analysis_id == HOUSING_ID:
