@@ -182,6 +182,9 @@ def evaluate_cases(
                 "expected_decision": case.expected_decision.model_dump(),
                 "accepted_model_decisions": case.model_expectations(),
                 "actual_decision": None, "actual_model_decision": None, "http_status": None,
+                "model_decision_matches_expectation": None,
+                "application_decision_matches_expectation": None,
+                "python_blocked_ready_plan": False,
                 "outcome": "skipped", "reason": stopped,
                 "model_call_attempts": 0, "stub_calls": 0, "housing_calls": 0, "inflation_calls": 0,
             }
@@ -219,6 +222,11 @@ def evaluate_cases(
                 row["http_status"] = response.status_code
                 expected = case.expected_decision
                 expected_status = "ok" if isinstance(expected, service.EconomicReadyPlan) else expected.status
+                if response.status_code == 200:
+                    row["application_decision_matches_expectation"] = (
+                        body.get("status") == expected_status
+                        and body.get("decision") == expected.model_dump()
+                    )
                 if response.status_code == 502:
                     reason = "invalid_plan" if body["detail"]["code"] == "invalid_question_plan" else "model_call_failed"
                 elif response.status_code != 200 or body.get("status") != expected_status:
@@ -229,7 +237,15 @@ def evaluate_cases(
                     reason = _check_analysis(references.get(case.id), body, case)
                 if response.status_code == 200 and model_calls:
                     row["actual_model_decision"] = MODEL_DECISION.validate_json(actual_model_text).model_dump()
-                    if row["actual_model_decision"] not in row["accepted_model_decisions"]:
+                    row["model_decision_matches_expectation"] = (
+                        row["actual_model_decision"] in row["accepted_model_decisions"]
+                    )
+                    row["python_blocked_ready_plan"] = (
+                        row["actual_model_decision"]["status"] == "ready"
+                        and body.get("status") != "ok"
+                        and body.get("analysis") is None
+                    )
+                    if not row["model_decision_matches_expectation"]:
                         reason = reason or "model_decision_mismatch"
                 expected_calls = int(isinstance(expected, service.EconomicReadyPlan))
                 if housing.call_count + inflation.call_count != expected_calls:

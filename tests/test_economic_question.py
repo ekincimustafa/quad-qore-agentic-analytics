@@ -48,6 +48,90 @@ def ready(analysis_id, start="2021-01", end="2021-03", **extra):
             "start_period": start, "end_period": end, **extra}
 
 
+@pytest.mark.parametrize("question,plan,expected", [
+    ("Ocak-Mart TÜFE aylık ve yıllık oranlarını göster.",
+     ready(service.INFLATION_ID), ("clarification_required", "period_required")),
+    ("2021 Ocak-Mart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start="2020-01", end="2020-03"),
+     ("clarification_required", "period_required")),
+    ("2021 Ocak-Mart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start="2021-02"), ("clarification_required", "period_required")),
+    ("2021 başından itibaren TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID), ("clarification_required", "period_required")),
+    ("15 Ocak 2021–15 Mart 2021 TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID), ("clarification_required", "period_required")),
+    ("2021 Ocak-Mart faiz düşerken kredi bakiyesinin artmadığı ayları göster.",
+     ready(service.HOUSING_ID), ("clarification_required", "metric_ambiguous")),
+    ("2021 Ocak-Mart faiz düşerken nominal konut kredisi stokunu göster.",
+     ready(service.HOUSING_ID), ("unsupported", "unsupported_analysis")),
+    ("2021 Ocak-Mart faiz düşerken nominal veya reel kredi stokunu göster.",
+     ready(service.HOUSING_ID), ("clarification_required", "metric_ambiguous")),
+    ("2021 Ocak-Mart faiz düşerken reel olmayan kredi bakiyesini göster.",
+     ready(service.HOUSING_ID), ("clarification_required", "metric_ambiguous")),
+    ("2021 Ocak-Mart reel faiz düşerken kredi bakiyesini göster.",
+     ready(service.HOUSING_ID), ("clarification_required", "metric_ambiguous")),
+    ("2021 Ocak-Mart reel kredi stoku değil, nominal kredi stokunu göster.",
+     ready(service.HOUSING_ID), ("unsupported", "unsupported_analysis")),
+])
+def test_ungrounded_ready_plan_never_executes_analysis(monkeypatch, data, question, plan, expected):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("An ungrounded plan must not run an analysis")
+
+    monkeypatch.setattr(service, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(service, "build_inflation_evidence", forbidden)
+    calls = []
+
+    def model(prompt):
+        calls.append(prompt)
+        return json.dumps(plan)
+
+    housing, inflation = data
+    run = service.run_economic_question(question, housing=housing, inflation=inflation, model_call=model)
+    assert len(calls) == 1 and run.analysis is None
+    assert (run.decision.status, run.decision.reason) == expected
+
+
+@pytest.mark.parametrize("question,analysis_id,start,end", [
+    ("2021 Ocak-Mart TÜFE değişimlerini göster.", service.INFLATION_ID, "2021-01", "2021-03"),
+    ("Ocak-Mart 2021 TÜFE değişimlerini göster.", service.INFLATION_ID, "2021-01", "2021-03"),
+    ("2021-02 ile 2021-03 TÜFE değişimlerini göster.", service.INFLATION_ID, "2021-02", "2021-03"),
+    ("01/2021 ile 03/2021 TÜFE değişimlerini göster.", service.INFLATION_ID, "2021-01", "2021-03"),
+    ("1 Ocak 2021–31 Mart 2021 TÜFE değişimlerini göster.", service.INFLATION_ID, "2021-01", "2021-03"),
+    ("2021'in ilk çeyreğinde TÜFE değişimlerini göster.", service.INFLATION_ID, "2021-01", "2021-03"),
+    ("2021'in ilk üç ayında TÜFE değişimlerini göster.", service.INFLATION_ID, "2021-01", "2021-03"),
+    ("2020 Aralık-2021 Mart TÜFE değişimlerini göster.", service.INFLATION_ID, "2020-12", "2021-03"),
+    ("2021 Şubat TÜFE değişimlerini göster.", service.INFLATION_ID, "2021-02", "2021-02"),
+    ("2021 Ocak-Mart faiz düşerken enflasyondan arındırılmış bakiye artmayan ayları göster.",
+     service.HOUSING_ID, "2021-01", "2021-03"),
+    ("2021 Ocak-Mart faiz düşerken nominal değil, reel kredi stokunu göster.",
+     service.HOUSING_ID, "2021-01", "2021-03"),
+])
+def test_explicit_period_and_real_metric_reach_existing_analysis(data, question, analysis_id, start, end):
+    housing, inflation = data
+    run = service.run_economic_question(
+        question, housing=housing, inflation=inflation,
+        model_call=lambda _: json.dumps(ready(analysis_id, start=start, end=end)),
+    )
+    assert run.decision == service.EconomicReadyPlan(
+        status="ready", analysis_id=analysis_id, start_period=start, end_period=end,
+    )
+    assert run.analysis is not None
+
+
+def test_explicit_full_year_range_stays_executable_with_complete_history():
+    periods = pd.period_range("2020-01", "2025-12", freq="M").astype(str)
+    inflation = service.InflationQuestionData(
+        cpi_monthly=pd.DataFrame({"period": periods, "cpi_index": range(100, 172)}),
+        source_ref="synthetic://cpi",
+    )
+    run = service.run_economic_question(
+        "2021-2025 genel TÜFE aylık ve yıllık değişimlerini göster.", inflation=inflation,
+        model_call=lambda _: json.dumps(ready(service.INFLATION_ID, start="2021-01", end="2025-12")),
+    )
+    assert run.decision.status == "ready"
+    assert len(run.analysis.observations) == 60
+
+
 @pytest.mark.parametrize("analysis_id", [service.HOUSING_ID, service.INFLATION_ID])
 def test_each_valid_plan_calls_only_its_existing_service_once_and_matches_direct_result(
     monkeypatch, data, analysis_id,
@@ -74,7 +158,7 @@ def test_each_valid_plan_calls_only_its_existing_service_once_and_matches_direct
         return json.dumps(ready(analysis_id))
 
     result = service.run_economic_question(
-        "2021 Ocak-Mart için seçilen analizi yap.",
+        "2021 Ocak-Mart faiz düşerken reel konut kredisi stokunu incele.",
         housing=housing, inflation=inflation, model_call=model,
     )
     assert len(prompts) == 1
@@ -115,7 +199,7 @@ def test_each_valid_plan_calls_only_its_existing_service_once_and_matches_direct
      {"status": "unsupported", "reason": "unsupported_analysis"}, "unsupported"),
     ("2021 Ocak-Nisan TÜFE değişimini göster.",
      ready(service.INFLATION_ID, end="2021-04"), "clarification_required"),
-    ("2020 Aralık-2021 Mart konut koşulunu bul.",
+    ("2020 Aralık-2021 Mart faiz düşerken reel konut kredisi stokunu incele.",
      ready(service.HOUSING_ID, start="2020-12"), "clarification_required"),
 ])
 def test_non_executable_decisions_never_call_either_analysis(

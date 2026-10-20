@@ -24,12 +24,12 @@
     assert(notice.dataset.state === "idle" && result.hidden, "initial page has no request or result");
     document.querySelector("[data-example]").click();
     assert(field.value.includes("2021-2025") && requests.length === 0, "example fills without submitting");
-    await send(field.value);
+    await send("2021 Ocak-Şubat faiz düşerken reel konut kredisi stokunun artmadığı ayları göster.");
     assert(notice.dataset.state === "ok" && !result.hidden, "physical package housing succeeds");
     assert(result.querySelector(".js-plotly-plot")?.data.length === 6, "existing six-trace Plotly chart rendered");
     assert(result.textContent.includes("koşula uyan ay bulunamadı"), "empty match state");
     assert(result.textContent.includes("2025 fiyatları") && result.textContent.includes("unverified"), "units and quality visible");
-    await send("2021 TÜFE değişimleri");
+    await send("2021 Ocak-Şubat TÜFE değişimleri");
     assert(notice.dataset.state === "ok" && result.querySelectorAll("tbody tr").length === 2, "CPI table uses actual API rows");
     assert(result.querySelector("tbody").textContent.includes("—"), "missing CPI history is not zero");
     assert(!result.querySelector(".chart") && result.textContent.includes("TÜFE makbuz"), "CPI sources without stale housing chart");

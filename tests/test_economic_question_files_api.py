@@ -57,6 +57,32 @@ def client_with_model(package, model):
     return TestClient(app)
 
 
+@pytest.mark.parametrize("question,analysis_id,reason", [
+    ("Ocak-Şubat TÜFE aylık ve yıllık oranlarını göster.",
+     core.INFLATION_ID, "period_required"),
+    ("2021 Ocak-Şubat konut kredisi faizi düşerken kredi bakiyesinin artmadığı ayları göster.",
+     core.HOUSING_ID, "metric_ambiguous"),
+])
+def test_observed_ready_mistakes_are_blocked_after_file_verification(
+    package, monkeypatch, question, analysis_id, reason,
+):
+    monkeypatch.setattr(core, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(core, "build_inflation_evidence", forbidden)
+    prompts = []
+
+    def model(prompt):
+        prompts.append(prompt)
+        return json.dumps(ready(analysis_id))
+
+    with client_with_model(package, model) as client:
+        response = client.post(ENDPOINT, json={"question": question})
+    assert response.status_code == 200 and len(prompts) == 1
+    body = response.json()
+    assert body["status"] == "clarification_required"
+    assert body["decision"] == {"status": "clarification_required", "reason": reason}
+    assert body["analysis"] is None
+
+
 @pytest.mark.parametrize("analysis_id", [core.HOUSING_ID, core.INFLATION_ID])
 def test_question_only_request_equals_existing_calculation(package, monkeypatch, analysis_id):
     prompts, calls = [], []
@@ -142,13 +168,18 @@ def test_non_ready_and_invalid_plans_never_analyze(package, monkeypatch, plan, e
     monkeypatch.setattr(core, "run_housing_analysis", forbidden)
     monkeypatch.setattr(core, "build_inflation_evidence", forbidden)
     prompts = []
+    question = QUESTION
+    if isinstance(plan, dict) and plan.get("start_period") == "2020-12":
+        question = "2020 Aralık-2021 Şubat faiz düşerken reel konut kredisi stokunu göster."
+    elif isinstance(plan, dict) and plan.get("end_period") == "2021-03":
+        question = "2021 Ocak-Mart TÜFE değişimlerini göster."
 
     def model(prompt):
         prompts.append(prompt)
         return plan if isinstance(plan, str) else json.dumps(plan)
 
     with client_with_model(package, model) as client:
-        response = client.post(ENDPOINT, json={"question": QUESTION})
+        response = client.post(ENDPOINT, json={"question": question})
     assert response.status_code == http_status and len(prompts) == 1
     assert "private" not in response.text
     if expected_status:

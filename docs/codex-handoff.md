@@ -11,7 +11,32 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 
 ## #77 ekonomik soru değerlendirmesi — 20 Ekim 2026
 
-### Güncel oturum: ikinci onaylı canlı koşu ve offline metrik düzeltmesi
+### Güncel oturum: analiz öncesi Python kontrolü, yalnız offline
+
+- Başlangıç temiz `feat/economic-question-evaluation` dalı, PR #78 head
+  `4aae841c70132395621871ea2363f1d57d5de769`; #77/PR açık. Mustafa canlı
+  denemeleri durdurdu. Önceki iki gerçek rapor ve SHA-256 değerleri aşağıda
+  korunur; vaka beklentileri/fixture'lar değiştirilmez.
+- Ortak ekonomik soru çekirdeği, modelin `ready` yanıtındaki açık dönem ve konut
+  kredi metriğini analizden önce soruyla karşılaştırır. Yılı veya sınırı
+  varsayılmış/uyuşmayan dönem `period_required`; belirtilmemiş ya da çelişkili
+  reel/nominal metrik `metric_ambiguous`; yalnız nominal kredi isteği
+  `unsupported_analysis`. Her durumda analiz 0. Açık tarih ve “enflasyondan
+  arındırılmış bakiye” gibi geçerli ifadeler çalışır; genel NLU/dependency yok.
+- Gözlenen EQ-020/EQ-022 kötü `ready` kararları sahte sağlayıcıyla gerçek
+  servis/HTTP yolunda yeniden oynatıldı: Python beklenen netleştirmeyi verir,
+  model kararı ise **yanlış** olarak kalır. Evaluator ham ve son kararın beklenti
+  eşitliğini ayrı gösterir; güvenli uygulama sonucu model anlama başarısı sayılmaz.
+- Mevcut Python 3.12.15 `out/clean312`: odaklı servis/API/evaluator/UI
+  **160 passed in 23.44s**; tam offline **889 passed, 2 skipped in 109.96s**
+  (Windows symlink izinleri). Economic stub **28/28**, Housing stub **9/9**;
+  gerçek çağrı 0. Önceki vaka seti, fixture ve iki canlı rapor SHA-256 değerleri
+  değişmedi. Bunlar yeni canlı model başarısı değildir.
+- Önceki canlı gözlemler tarihli kanıttır; bu değişikliğin gerçek model veya
+  gerçek veriyle yeni kabulü yapılmadı. Sıradaki adım PR #78'in yeni head/CI
+  incelemesi; canlı çağrı, merge ve release durdurulmuştur.
+
+### Önceki oturum: ikinci onaylı canlı koşu ve offline metrik düzeltmesi
 
 - Aktif dal **`feat/economic-question-evaluation`**, PR #78 açık ve merge edilmedi.
   Başlangıç temizdi. PR head **`204de1ebfe0225f2c0badee01c65f1bbcd75d387`** ve
@@ -39,8 +64,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   tam offline **864 passed, 2 skipped in 102.61s** (Windows symlink izinleri).
   Ekonomik stub **28/28**, Housing stub **9/9**, canlı çağrı 0; bunlar yalnız
   harness davranışı. **61 yerel belge bağlantısı**, **11 PowerShell bloğu** ve
-  diff kontrolü başarılı. Yeni metrik düzeltmesi bu PR'a commit/push edilir;
-  kendi tam head'inin zorunlu CI sonucu PR üzerinde ayrıca doğrulanır.
+  diff kontrolü başarılı. O metrik düzeltmesi `4aae841` olarak PR'a gönderildi;
+  tam head'in Tests #134 CI'si **866 passed**.
 - Sıradaki adım bu offline düzeltmenin PR incelemesi; tekrar canlı çalışma için
   yeni açık onay gerekir. Kullanılmayan 4 deneme yeni koşuya yetki vermez.
   Merge/release/tag değişimi, EVDS indirmesi, yeni özellik yok; #75/#76 korunur.

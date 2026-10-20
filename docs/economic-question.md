@@ -36,11 +36,29 @@ gereği `null` kalır. TÜFE sonucu, sağlanan seçim öncesi geçmişi kullanı
 karşılaştırma ayı yoksa ilgili oran `null` olur. İlk-son endeks değişimi aylık
 oranların toplamı değildir. İki formül de yönlendirme servisinde tekrarlanmaz.
 
-Bu sınırlama kodda şema, dönem ve servis seçimi için uygulanır. Modelin sorudaki
-anlamı doğru seçtiği offline stub testleriyle kanıtlanmaz; prompt injection
-metninin geçerli fakat yanlış bir plan ürettirmesi ancak ayrıca gerçek model
-değerlendirmesinde ölçülebilir. Canlı model veya resmî veri kabulü bu parçanın
-parçası değildir.
+Şema, kapsam ve aşağıdaki açık dönem/metrik kontrolü Python'da uygulanır.
+Modelin soruyu doğru anladığı offline stub testleriyle kanıtlanmaz; Python'ın
+yanlış bir `ready` planı engellemesi model başarısı değildir.
+
+### `ready` planı için analiz öncesi kontrol
+
+Sorudaki döneme yalnız şu açık biçimlerde karşılık aranır: `2021 Ocak-Mart` veya
+`Ocak-Mart 2021`, `2020 Aralık-2021 Mart`, `2021-02`, `01/2021 ile 03/2021`,
+`1 Ocak 2021–31 Mart 2021` (tam ay sınırları), `2021'in ilk çeyreği/ilk üç ayı`
+ve tam yıl aralığı `2021-2025`. Tek açık ay da kabul edilir. Planın iki ucu bu
+ifadeyle aynı olmalıdır; eksik yıl, açık olmayan bitiş, başka/çelişkili yıl,
+kısmi günlük sınır veya tanınmayan biçim `period_required` döndürür. Veri
+kapsamından veya bugünden yıl/bitiş tamamlanmaz. Bu sınırlı kontrol genel bir
+Türkçe tarih ayrıştırıcısı değildir.
+
+Konut `ready` kararı için kredi metriği açıkça `reel`, `enflasyondan
+arındırılmış` veya eşdeğer TÜFE ile arındırılmış kredi/stok/bakiye/tutar olmalıdır.
+`Reel faiz` tek başına kredi metriği sayılmaz; olumsuz veya çelişkili metrik
+ifadeleri güvenli biçimde netleştirilir. Yalnız nominal kredi isteği
+`unsupported_analysis` olur. Bu kontroller mevcut tek model çağrısından sonra,
+her iki soru API'sinin ortak çekirdeğinde ve analizden önce uygulanır; reddedilen
+planda analiz **0** kez çalışır. Bunlar sınırlı açık ifade kontrolleridir;
+modelin tüm ekonomik niyeti doğru seçtiğini garanti etmez.
 
 ## Soru API'si
 
@@ -183,6 +201,10 @@ Modele yalnız soru ve veri kapsamı gider, beklenen karar/stub yanıtı gitmez.
   başarısızdır. Kapsam dışı vakalarda tam istenen ready planın çekirdekte
   reddedilmesi veya doğrudan güvenli `outside_coverage` netleştirmesi önceden
   kabul edilmiştir (`accepted_model_decisions`); başka tarih uydurmak kabul edilmez.
+- Rapor `actual_model_decision` ve `actual_decision` yanında model ve uygulama
+  beklenti eşitliğini ayrı alanlarda gösterir. `python_blocked_ready_plan=true`
+  ve doğru son netleştirme olsa bile yanlış ham model planının vaka sonucu
+  **başarısız** kalır; analiz çağrısı ayrıca sayılır.
 - Varsayılan raporlar ayrı: `out/economic-question-eval-offline.json` ve
   `out/economic-question-eval-live.json`. Canlı raporun üzerine yazılmaz;
   sonraki onaylı koşuda yeni `--output` gerekir. Offline yol da canlı raporu ezmez.

@@ -111,6 +111,8 @@ def test_non_ready_results_never_execute_analysis(monkeypatch, payload, decision
         payload.pop("inflation")
     elif mode == "none":
         payload = {"question": payload["question"]}
+    elif decision.get("start_period") == "2020-12":
+        payload["question"] = "2020 Aralık-2021 Mart TÜFE değişimlerini göster."
 
     def forbidden(*args, **kwargs):
         raise AssertionError("Non-ready results must not execute either analysis")
