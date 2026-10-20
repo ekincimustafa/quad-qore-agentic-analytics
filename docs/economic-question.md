@@ -3,7 +3,7 @@
 Takip: [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59).
 `app/services/economic_question.py`, Türkçe bir soruyu tek model çağrısında
 doğrulanmış plana dönüştürür ve en fazla bir mevcut Python analizini çalıştırır.
-Ortak HTTP yüzeyi `POST /analysis/economic/question` ve 12 vakalık offline HTTP
+Ortak HTTP yüzeyi `POST /analysis/economic/question` ve 28 vakalık offline HTTP
 değerlendirme seti mevcuttur. Mevcut `/analysis/housing/question` yalnızca konut
 analizini desteklemeye devam eder.
 
@@ -143,19 +143,73 @@ Offline stub sonuçları modelin Türkçe anlama başarısı değildir.
 .\.venv\Scripts\python.exe -m scripts.evaluate_economic_questions
 ```
 
-`evals/economic_question_cases.json` içindeki 12 vaka gerçek HTTP doğrulaması ve
+`evals/economic_question_cases.json` içindeki 28 vaka gerçek HTTP doğrulaması ve
 Python analizleriyle, sabit model yanıtları kullanılarak çalışır. Housing/TÜFE
 sonuçları aynı girdili doğrudan hesap endpoint'leriyle karşılaştırılır;
 soru başına plan/analiz çağrıları sayılır. Referans hesap istekleri soru
 yürütme sayacına dahil değildir. Rapor `out/economic-question-eval-offline.json`
 altındadır; `--output` yalnızca `out/` içinde başka bir rapor seçebilir.
 
-Set; iki analiz, geçmişli/tek aylık TÜFE, belirsizlik, kapsam dışı dönem,
-tahmin/nedensellik, iki analizi birlikte isteme, injection talebi ve veri
-yokluğunu kapsar. Bozuk model JSON'u, model hatası ve geçersiz HTTP sayıları
-ayrıca davranış testlerindedir. Offline komutta canlı mod yoktur. Rapor
-`harness_behavior_only` olarak etiketlenir; vaka geçişleri modelin Türkçe
-anlama başarısı veya injection dayanıklılığı ölçümü değildir.
+İlk 12 vakanın soru/beklenti/stub yanıtları korunmuştur. Ek 16 vaka; farklı Türkçe
+ifadeler ve tarih biçimleri, eksik yıl/bitiş, göreli dönem, nominal/reel belirsizliği,
+genel analiz isteği, kapsam dışı dönem, ters faiz koşulu, dönem karşılaştırması ve
+alakasız isteği kapsar. Beklentiler model çıktısı görülmeden yazıldı; yeni vakaların
+`rationale` alanı gerekçeyi açıklar. Anlamlı fakat desteklenmeyen ekonomik sorular
+anlamsız olarak etiketlenmez. Dağılım: 9 ready, 10 netleştirme, 7 unsupported,
+2 veri yokluğu. Tahmin/nedensellik/şema değiştirme talepleri eski sette de vardır.
+
+Rapor **`offline_stub / harness_behavior_only`** olarak etiketlenir; 28/28 gibi
+bir stub sonucu modelin Türkçe anlama başarısı veya injection dayanıklılığı değildir.
+Bu görevde canlı model/EVDS çağrısı yapılmadı; #71'in dört gerçek vaka kaydı ayrı
+kanıttır ve tüketilen bütçesi yeni değerlendirmeye yetki vermez.
+
+### Seçilmiş canlı planlama yolu — ayrı onay gerekir
+
+Varsayılan hâlâ offline'dır. `--live` **açık `--case` seçimi ve pozitif
+`--max-model-calls`** olmadan çalışmaz; seçim sırası korunur, bilinmeyen/tekrarlı
+kimlik reddedilir. Canlı yol mevcut LLM istemcisini, ekonomik çekirdeği ve aynı
+HTTP endpoint'ini kullanır. Sentetik girdiler/coverage ve doğrudan Python referans
+hesapları modelden önce doğrulanır; gerçek veri paketi veya EVDS indirmesi gerekmez.
+Modele yalnız soru ve veri kapsamı gider, beklenen karar/stub yanıtı gitmez.
+
+- Soru başına en fazla 1 planlama çağrısı, toplamda kesin bütçe. Başarısız istek
+  de bütçeyi tüketir; SDK retry 0, ek anlatım/model hakemi/sağlayıcı geçişi yok.
+- İlk sağlayıcı, geçersiz plan, yanlış karar/analiz/dönem veya hesap hatasında durur;
+  sonraki vakalar `not_run_after_failure` olur. Bütçe yetmezse kalanlar
+  `budget_exhausted` olarak atlanır ve komut başarısız döner; sınır artırılmaz.
+- Hem modelin ham planının **doğrulanmış alanları** hem çekirdeğin son kararı
+  önceden sabitlenen beklentiyle karşılaştırılır. Şemaya uyan yanlış analiz/dönem
+  başarısızdır. Kapsam dışı vakalarda tam istenen ready planın çekirdekte
+  reddedilmesi veya doğrudan güvenli `outside_coverage` netleştirmesi önceden
+  kabul edilmiştir (`accepted_model_decisions`); başka tarih uydurmak kabul edilmez.
+- Varsayılan raporlar ayrı: `out/economic-question-eval-offline.json` ve
+  `out/economic-question-eval-live.json`. Canlı raporun üzerine yazılmaz;
+  sonraki onaylı koşuda yeni `--output` gerekir. Offline yol da canlı raporu ezmez.
+  Raporlarda vaka kimliği/sorusu, beklenen/gerçek model ve son karar, deneme sayısı,
+  başarısızlık/atlama nedeni, seçilen kimlikler, kaynak commit/dirty bilgisi,
+  evaluator/vaka/fixture hash'leri bulunur. Anahtar/ham sağlayıcı hata gövdesi yoktur.
+- Sahte sağlayıcıyla test edilen live kontrol akışı gerçek model ölçümü değildir.
+  Gerçek koşu `live_model / selected_live_cases` etiketi taşır; seçilmiş birkaç
+  vakanın sonucu genel başarı oranı olarak sunulmaz.
+
+Önerilen ilk alt küme: **EQ-013, EQ-016, EQ-020, EQ-022, EQ-024, EQ-025,
+EQ-026, EQ-010**. İki farklı analiz ifadesi, eksik yıl, belirsiz metrik, kapsam
+dışı dönem, ters koşul, karşılaştırma ve şema değiştirme talepleri. **Azami 8 toplam
+çağrı, retry 0, ilk hatada durma** için Mustafa'nın ayrıca onayı gerekir.
+Mevcut yerel model `gemini-3.5-flash-lite`; sağlayıcı/model değiştirilmez.
+Sorular ve dönem/karar beklentileri JSON setinde, bu komut yalnız kullanım örneğidir;
+**bu görevde çalıştırılmadı**:
+
+```powershell
+.\out\clean312\Scripts\python.exe -m scripts.evaluate_economic_questions --live `
+  --case EQ-013 --case EQ-016 --case EQ-020 --case EQ-022 `
+  --case EQ-024 --case EQ-025 --case EQ-026 --case EQ-010 `
+  --max-model-calls 8 --output out/economic-question-eval-77-live.json
+```
+
+Mustafa'nın mevcut Python 3.12.15 ortamında offline komut için de `.venv` yerine
+`out/clean312/Scripts/python.exe` kullanılabilir; eski `.venv` yolu onarılmadı,
+yeni kurulum/dependency yok. Ürün prompt'u/hesapları ve HTTP sözleşmeleri değişmedi.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/test_economic_question.py tests/test_housing_question.py -q

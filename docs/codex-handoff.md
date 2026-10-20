@@ -1,4 +1,4 @@
-# Codex devir notu — 19 Ekim 2026
+# Codex devir notu — 20 Ekim 2026
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
@@ -9,7 +9,52 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
-## Yerel soru ekranı: Aşama 2 — 19 Ekim 2026
+## #77 ekonomik soru değerlendirmesi — 20 Ekim 2026
+
+- Başlangıç ağacı temizdi; güncel main **`5bc12a7`** üzerinden ayrı aktif dal
+  **`feat/economic-question-evaluation`** açıldı. #74'ün merge edilmemiş belge
+  değişiklikleri main'de var sayılmadı veya bu dala taşınmadı. #71 tamamlandı;
+  önceki dört canlı çağrı bu görev için yeni yetki değildir. #75/#76'ya dokunulmadı.
+- Mevcut ekonomik evaluator genişletildi, ikinci sistem kurulmadı. İlk 12 vakanın
+  soru/beklenti/stub alanları korunarak **28 vaka** yapıldı: 9 ready, 10 netleştirme,
+  7 unsupported, 2 veri yokluğu. Yeni beklenti ve gerekçeler model çıktısı görülmeden
+  yazıldı. Türkçe ifadeler/tarihler, eksik veya göreli dönem, nominal/reel belirsizliği,
+  kapsam dışı dönem, ters koşul, karşılaştırma ve alakasız istek kapsanır.
+- Varsayılan offline. Live CLI açık vaka seçimi + pozitif toplam bütçe ister;
+  soru başına en fazla 1 çağrı, başarısız istek de bütçede, retry 0. İlk sağlayıcı,
+  plan veya hesap hatasında durur; bütçe bitince kalan vakaları atlar. Şemaya uyan
+  yanlış analiz/dönem de başarısızdır; kapsam kontrolü sonrası kararın yanında
+  modelin doğrulanmış plan alanları da karşılaştırılır. Prompt/ürün hesapları ve
+  HTTP sözleşmeleri değişmedi; karşılaştırma özelliği eklenmedi.
+- Raporlar `out/` altında offline/live ayrı adlarla; canlı raporun üzerine yazılmaz.
+  Beklenen/gerçek kararlar, vaka kimlikleri, denemeler, hata nedenleri, kaynak
+  commit/dirty bilgisi ve evaluator/vaka/fixture hash'leri kaydedilir. Gerçek veri,
+  `.env`, anahtar veya ham sağlayıcı hatası Git'e eklenmez.
+- **Bu görevde gerçek LLM/EVDS çağrısı 0.** Canlı kontrol yolu gerçek SDK + sahte
+  HTTP sağlayıcıyla ağsız test edildi; bu sonuçlar model anlama ölçümü değildir.
+  Önerilen ayrı canlı onay: **EQ-013,016,020,022,024,025,026,010; azami 8 çağrı,
+  retry 0, ilk hatada dur**. Mevcut yerel model ağsız okunarak doğrulandı:
+  `gemini-3.5-flash-lite`, 60 saniye. Bu değerlendirme mevcut **sentetik fixture**
+  kapsamını kullanır; gerçek dosyalı #71 kabulünü tekrar etmez. Kullanım/sorular
+  [mevcut rehberdedir](economic-question.md#seçilmiş-canlı-planlama-yolu--ayrı-onay-gerekir).
+- Python 3.12.15 için mevcut `out/clean312` kullanıldı; bozuk `.venv` korunur,
+  yeni kurulum/dependency yok. Başlangıç odaklı **65 passed**; son odaklı
+  **107 passed in 18.35s**. Tam offline **862 passed, 2 skipped in 115.30s**
+  (Windows symlink izinleri). Housing stub **9/9**, ekonomik stub **28/28**;
+  ikisi `harness_behavior_only`, Türkçe anlama başarısı değildir. Raporlar
+  `out/*-question-eval-77-offline.json` altında Git dışında.
+- Son rapor etiketi kontrolünden sonra evaluator paketi **26 passed in 14.28s**;
+  **61 yerel belge bağlantısı**, **11 PowerShell bloğu** ve `git diff --check`
+  geçti. PR CI'si kendi tam head'i için ayrıca izlenir; yerel sonuç CI yerine
+  sayılmaz. Canlı kontrol yolu yalnız sahte sağlayıcıyla sınandı.
+- Değişiklikler bu görev için ayrı PR olarak teslim edilir; main'e merge edilmez.
+  Sonraki adım PR incelemesi ve istenirse önerilen 8 vaka/bütçe için ayrı canlı
+  onayıdır. Yeni özellik, merge, release veya tag değişimi bu görevin dışında.
+
+## Yerel soru ekranı: Aşama 2 tarihli kaydı — 19 Ekim 2026
+
+Bu bölüm eski kaynak/test kanıtıdır; güncel dal/teslim durumu üsttedir. #73 main'e
+alınmıştır, #70/#71 kapanmıştır; aşağıdaki eski bekleyen ifadeler güncel engel değildir.
 
 - Başlangıç ağacı temizdi. Mustafa'nın açık onayıyla PR #72'nin tam başlığı
   `545a285`, diff, başarılı Tests #122 (**840 passed**) ve boş review/thread
