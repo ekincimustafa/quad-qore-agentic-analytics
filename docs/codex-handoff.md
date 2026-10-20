@@ -14,7 +14,7 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 - Kullanıcı planı inceledikten sonra uygulama ve kontrolleri onayladı. Temiz
   `feat/housing-demo-e2e` dalından `main` dalına geçilip fast-forward pull yapıldı.
   Kabulün runtime kaynağı `5bc12a7213cd4f3a47d691803c443e1ad463b445`;
-  çalışma dalı `codex/issue-76-local-setup`. #72/#73 birleşmiş, #68/#74 açık.
+  çalışma dalı `docs/issue-76-local-setup`. #72/#73 birleşmiş, #68/#74 açık.
 - Windows 11 (10.0.26200), mevcut `.venv` Python 3.12.4 kullanıldı. Temiz checkout
   veya yeni venv kurulumu iddiası yok. `pip check` ve gerekli importlar geçti.
 - Önceki `Housing_tam_teslim_20261018.zip` (SHA-256
@@ -50,9 +50,9 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 - 56 yerel belge bağlantısı, PowerShell bloklarının sözdizimi ve
   `git diff --check` geçti. Kayıtlar/görüntüler `out/issue-076 setup/` altında,
   Git dışında. Canlı LLM/EVDS **0**; yeni veri indirme veya `.env` değişikliği yok.
-- Kullanıcı push öncesi son inceleme istedi. Bu teslim henüz push/PR veya #76
-  yorumu olarak yayımlanmadı; zorunlu PR CI'si push sonrasında kontrol edilecek.
-  Sıradaki adım yerel belge diff'inin teslimi, küçük PR ve #76'ya tek kabul kaydı.
+- Kullanıcı son inceleme sonrası `docs/issue-76-local-setup` dalının push edilmesini
+  onayladı; PR'ı ve #76 yorumunu kendisi açacak. Bu kayıt push öncesinde yazıldı;
+  zorunlu PR CI'si gönderilen son başlıkta ayrıca kontrol edilecek.
 
 ## Yerel soru ekranı: Aşama 2 — 19 Ekim 2026
 
