@@ -42,9 +42,10 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   gerçek çağrı 0. Önceki vaka seti, fixture ve iki canlı rapor SHA-256 değerleri
   değişmedi. Bunlar yeni canlı model başarısı değildir.
 - Önceki canlı gözlemler tarihli kanıttır; bu değişikliğin gerçek model veya
-  gerçek veriyle yeni kabulü yapılmadı. Değişiklik aynı PR #78 dalında commit/push
-  edilerek PR ve #77 durumu güncellenir; sıradaki adım yeni head/CI incelemesidir.
-  Canlı çağrı, merge ve release durdurulmuştur.
+  gerçek veriyle yeni kabulü yapılmadı. Düzeltme `f6b2fc00b11d361c78d4b47bda90882168df9a0f`
+  olarak aynı PR #78 dalına commit/push edildi; PR ve #77 güncel teslim bölümleri
+  değiştirildi. Bu kod head'i için Tests #136 başarılı: **899 passed in 28.06s**.
+  Sıradaki adım PR incelemesidir; canlı çağrı, merge ve release durdurulmuştur.
 
 ### Önceki oturum: ikinci onaylı canlı koşu ve offline metrik düzeltmesi
 
