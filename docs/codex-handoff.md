@@ -24,31 +24,55 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   soru başına en fazla 1 çağrı, başarısız istek de bütçede, retry 0. İlk sağlayıcı,
   plan veya hesap hatasında durur; bütçe bitince kalan vakaları atlar. Şemaya uyan
   yanlış analiz/dönem de başarısızdır; kapsam kontrolü sonrası kararın yanında
-  modelin doğrulanmış plan alanları da karşılaştırılır. Prompt/ürün hesapları ve
+  modelin doğrulanmış plan alanları da karşılaştırılır. Python hesapları ve
   HTTP sözleşmeleri değişmedi; karşılaştırma özelliği eklenmedi.
 - Raporlar `out/` altında offline/live ayrı adlarla; canlı raporun üzerine yazılmaz.
   Beklenen/gerçek kararlar, vaka kimlikleri, denemeler, hata nedenleri, kaynak
   commit/dirty bilgisi ve evaluator/vaka/fixture hash'leri kaydedilir. Gerçek veri,
   `.env`, anahtar veya ham sağlayıcı hatası Git'e eklenmez.
-- **Bu görevde gerçek LLM/EVDS çağrısı 0.** Canlı kontrol yolu gerçek SDK + sahte
-  HTTP sağlayıcıyla ağsız test edildi; bu sonuçlar model anlama ölçümü değildir.
-  Önerilen ayrı canlı onay: **EQ-013,016,020,022,024,025,026,010; azami 8 çağrı,
-  retry 0, ilk hatada dur**. Mevcut yerel model ağsız okunarak doğrulandı:
-  `gemini-3.5-flash-lite`, 60 saniye. Bu değerlendirme mevcut **sentetik fixture**
-  kapsamını kullanır; gerçek dosyalı #71 kabulünü tekrar etmez. Kullanım/sorular
+- Hazırlıkta gerçek SDK + sahte HTTP sağlayıcıyla ağsız testler yapıldı; bunlar
+  model anlama ölçümü değildir. **20 Ekim'de ayrı açık onayla** PR head
+  **`dd149d9c4d94cea64bec76e2975a510b5900f920`**, temiz ağaçta sekiz vaka sırasıyla
+  seçildi: EQ-013,016,020,022,024,025,026,010. Mevcut Gemini
+  `gemini-3.5-flash-lite`, timeout 60 saniye, azami 8 deneme, retry 0.
+- **Canlı sonuç: 3 deneme, 2 geçen, 1 hata, 5 çalıştırılmayan vaka.** EQ-013/016
+  2021-01–2021-03 için doğru analiz ve doğrudan Python hesabıyla eşleşti.
+  EQ-020'de yıl eksik soruya beklenen `clarification_required/period_required`
+  yerine `ready/cpi_inflation_summary/2021-01–2021-03` geldi. Yıl varsayıldı,
+  TÜFE analizi 1 kez çalıştı; kullanıcı yanlış yılın sonucunu görebilirdi.
+  Evaluator `status_mismatch` kaydetti ve ilk hatada kalan 5 vakayı atladı.
+  Retry/ek çağrı/EVDS yok; kullanılmayan 5 deneme otomatik devam yetkisi değildir.
+- Özgün rapor `out/economic-question-eval-77-live.json` Git dışında; SHA-256
+  `208728435b2a72290cc9066927cc0219662779d48c110a46373147cb678084e4`.
+  Beklentiler/fixture'lar değişmedi; case set hash'i hâlâ
+  `e2c0db23e3ad02febc466a653afa51e8ff31c8b746591df5644c3d8fe8d76d2f`.
+  Bu gerçek sonuç offline kanıttan ayrıdır; küçük/erken kesilmiş seçimi genel
+  başarı metriği olarak sunma. Bu değerlendirme **sentetik fixture** kapsamını
+  kullanır; gerçek dosyalı #71 kabulünü tekrar etmez. Kullanım/sorular
   [mevcut rehberdedir](economic-question.md#seçilmiş-canlı-planlama-yolu--ayrı-onay-gerekir).
+- Offline düzeltme: prompt'ta yıl/başlangıç/bitişin sorudan gelmesi, eksik bilginin
+  kapsamdan veya bugünden tamamlanmaması genel kuralı belirginleştirildi. EQ-020'nin
+  gözlenen kötü planı sahte sağlayıcı regresyonuna eklendi; oracle hâlâ reddeder ve
+  kalanları durdurur. **Prompt düzeltmesi gerçek modelde doğrulanmış değildir.**
+  Yeniden canlı denemeden önce Mustafa'ya sonuç/fix bildir ve yeni açık onay bekle.
 - Python 3.12.15 için mevcut `out/clean312` kullanıldı; bozuk `.venv` korunur,
   yeni kurulum/dependency yok. Başlangıç odaklı **65 passed**; son odaklı
   **107 passed in 18.35s**. Tam offline **862 passed, 2 skipped in 115.30s**
   (Windows symlink izinleri). Housing stub **9/9**, ekonomik stub **28/28**;
   ikisi `harness_behavior_only`, Türkçe anlama başarısı değildir. Raporlar
   `out/*-question-eval-77-offline.json` altında Git dışında.
-- Son rapor etiketi kontrolünden sonra evaluator paketi **26 passed in 14.28s**;
+- İlk teslimde son rapor etiketi kontrolünden sonra evaluator **26 passed in 14.28s**;
   **61 yerel belge bağlantısı**, **11 PowerShell bloğu** ve `git diff --check`
   geçti. PR CI'si kendi tam head'i için ayrıca izlenir; yerel sonuç CI yerine
-  sayılmaz. Canlı kontrol yolu yalnız sahte sağlayıcıyla sınandı.
+  sayılmaz. İlk hazırlıkta canlı kontrol yolu yalnız sahte sağlayıcıyla sınandı.
+- Canlı gözlemden sonraki offline düzeltmede odaklı servis/API/evaluator paketi
+  **132 passed in 21.84s**; tam offline **863 passed, 2 skipped in 104.18s**
+  (Windows symlink izinleri). Ekonomik stub **28/28**, Housing stub **9/9**;
+  bunlar prompt'un gerçek modelde sorunu giderdiği kanıtı değildir. Belge kontrolleri
+  yine **61 bağlantı/11 PowerShell bloğu**, diff temiz. Özgün canlı rapor,
+  beklentiler ve fixture hash'leri sabit kaldı; yeni canlı çağrı yapılmadı.
 - Teslim: **PR #78 açık**, dal commit/push edildi; main'e merge edilmedi.
-  Sonraki adım PR incelemesi ve istenirse önerilen 8 vaka/bütçe için ayrı canlı
+  Sonraki adım offline düzeltmenin PR incelemesi ve gerekirse yeni, açık canlı
   onayıdır. Yeni özellik, merge, release veya tag değişimi bu görevin dışında.
 
 ## Yerel soru ekranı: Aşama 2 tarihli kaydı — 19 Ekim 2026

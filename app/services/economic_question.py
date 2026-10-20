@@ -189,6 +189,10 @@ Kurallar:
 - Yalnızca analiz ve istenen dönemin anlamı açıksa ready üret.
 - Dönem yoksa period_required; metrik belirsizse metric_ambiguous;
   hangi izinli analizin istendiği belirsizse question_ambiguous kullan.
+- Dönemin yıl, başlangıç ve bitiş bilgilerini kullanıcı sorusundan çıkar.
+  Bu bilgiler eksik veya belirsizse period_required üret; yıl veya sınır varsayma.
+  available_periods yalnız veri uygunluk sınırıdır, kullanıcının dönem tercihi değildir.
+  Kapsam tek bir yılı içerse bile eksik yılı/sınırı kapsamdan veya bugünden tamamlama.
 - Tahmin, nedensellik, serbest ekonomik yorum, web araştırması, başka analiz
   veya iki analizin birlikte çalıştırılması istenirse unsupported üret.
 - Tam yıl aralığını aylara aç: 2021-2025 -> 2021-01 / 2025-12.

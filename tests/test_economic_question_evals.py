@@ -190,6 +190,26 @@ def test_safe_outside_clarification_is_accepted_without_forcing_a_ready_plan(cas
     assert report["results"][0]["housing_calls"] == report["results"][0]["inflation_calls"] == 0
 
 
+def test_observed_missing_year_plan_remains_failure_and_stops_offline(
+    cases, fixtures, fake_provider,
+):
+    """Replay the observed EQ-020 mistake; this does not prove a prompt fixes the model."""
+    selected = evaluator.select_cases(cases, ["EQ-020", "EQ-022"])
+    observed = {"status": "ready", "analysis_id": "cpi_inflation_summary",
+                "start_period": "2021-01", "end_period": "2021-03"}
+    requests, _, _ = fake_provider(lambda request: _response(json.dumps(observed)))
+    report = evaluator.evaluate_cases(selected, fixtures, live=True,
+        model_call=llm_client.ask_llm, max_model_calls=2)
+    row = report["results"][0]
+    assert len(requests) == report["live_model_call_attempts"] == 1
+    assert row["expected_decision"] == {"status": "clarification_required", "reason": "period_required"}
+    assert row["actual_model_decision"] == row["actual_decision"] == observed
+    assert row["outcome"] == "failed" and row["reason"] == "status_mismatch"
+    assert row["inflation_calls"] == 1  # User would get an analysis of an assumed year.
+    assert report["results"][1]["outcome"] == "skipped"
+    assert report["results"][1]["reason"] == "not_run_after_failure"
+
+
 @pytest.mark.parametrize("budget", [1, 2])
 def test_hard_limit_blocks_a_second_planner_invocation(cases, fixtures, monkeypatch, budget):
     original = evaluator.service.run_economic_question

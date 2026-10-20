@@ -160,8 +160,9 @@ anlamsız olarak etiketlenmez. Dağılım: 9 ready, 10 netleştirme, 7 unsupport
 
 Rapor **`offline_stub / harness_behavior_only`** olarak etiketlenir; 28/28 gibi
 bir stub sonucu modelin Türkçe anlama başarısı veya injection dayanıklılığı değildir.
-Bu görevde canlı model/EVDS çağrısı yapılmadı; #71'in dört gerçek vaka kaydı ayrı
-kanıttır ve tüketilen bütçesi yeni değerlendirmeye yetki vermez.
+Hazırlıkta gerçek model/EVDS çağrısı yapılmadı. 20 Ekim'deki ayrı onaylı canlı
+koşunun sonucu aşağıda kaydedildi; #71'in dört gerçek vaka kaydı ayrı kanıttır
+ve tüketilen bütçesi bu değerlendirmeye yetki vermez.
 
 ### Seçilmiş canlı planlama yolu — ayrı onay gerekir
 
@@ -192,13 +193,14 @@ Modele yalnız soru ve veri kapsamı gider, beklenen karar/stub yanıtı gitmez.
   Gerçek koşu `live_model / selected_live_cases` etiketi taşır; seçilmiş birkaç
   vakanın sonucu genel başarı oranı olarak sunulmaz.
 
-Önerilen ilk alt küme: **EQ-013, EQ-016, EQ-020, EQ-022, EQ-024, EQ-025,
+20 Ekim'de ayrıca onaylanan ilk alt küme: **EQ-013, EQ-016, EQ-020, EQ-022, EQ-024, EQ-025,
 EQ-026, EQ-010**. İki farklı analiz ifadesi, eksik yıl, belirsiz metrik, kapsam
 dışı dönem, ters koşul, karşılaştırma ve şema değiştirme talepleri. **Azami 8 toplam
-çağrı, retry 0, ilk hatada durma** için Mustafa'nın ayrıca onayı gerekir.
+çağrı, retry 0, timeout 60 saniye, ilk hatada durma** sınırı kullanıldı.
 Mevcut yerel model `gemini-3.5-flash-lite`; sağlayıcı/model değiştirilmez.
-Sorular ve dönem/karar beklentileri JSON setinde, bu komut yalnız kullanım örneğidir;
-**bu görevde çalıştırılmadı**:
+Sorular ve dönem/karar beklentileri JSON setinde sabit kaldı. Aşağıdaki komut
+`dd149d9c4d94cea64bec76e2975a510b5900f920` PR head'inde bir kez çalıştırıldı;
+**yeniden çalıştırma yetkisi yoktur**:
 
 ```powershell
 .\out\clean312\Scripts\python.exe -m scripts.evaluate_economic_questions --live `
@@ -207,9 +209,33 @@ Sorular ve dönem/karar beklentileri JSON setinde, bu komut yalnız kullanım ö
   --max-model-calls 8 --output out/economic-question-eval-77-live.json
 ```
 
+Sonuç: **3 çağrı denemesi; 2 geçen, 1 başarısız, 5 çalıştırılmayan vaka**.
+EQ-013 konut ve EQ-016 TÜFE için 2021-01–2021-03 planları ve hesaplar mevcut
+doğrudan Python referansına eşitti. EQ-020, “Ocak-Mart TÜFE aylık ve yıllık
+oranlarını göster.” sorusunda beklenen `clarification_required / period_required`
+yerine `ready / cpi_inflation_summary / 2021-01–2021-03` döndürdü. Yıl sorulmadan
+bir TÜFE analizi çalıştı; kullanıcı istemediği yılın sonucunu alabilirdi.
+Evaluator `status_mismatch` kaydedip diğer beş vakayı `not_run_after_failure`
+olarak atladı. Retry/ek çağrı yok; kullanılmayan beş deneme yeni yetki değildir.
+
+Özgün rapor `out/economic-question-eval-77-live.json` Git dışında korunur;
+SHA-256: `208728435b2a72290cc9066927cc0219662779d48c110a46373147cb678084e4`.
+Rapor kaynak head'i/temiz ağaç bilgisini, sabit beklenti ve fixture hash'lerini taşır.
+Vaka beklentileri veya girdiler sonuç görüldükten sonra değiştirilmedi. Bu küçük
+ve ilk hatada kesilmiş koşu genel model başarı oranı değildir; UI kabulü de değildir.
+
+Offline düzeltme: prompt, eksik yıl/başlangıç/bitiş bilgisinin kullanıcı sorusundan
+gelmesi ve `available_periods` veya bugünden tamamlanmaması kuralını genelleştirdi.
+Gözlenen hatalı plan ağsız sahte sağlayıcı regresyonunda hâlâ başarısız sayılır ve
+sonraki vaka durur; oracle gevşetilmedi. Bu test evaluator davranışını doğrular,
+prompt'un gerçek modelde hatayı giderdiğini kanıtlamaz. Düzeltmenin canlı etkisi
+**henüz doğrulanmadı**. Yeni koşu ayrıca onay ve farklı `--output` gerektirir;
+gerçek sağlayıcı/plan hatası otomatik tekrar denenmez.
+
 Mustafa'nın mevcut Python 3.12.15 ortamında offline komut için de `.venv` yerine
 `out/clean312/Scripts/python.exe` kullanılabilir; eski `.venv` yolu onarılmadı,
-yeni kurulum/dependency yok. Ürün prompt'u/hesapları ve HTTP sözleşmeleri değişmedi.
+yeni kurulum/dependency yok. Python hesapları ve HTTP sözleşmeleri değişmedi;
+yukarıdaki prompt düzeltmesi yalnız offline hazırlanmıştır.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/test_economic_question.py tests/test_housing_question.py -q
