@@ -47,7 +47,7 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   **61 yerel belge bağlantısı**, **11 PowerShell bloğu** ve `git diff --check`
   geçti. PR CI'si kendi tam head'i için ayrıca izlenir; yerel sonuç CI yerine
   sayılmaz. Canlı kontrol yolu yalnız sahte sağlayıcıyla sınandı.
-- Değişiklikler bu görev için ayrı PR olarak teslim edilir; main'e merge edilmez.
+- Teslim: **PR #78 açık**, dal commit/push edildi; main'e merge edilmedi.
   Sonraki adım PR incelemesi ve istenirse önerilen 8 vaka/bütçe için ayrı canlı
   onayıdır. Yeni özellik, merge, release veya tag değişimi bu görevin dışında.
 
