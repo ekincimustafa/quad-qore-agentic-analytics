@@ -189,6 +189,9 @@ Kurallar:
 - Yalnızca analiz ve istenen dönemin anlamı açıksa ready üret.
 - Dönem yoksa period_required; metrik belirsizse metric_ambiguous;
   hangi izinli analizin istendiği belirsizse question_ambiguous kullan.
+- Konut analizinde kredi tutarının nominal mi reel mi olduğu açık olmalıdır.
+  Bu ayrım belirtilmemişse metric_ambiguous iste; kredi tutarını kendiliğinden
+  enflasyondan arındırılmış kabul ederek ready üretme.
 - Dönemin yıl, başlangıç ve bitiş bilgilerini kullanıcı sorusundan çıkar.
   Bu bilgiler eksik veya belirsizse period_required üret; yıl veya sınır varsayma.
   available_periods yalnız veri uygunluk sınırıdır, kullanıcının dönem tercihi değildir.

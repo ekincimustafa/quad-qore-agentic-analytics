@@ -224,18 +224,57 @@ Rapor kaynak head'i/temiz ağaç bilgisini, sabit beklenti ve fixture hash'lerin
 Vaka beklentileri veya girdiler sonuç görüldükten sonra değiştirilmedi. Bu küçük
 ve ilk hatada kesilmiş koşu genel model başarı oranı değildir; UI kabulü de değildir.
 
-Offline düzeltme: prompt, eksik yıl/başlangıç/bitiş bilgisinin kullanıcı sorusundan
+İlk offline düzeltmede prompt, eksik yıl/başlangıç/bitiş bilgisinin kullanıcı sorusundan
 gelmesi ve `available_periods` veya bugünden tamamlanmaması kuralını genelleştirdi.
 Gözlenen hatalı plan ağsız sahte sağlayıcı regresyonunda hâlâ başarısız sayılır ve
 sonraki vaka durur; oracle gevşetilmedi. Bu test evaluator davranışını doğrular,
-prompt'un gerçek modelde hatayı giderdiğini kanıtlamaz. Düzeltmenin canlı etkisi
-**henüz doğrulanmadı**. Yeni koşu ayrıca onay ve farklı `--output` gerektirir;
-gerçek sağlayıcı/plan hatası otomatik tekrar denenmez.
+prompt'un gerçek modelde hatayı giderdiğini kanıtlamaz. Sonraki ayrı onaylı
+canlı gözlem aşağıdadır; gerçek sağlayıcı/plan hatası otomatik tekrar denenmez.
+
+### Düzeltmenin canlı kontrolü — 20 Ekim 2026
+
+Mustafa'nın yeni onayıyla **`204de1ebfe0225f2c0badee01c65f1bbcd75d387`**
+PR head'i ve [başarılı Tests #133 CI'si](https://github.com/ekincimustafa/quad-qore-agentic-analytics/actions/runs/39432710748)
+doğrulandı. Temiz ağaçta tek koşu, sırasıyla **EQ-020, EQ-013, EQ-016, EQ-022,
+EQ-024, EQ-025, EQ-026, EQ-010**. Aynı Gemini modeli; azami 8 toplam deneme,
+retry 0, timeout 60 saniye, ilk hatada durma. Beklentiler/fixture'lar değişmedi.
+
+| Vaka | Modelin kararı ve gözlem | Deneme |
+| --- | --- | --- |
+| EQ-020 | `clarification_required/period_required`; yıl varsaymadı. Analiz 0; geçti. | 1 |
+| EQ-013 | Konut `ready`, 2021-01–2021-03; evidence/grafik doğrudan Python referansına eşit. | 1 |
+| EQ-016 | TÜFE `ready`, 2021-01–2021-03; evidence doğrudan Python referansına eşit. | 1 |
+| EQ-022 | Beklenen `metric_ambiguous` yerine konut `ready`, 2021-01–2021-03; `status_mismatch`. | 1 |
+| EQ-024/025/026/010 | İlk hatadan sonra `not_run_after_failure`; çalıştırılmadı. | 0 |
+
+**Toplam 4 deneme; 3 geçen, 1 başarısız, 4 atlanan; ek çağrı yok.** EQ-020'de
+netleştirmeyi **model kendisi üretti**; Python yanlış dönemi engellemedi. Bu tek
+gözlem genel güvenilirlik kanıtı değildir. Yıl varsayımı tekrarlanmadığından
+koşullu Python dönem kontrolü eklenmedi.
+
+EQ-022'nin “2021 Ocak-Mart'ta konut kredisi faizi düşerken kredi bakiyesinin
+artmadığı ayları göster.” sorusu nominal/reel ayrımını belirtmiyordu. Model reel
+analizi seçti; mevcut Python şema/kapsam kontrolü bunu engellemedi ve **1 konut
+analizi çalıştı**. Kullanıcıdan ayrım istenmeliydi. Bu bir anlam/plan hatasıdır;
+EQ-022 hesap eşitliği başarısı olarak kaydedilmedi. Sentetik HTTP koşusudur,
+gerçek dosyalı UI kabulü veya genel model başarı oranı değildir.
+
+Yeni rapor `out/economic-question-eval-77-live-recheck.json` Git dışında:
+SHA-256 `acdffd6645d3e813fa58ed7ddfa2fabcb45061791449468b387b8e5ecfbd29f0`.
+Önceki rapor/hash korundu; iki rapor ayrı kaynak commit'lerini kaydeder.
+
+Yalnız offline hazırlanan sonraki düzeltme: konut planında nominal/reel ayrımı
+belirsizse `metric_ambiguous` istenmesi genel prompt kuralında açıklaştırıldı.
+Gözlenen EQ-022 yanıtı da sahte sağlayıcı regresyonunda başarısız sayılır ve
+kalanları durdurur. Bu test prompt'un modele etkisini kanıtlamaz; runtime'da
+semantik metrik engeli eklenmedi. Düzeltmenin canlı etkisi **doğrulanmadı**.
+Kullanılmayan dört deneme yeni yetki değildir; yeni koşu açık onay ve yeni rapor
+yolu gerektirir. Merge/release yapılmadı.
 
 Mustafa'nın mevcut Python 3.12.15 ortamında offline komut için de `.venv` yerine
 `out/clean312/Scripts/python.exe` kullanılabilir; eski `.venv` yolu onarılmadı,
 yeni kurulum/dependency yok. Python hesapları ve HTTP sözleşmeleri değişmedi;
-yukarıdaki prompt düzeltmesi yalnız offline hazırlanmıştır.
+son metrik prompt düzeltmesi yalnız offline hazırlanmıştır.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/test_economic_question.py tests/test_housing_question.py -q

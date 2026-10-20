@@ -11,6 +11,42 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 
 ## #77 ekonomik soru değerlendirmesi — 20 Ekim 2026
 
+### Güncel oturum: ikinci onaylı canlı koşu ve offline metrik düzeltmesi
+
+- Aktif dal **`feat/economic-question-evaluation`**, PR #78 açık ve merge edilmedi.
+  Başlangıç temizdi. PR head **`204de1ebfe0225f2c0badee01c65f1bbcd75d387`** ve
+  başarılı Tests #133 CI (**865 passed**) doğrulanarak tek koşu çalıştırıldı.
+- Mustafa'nın onayladığı sıra EQ-020,013,016,022,024,025,026,010; aynı
+  `gemini-3.5-flash-lite`, azami 8 deneme, retry 0, timeout 60 saniye.
+  **4 gerçek deneme: 3 geçen, 1 başarısız, 4 atlanan**. İlk hata sonrası duruldu.
+- EQ-020'de **model kendisi** `period_required` üretti; analiz 0. Python'ın yanlış
+  planı engellediği bir sonuç değildir. EQ-013/016 doğru analiz/dönemle
+  2021-01–2021-03 için doğrudan Python evidence/grafik referanslarıyla eşleşti.
+- EQ-022'de nominal/reel ayrımı eksik “kredi bakiyesi” için beklenen
+  `metric_ambiguous` yerine konut `ready/2021-01–2021-03` geldi; Python bunu
+  engellemedi, konut analizi 1 kez çalıştı. Kullanıcıya yanlış metrik sunulabilirdi.
+  Hesap eşitliği başarısı sayılmadı. EQ-024/025/026/010 çağrılmadı.
+- Yeni rapor `out/economic-question-eval-77-live-recheck.json`, SHA-256
+  `acdffd6645d3e813fa58ed7ddfa2fabcb45061791449468b387b8e5ecfbd29f0`.
+  Önceki `out/economic-question-eval-77-live.json` ve hash'i korundu. Beklentiler,
+  case set/fixture hash'leri değişmedi; raporlar Git dışında. Sentetik HTTP
+  değerlendirmesi, gerçek paketli UI kabulü veya genel model başarı ölçümü değildir.
+- EQ-020 tekrarlanmadığından koşullu Python dönem kontrolü eklenmedi. EQ-022 için
+  genel nominal/reel netleştirme prompt kuralı ve gözlenen kötü planın sahte sağlayıcı
+  regresyonu yalnız **offline** hazırlandı; gerçek modele etkisi henüz doğrulanmadı.
+  Python'a semantik metrik engeli eklenmedi; oracle gevşetilmedi.
+- Mevcut Python 3.12.15 `out/clean312`: odaklı **133 passed in 21.30s**;
+  tam offline **864 passed, 2 skipped in 102.61s** (Windows symlink izinleri).
+  Ekonomik stub **28/28**, Housing stub **9/9**, canlı çağrı 0; bunlar yalnız
+  harness davranışı. **61 yerel belge bağlantısı**, **11 PowerShell bloğu** ve
+  diff kontrolü başarılı. Yeni metrik düzeltmesi bu PR'a commit/push edilir;
+  kendi tam head'inin zorunlu CI sonucu PR üzerinde ayrıca doğrulanır.
+- Sıradaki adım bu offline düzeltmenin PR incelemesi; tekrar canlı çalışma için
+  yeni açık onay gerekir. Kullanılmayan 4 deneme yeni koşuya yetki vermez.
+  Merge/release/tag değişimi, EVDS indirmesi, yeni özellik yok; #75/#76 korunur.
+
+### Önceki hazırlık ve ilk canlı koşu (tarihli kanıt)
+
 - Başlangıç ağacı temizdi; güncel main **`5bc12a7`** üzerinden ayrı aktif dal
   **`feat/economic-question-evaluation`** açıldı. #74'ün merge edilmemiş belge
   değişiklikleri main'de var sayılmadı veya bu dala taşınmadı. #71 tamamlandı;
@@ -53,8 +89,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 - Offline düzeltme: prompt'ta yıl/başlangıç/bitişin sorudan gelmesi, eksik bilginin
   kapsamdan veya bugünden tamamlanmaması genel kuralı belirginleştirildi. EQ-020'nin
   gözlenen kötü planı sahte sağlayıcı regresyonuna eklendi; oracle hâlâ reddeder ve
-  kalanları durdurur. **Prompt düzeltmesi gerçek modelde doğrulanmış değildir.**
-  Yeniden canlı denemeden önce Mustafa'ya sonuç/fix bildir ve yeni açık onay bekle.
+  kalanları durdurur. O aşamada prompt düzeltmesinin canlı etkisi bilinmiyordu;
+  sonraki ayrı onaylı koşu ve yeni kalan eksik üstte kaydedilmiştir.
 - Python 3.12.15 için mevcut `out/clean312` kullanıldı; bozuk `.venv` korunur,
   yeni kurulum/dependency yok. Başlangıç odaklı **65 passed**; son odaklı
   **107 passed in 18.35s**. Tam offline **862 passed, 2 skipped in 115.30s**
@@ -72,8 +108,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   yine **61 bağlantı/11 PowerShell bloğu**, diff temiz. Özgün canlı rapor,
   beklentiler ve fixture hash'leri sabit kaldı; yeni canlı çağrı yapılmadı.
 - Teslim: **PR #78 açık**, dal commit/push edildi; main'e merge edilmedi.
-  Sonraki adım offline düzeltmenin PR incelemesi ve gerekirse yeni, açık canlı
-  onayıdır. Yeni özellik, merge, release veya tag değişimi bu görevin dışında.
+  Bu ilk teslimin ardından ayrı onayla yapılan kontrol üsttedir. Yeni özellik,
+  merge, release veya tag değişimi bu görevin dışında.
 
 ## Yerel soru ekranı: Aşama 2 tarihli kaydı — 19 Ekim 2026
 
