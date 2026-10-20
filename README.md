@@ -227,8 +227,11 @@ Press Ctrl+C in the server terminal to stop it.
 
 Mustafa confirmed both offline examples, the Housing chart/table and interactions,
 the CPI table, and sources/limitations on 19 October 2026. This offline user review
-is complete. The four live cases ran on 19 October; final user review of their
-saved screenshots remains open in
+is complete. The four live cases ran on 19 October. On 20 October, Mustafa confirmed
+the four saved static screenshots: Housing period/count/chart/table, CPI period
+and monthly/annual distinction, clarification/unsupported messages with no stale
+result, and no obvious overflow/overlap. This was a static review with no new
+interaction test or model call. Acceptance is recorded as complete in
 [#71](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/71).
 That issue preserves the expectations written before execution and per-case results.
 The normal screen used `gemini-3.5-flash-lite`: **four calls, zero retries**,
