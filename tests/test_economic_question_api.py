@@ -134,6 +134,38 @@ def test_non_ready_results_never_execute_analysis(monkeypatch, payload, decision
         assert body["decision"]["reason"] == "outside_coverage"
 
 
+@pytest.mark.parametrize("question", [
+    "2021 Ocak ayından itibaren TÜFE değişimlerini göster.",
+    "2021 Ocak'tan sonraki TÜFE değişimlerini göster.",
+])
+def test_open_ended_single_month_ready_plan_is_blocked_before_analysis(
+    monkeypatch, payload, question,
+):
+    cpi = json.loads((ROOT / "docs/economic-question-cpi-example.json").read_text(encoding="utf-8"))
+    payload["inflation"] = cpi["inflation"]
+    payload["question"] = question
+    model_calls = []
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Open-ended period must not execute an analysis")
+
+    def model(prompt):
+        model_calls.append(prompt)
+        return json.dumps(ready(service.INFLATION_ID, end_period="2021-01"))
+
+    monkeypatch.setattr(service, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(service, "build_inflation_evidence", forbidden)
+    with client_with_model(model) as client:
+        response = client.post(ENDPOINT, json=payload)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "clarification_required"
+    assert body["decision"] == {"status": "clarification_required", "reason": "period_required"}
+    assert body["analysis"] is None
+    assert len(model_calls) == 1
+
+
 @pytest.mark.parametrize("problem", [
     "blank_question", "long_question", "path", "model", "analysis_id", "coverage", "include_narration",
     "nested_path", "empty_housing", "empty_cpi", "source", "boolean", "numeric_string", "nan", "infinity",

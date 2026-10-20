@@ -45,9 +45,12 @@ yanlış bir `ready` planı engellemesi model başarısı değildir.
 Sorudaki döneme yalnız şu açık biçimlerde karşılık aranır: `2021 Ocak-Mart` veya
 `Ocak-Mart 2021`, `2020 Aralık-2021 Mart`, `2021-02`, `01/2021 ile 03/2021`,
 `1 Ocak 2021–31 Mart 2021` (tam ay sınırları), `2021'in ilk çeyreği/ilk üç ayı`
-ve tam yıl aralığı `2021-2025`. Tek açık ay da kabul edilir. Planın iki ucu bu
-ifadeyle aynı olmalıdır; eksik yıl, açık olmayan bitiş, başka/çelişkili yıl,
-kısmi günlük sınır veya tanınmayan biçim `period_required` döndürür. Veri
+ve tam yıl aralığı `2021-2025`. `2021 Ocak TÜFE...` gibi gerçekten tek ay isteyen
+ifade de kabul edilir. Tek ayın ardından `itibaren`, `sonra/sonraki`, `sonrası`
+veya `başlayarak` gelirse bitiş eksik sayılır; tanınan ay kapalı tek aya çevrilmez.
+Planın iki ucu sorudaki kapalı ifadeyle aynı olmalıdır; eksik yıl veya bitiş,
+başka/çelişkili yıl, kısmi günlük sınır veya tanınmayan biçim `period_required`
+döndürür. Veri
 kapsamından veya bugünden yıl/bitiş tamamlanmaz. Bu sınırlı kontrol genel bir
 Türkçe tarih ayrıştırıcısı değildir.
 

@@ -115,6 +115,7 @@ _MONTH_POINTS = (
     re.compile(rf"(?<!\d)({_YEAR})\s+({_MONTH_NAME})\b"),
     re.compile(rf"\b({_MONTH_NAME})\s+({_YEAR})\b"),
 )
+_OPEN_ENDED_PERIOD = re.compile(r"\b(?:itibaren|sonra(?:ki)?|sonrası(?:nda)?|başlayarak)\b")
 _CREDIT_METRIC = r"(?:(?:konut\s+)?kredi\w*|stok\w*|bakiy\w*|tutar\w*)"
 _REAL_CREDIT = re.compile(
     rf"\b(?:reel|enflasyondan\s+arındırılmış|tüfe\s+ile\s+arındırılmış|"
@@ -172,6 +173,8 @@ def _explicit_period(question: str) -> tuple[str, str] | None:
             points.append((match.start(), f"{year}-{_MONTHS.get(month, month.zfill(2))}"))
     points.sort()
     if len(points) == 1:
+        if _OPEN_ENDED_PERIOD.search(text):
+            return None
         return supported(points[0][1], points[0][1])
     if len(points) == 2:
         return supported(points[0][1], points[1][1])

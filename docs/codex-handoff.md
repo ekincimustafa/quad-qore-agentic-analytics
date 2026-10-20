@@ -14,7 +14,7 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 ### Güncel oturum: analiz öncesi Python kontrolü, yalnız offline
 
 - Başlangıç temiz `feat/economic-question-evaluation` dalı, PR #78 head
-  `4aae841c70132395621871ea2363f1d57d5de769`; #77/PR açık. Mustafa canlı
+  `babd3690bb8f4ca0863d7d559b913d34a900a177`; #77/PR açık. Mustafa canlı
   denemeleri durdurdu. Önceki iki gerçek rapor ve SHA-256 değerleri aşağıda
   korunur; vaka beklentileri/fixture'lar değiştirilmez.
 - Ortak ekonomik soru çekirdeği, modelin `ready` yanıtındaki açık dönem ve konut
@@ -27,14 +27,24 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   servis/HTTP yolunda yeniden oynatıldı: Python beklenen netleştirmeyi verir,
   model kararı ise **yanlış** olarak kalır. Evaluator ham ve son kararın beklenti
   eşitliğini ayrı gösterir; güvenli uygulama sonucu model anlama başarısı sayılmaz.
-- Mevcut Python 3.12.15 `out/clean312`: odaklı servis/API/evaluator/UI
-  **160 passed in 23.44s**; tam offline **889 passed, 2 skipped in 109.96s**
+- İncelemede bulunan açık uç boşluğu offline kapatıldı: sahte modelin “2021 Ocak
+  ayından itibaren...” ve “2021 Ocak'tan sonraki...” için verdiği `ready /
+  2021-01–2021-01` planı artık hem normalize hem doğrulanmış dosya API yolunda
+  `period_required` olur ve analiz 0 kez çalışır. `2021 Ocak TÜFE...` gerçek tek ay
+  isteği çalışmaya devam eder. Kontrol yalnız tanınmış tek ayın yanındaki sınırlı
+  açık uç belirteçlerini ayırır; genel tarih ayrıştırıcısı veya bağımlılık eklenmedi.
+  Sahte modelin ham `ready` kararı evaluator'da yine model hatası; Python engeli
+  yalnız uygulamanın güvenli davranışıdır.
+- Mevcut Python 3.12.15 `out/clean312`: odaklı servis/API/evaluator
+  son koşu **166 passed in 22.69s**; tam depo takımı `pytest -q tests` ile
+  **897 passed, 2 skipped in 105.78s**
   (Windows symlink izinleri). Economic stub **28/28**, Housing stub **9/9**;
   gerçek çağrı 0. Önceki vaka seti, fixture ve iki canlı rapor SHA-256 değerleri
   değişmedi. Bunlar yeni canlı model başarısı değildir.
 - Önceki canlı gözlemler tarihli kanıttır; bu değişikliğin gerçek model veya
-  gerçek veriyle yeni kabulü yapılmadı. Sıradaki adım PR #78'in yeni head/CI
-  incelemesi; canlı çağrı, merge ve release durdurulmuştur.
+  gerçek veriyle yeni kabulü yapılmadı. Değişiklik aynı PR #78 dalında commit/push
+  edilerek PR ve #77 durumu güncellenir; sıradaki adım yeni head/CI incelemesidir.
+  Canlı çağrı, merge ve release durdurulmuştur.
 
 ### Önceki oturum: ikinci onaylı canlı koşu ve offline metrik düzeltmesi
 

@@ -57,14 +57,18 @@ def client_with_model(package, model):
     return TestClient(app)
 
 
-@pytest.mark.parametrize("question,analysis_id,reason", [
+@pytest.mark.parametrize("question,plan,reason", [
     ("Ocak-Şubat TÜFE aylık ve yıllık oranlarını göster.",
-     core.INFLATION_ID, "period_required"),
+     ready(core.INFLATION_ID), "period_required"),
     ("2021 Ocak-Şubat konut kredisi faizi düşerken kredi bakiyesinin artmadığı ayları göster.",
-     core.HOUSING_ID, "metric_ambiguous"),
+     ready(core.HOUSING_ID), "metric_ambiguous"),
+    ("2021 Ocak ayından itibaren TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID, end_period="2021-01"), "period_required"),
+    ("2021 Ocak'tan sonraki TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID, end_period="2021-01"), "period_required"),
 ])
 def test_observed_ready_mistakes_are_blocked_after_file_verification(
-    package, monkeypatch, question, analysis_id, reason,
+    package, monkeypatch, question, plan, reason,
 ):
     monkeypatch.setattr(core, "run_housing_analysis", forbidden)
     monkeypatch.setattr(core, "build_inflation_evidence", forbidden)
@@ -72,7 +76,7 @@ def test_observed_ready_mistakes_are_blocked_after_file_verification(
 
     def model(prompt):
         prompts.append(prompt)
-        return json.dumps(ready(analysis_id))
+        return json.dumps(plan)
 
     with client_with_model(package, model) as client:
         response = client.post(ENDPOINT, json={"question": question})

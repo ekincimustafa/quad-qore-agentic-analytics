@@ -223,6 +223,37 @@ def test_observed_ambiguous_ready_plan_is_blocked_but_model_still_fails_offline(
     assert report["results"][1]["reason"] == "not_run_after_failure"
 
 
+def test_open_ended_month_ready_plan_reports_model_failure_and_python_block(
+    cases, fixtures, fake_provider,
+):
+    base = evaluator.select_cases(cases, ["EQ-028"])[0]
+    case = base.model_copy(update={
+        "question": "2021 Ocak ayından itibaren TÜFE değişimlerini göster.",
+    })
+    observed = {
+        "status": "ready",
+        "analysis_id": "cpi_inflation_summary",
+        "start_period": "2021-01",
+        "end_period": "2021-01",
+    }
+    requests, _, _ = fake_provider(lambda request: _response(json.dumps(observed)))
+
+    report = evaluator.evaluate_cases(
+        [case], fixtures, live=True,
+        model_call=llm_client.ask_llm, max_model_calls=1,
+    )
+
+    row = report["results"][0]
+    assert len(requests) == report["live_model_call_attempts"] == 1
+    assert row["actual_model_decision"] == observed
+    assert row["actual_decision"] == row["expected_decision"]
+    assert row["model_decision_matches_expectation"] is False
+    assert row["application_decision_matches_expectation"] is True
+    assert row["python_blocked_ready_plan"] is True
+    assert row["outcome"] == "failed" and row["reason"] == "model_decision_mismatch"
+    assert row["housing_calls"] == row["inflation_calls"] == 0
+
+
 @pytest.mark.parametrize("budget", [1, 2])
 def test_hard_limit_blocks_a_second_planner_invocation(cases, fixtures, monkeypatch, budget):
     original = evaluator.service.run_economic_question
