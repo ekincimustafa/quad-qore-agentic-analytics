@@ -18,10 +18,26 @@ from app.services.housing_question_files import (
     with_verified_housing_notes,
 )
 from app.services.inflation_analysis import InflationEvidence
+from app.services.inflation_comparison import (
+    InflationComparison,
+    InflationYearEvidence,
+)
+
+_VERIFIED_CPI_LIMITATION = (
+    "TÜFE, sunucunun fiziksel manifest/raw/makbuz/hash zinciri doğrulanmış EVDS dosyasından gelir."
+)
 
 
 class VerifiedEconomicQuestionDataError(RuntimeError):
     """The server package failed verification; no paths or source bodies escape."""
+
+
+def _with_verified_cpi_notes(evidence: InflationEvidence) -> InflationEvidence:
+    # Calculations are unchanged; distinguish verified provenance from request rows.
+    return evidence.model_copy(update={
+        "input_origin": "verified_files",
+        "limitations": (_VERIFIED_CPI_LIMITATION, *evidence.limitations[1:]),
+    })
 
 
 def run_verified_economic_question(
@@ -52,12 +68,14 @@ def run_verified_economic_question(
     if isinstance(analysis, HousingAnalysisRun):
         analysis = with_verified_housing_notes(analysis)
     elif isinstance(analysis, InflationEvidence):
-        # Calculations are unchanged; distinguish verified provenance from request rows.
+        analysis = _with_verified_cpi_notes(analysis)
+    elif isinstance(analysis, InflationComparison):
         analysis = analysis.model_copy(update={
-            "input_origin": "verified_files",
-            "limitations": (
-                "TÜFE, sunucunun fiziksel manifest/raw/makbuz/hash zinciri doğrulanmış EVDS dosyasından gelir.",
-                *analysis.limitations[1:],
+            "years": tuple(
+                InflationYearEvidence(
+                    year=item.year, evidence=_with_verified_cpi_notes(item.evidence),
+                )
+                for item in analysis.years
             ),
         })
     return replace(result, analysis=analysis)
