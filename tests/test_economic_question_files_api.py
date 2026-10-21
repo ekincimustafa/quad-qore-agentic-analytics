@@ -22,8 +22,9 @@ from app.services.housing_question_files import (
     VerifiedQuestionInputs,
     run_verified_housing_question,
 )
-from app.services.inflation_analysis import build_inflation_evidence
+from app.services.inflation_analysis import InflationEvidence, build_inflation_evidence
 from app.services.inflation_comparison import compare_inflation_years
+from app.tools.inflation_chart import build_inflation_chart
 from tests.housing_test_support import write_bddk
 
 
@@ -144,7 +145,10 @@ def test_question_only_request_equals_existing_calculation(package, monkeypatch,
         assert evidence["limitations"][1:] == list(direct.limitations[1:])
         assert evidence["observations"][0]["monthly_inflation_pct"] is None
         assert evidence["observations"][1]["monthly_inflation_pct"] == pytest.approx(1)
-        assert "chart" not in body["analysis"]
+        chart = body["analysis"]["chart"]
+        assert chart == build_inflation_chart(InflationEvidence.model_validate(evidence))
+        for trace, field in zip(chart["data"], ("cpi_index", "monthly_inflation_pct", "annual_inflation_pct")):
+            assert trace["y"] == [row[field] for row in evidence["observations"]]
 
 
 def test_cpi_history_and_coverage_are_not_clipped_to_housing(package):
@@ -364,3 +368,24 @@ def test_server_environment_selects_root_without_request_paths(package, monkeypa
     with TestClient(app) as client:
         response = client.post(ENDPOINT, json={"question": QUESTION})
     assert response.status_code == 200 and response.json()["status"] == "ok"
+
+
+def test_cpi_chart_failure_is_safe_503_without_retry(package, monkeypatch):
+    from app.tools.inflation_chart import InflationChartError
+
+    prompts = []
+
+    def model(prompt):
+        prompts.append(prompt)
+        return json.dumps(ready(core.INFLATION_ID))
+
+    def broken_chart(evidence):
+        raise InflationChartError("private-chart-detail")
+
+    monkeypatch.setattr(api, "build_inflation_chart", broken_chart)
+    with client_with_model(package, model) as client:
+        response = client.post(ENDPOINT, json={"question": "2021 Ocak-Şubat TÜFE değişimlerini göster."})
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "economic_data_unavailable"
+    assert "private-chart-detail" not in response.text
+    assert len(prompts) == 1
