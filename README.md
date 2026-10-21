@@ -1,13 +1,28 @@
 # Quad-Qore Agentic Analytics
 
-An early MVP for monthly economic analysis, developed for KKB Hackathon 2026,
-with housing-loan analysis and a deterministic CPI-change endpoint.
-Python collects and validates data, computes the analysis, and returns evidence,
-a Plotly chart, and an optional guarded narration. A standalone HTML report is available.
+A small, runnable analytics demo built for KKB Hackathon 2026 and CV/portfolio use.
+You ask an economic question in natural language; a bounded LLM plan selects one of
+three allowed analyses, and Python performs every calculation. A FastAPI web screen
+serves the result: housing-loan analysis, a CPI summary, or a comparison of two full
+calendar years. Results include evidence, a Plotly chart where available, and optional
+guarded narration.
 
-The first scenario identifies months when housing-loan interest rates decreased
-but the inflation-adjusted housing-loan stock did not increase. The default
-analysis window is January 2021 to December 2025: 60 months.
+The housing scenario identifies months when housing-loan interest rates decreased
+but the inflation-adjusted housing-loan stock did not increase. The default analysis
+window is January 2021 to December 2025: 60 months. A key-free synthetic HTML example
+can be generated from the included sample script; the real BDDK/EVDS data package is
+delivered separately and is not stored in Git.
+
+## Normal model mode vs offline preview
+
+The same local screen has two modes:
+
+- **Normal mode** (`uvicorn app.api.main:app`) plans free-form Turkish questions with
+  the configured model, then Python runs at most one allowed analysis.
+- **Offline preview** (`scripts.preview_question_ui`) needs no model key and only runs
+  fixed plans for the three example questions; other questions ask for clarification.
+
+See [Local question screen — offline preview](#local-question-screen--offline-preview).
 
 ## Current implementation
 
@@ -45,7 +60,8 @@ is complete; the offline and bounded live acceptance recorded four calls for tha
 run only and is not a general model-accuracy metric.
 Weekly publication coverage is explicitly unverified without an official calendar;
 the timestamp and coverage policy is documented in the [EVDS guide](docs/evds-ingestion.md).
-See the [acceptance record](docs/release-acceptance.md) for verified checks and open gates.
+See the [acceptance record](docs/release-acceptance.md) for verified checks and the
+remaining optional portfolio item.
 The [real-data delivery guide](docs/real-demo-delivery.md) records verified
 packages, historical request drafts and offline demo steps.
 The [tool contracts](docs/tool-contracts.md) map current code to the planned and
@@ -305,9 +321,11 @@ Git; 145 input hashes were unchanged. These four cases are not an accuracy metri
 
 ## Real-data preparation
 
-This is separate from the synthetic quick start. It uses external services and
-has not been rerun as part of this acceptance record. Set `EVDS_API_KEY` in the
-process environment before EVDS acquisition; the EVDS CLI does not load .env itself.
+This is separate from the synthetic quick start and regenerates data from external
+services. The delivered package was verified separately on 18 October 2026; these
+commands are for reproduction, not a remaining acceptance gate. Set `EVDS_API_KEY`
+in the process environment before EVDS acquisition; the EVDS CLI does not load .env
+itself.
 
 Activate the installed virtual environment with `.\.venv\Scripts\Activate.ps1`
 on Windows or `source .venv/bin/activate` on Linux. The existing preparation commands are:
@@ -322,8 +340,9 @@ python -m scripts.build_evds_silver --start-period 2021-01 --end-period 2026-06
 The BDDK builder requires existing Bronze files. The EVDS builder can download
 missing Bronze responses, so it must not be assumed to run offline in all cases.
 The intended Silver scope is 66 months; the first analysis selects 60 months.
-Real-data hashes, three sample-month comparisons and complete source binding
-remain release acceptance gates. See the BDDK and EVDS guides above.
+Source hashes, the three sample-month comparisons and complete source binding were
+verified on the delivered package on 18 October 2026. See the
+[acceptance record](docs/release-acceptance.md) and the BDDK/EVDS guides above.
 
 ## Optional LLM narration
 
@@ -360,6 +379,20 @@ Weekly interest observations are aggregated by monthly arithmetic mean.
 The first month's change fields and match flag are null because no preceding
 month exists inside the analysis window. The result does not establish causality.
 KFE is displayed for context; CPI is used to deflate the loan stock.
+
+## Team contributions
+
+This was a three-person student team effort. The Git history and the contribution
+table in the [acceptance record](docs/release-acceptance.md) hold the dated evidence.
+
+- **Mustafa Ekinci:** housing analysis, evidence/chart, guarded narration, question
+  harness and evaluation, FastAPI endpoints, local question screen, and the later CPI
+  summary/chart/report and two-year comparison integrations; release and acceptance
+  records.
+- **Afra Topcu:** secure EVDS ingestion and Silver validation, receipt/coverage checks,
+  EVDS manifest producer and demo fixtures, and the initial tool-contract contribution.
+- **Osman Erdem Dutar:** BDDK ingestion and Bronze provenance, BDDK Silver pipeline,
+  offline housing demo CLI, and the real-data delivery/acceptance work.
 
 ## Project guides and security
 
