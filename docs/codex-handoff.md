@@ -9,6 +9,27 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## #85 iki yıl TÜFE karşılaştırmasını soru akışına bağlama — 21 Ekim 2026
+
+- `feat/inflation-comparison-question` dalı güncel `origin/main` `4f779b1`
+  (PR #84 merge) üzerinden temiz ağaçta açıldı; eski yerel dallar main sayılmadı.
+- `compare_inflation_years` mevcut ekonomik soru çekirdeğine bağlandı. Yeni
+  strict `cpi_two_year_comparison` ready planı yalnız `first_year`/`second_year`
+  taşıyor; Python iki yılı, sırayı, karşılaştırma niyetini ve tam yıl kapsamını
+  analizden önce denetliyor. Eksik/uyuşmayan/ters yıl, tek/aynı yıl, ortalama,
+  kısmi dönem, tahmin/nedensellik ve yanlış analiz türünde analiz 0 çalışıyor.
+- İki API yolu (`/analysis/economic/question`, `/files`) tipli karşılaştırma
+  yanıtı döndürüyor; `/files` iki nested evidence'a doğrulanmış kaynak/limitations
+  aktarıyor. Mevcut Konut/TÜFE davranışları ve 28/9 offline vaka beklentileri
+  değişmedi. Ekran iki yıllık tabloları, Aralık oranlarını ve yüzde puan farkını
+  göstermeye hazır; yeni CDN/grafik/model çağrısı yok.
+- Doğrulama: odaklı karşılaştırma/API/dosya/UI paketi **180 passed**; evaluator
+  ve TÜFE paketi **93 passed**. Tek komut
+  `out/verification/20261021T095437Z-22588-a8c80593`: **942 passed, 2 skipped**;
+  Economic **28/28**, Housing **9/9**, canlı çağrı 0; `git diff --check` temiz.
+- Durum: commit/push/PR sonrası bağımsız incelemeye bırakılacak; merge, canlı
+  LLM/EVDS çağrısı, veri indirme ve release yok.
+
 ## #83 tek komutla offline doğrulama — 21 Ekim 2026
 
 - Başlangıç güncel `origin/main` `190093d`: PR #82 merge edildi ve #80 kapalı.

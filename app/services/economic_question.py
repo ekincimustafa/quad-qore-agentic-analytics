@@ -20,10 +20,15 @@ from app.services.inflation_analysis import (
     build_inflation_evidence,
     validated_cpi_monthly,
 )
+from app.services.inflation_comparison import (
+    InflationComparison,
+    compare_inflation_years,
+)
 
 
 HOUSING_ID = "housing_rate_down_real_credit_not_up"
 INFLATION_ID = "cpi_inflation_summary"
+COMPARISON_ID = "cpi_two_year_comparison"
 Month = Annotated[str, Field(min_length=7, max_length=7, pattern=r"^[0-9]{4}-(0[1-9]|1[0-2])$")]
 
 
@@ -66,6 +71,17 @@ class EconomicReadyPlan(PeriodRange):
     analysis_id: Literal["housing_rate_down_real_credit_not_up", "cpi_inflation_summary"]
 
 
+class EconomicComparisonReadyPlan(BaseModel):
+    """Ready plan that selects exactly two full calendar years, never a period."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+    status: Literal["ready"]
+    analysis_id: Literal["cpi_two_year_comparison"]
+    first_year: Annotated[int, Field(ge=1, le=9999)]
+    second_year: Annotated[int, Field(ge=1, le=9999)]
+
+
 class EconomicClarification(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
@@ -84,12 +100,19 @@ class EconomicDataUnavailable(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
     status: Literal["data_unavailable"]
-    analysis_id: Literal["housing_rate_down_real_credit_not_up", "cpi_inflation_summary"] | None
+    analysis_id: (
+        Literal["housing_rate_down_real_credit_not_up", "cpi_inflation_summary", "cpi_two_year_comparison"]
+        | None
+    )
 
 
+EconomicReadyDecision = Annotated[
+    Union[EconomicReadyPlan, EconomicComparisonReadyPlan],
+    Field(union_mode="left_to_right"),
+]
 ModelDecision = Annotated[
-    Union[EconomicReadyPlan, EconomicClarification, EconomicUnsupported],
-    Field(discriminator="status"),
+    Union[EconomicReadyPlan, EconomicComparisonReadyPlan, EconomicClarification, EconomicUnsupported],
+    Field(union_mode="left_to_right"),
 ]
 EconomicDecision = ModelDecision | EconomicDataUnavailable
 _MODEL_DECISION = TypeAdapter(ModelDecision)
@@ -124,6 +147,8 @@ _REAL_CREDIT = re.compile(
 _NOMINAL_CREDIT = re.compile(rf"\bnominal\s+{_CREDIT_METRIC}\b|\b{_CREDIT_METRIC}\s+nominal\b")
 _MIXED_METRICS = re.compile(r"\b(?:reel|nominal)\s+(?:ve|veya|ya\s+da|ile|mi)\s+(?:reel|nominal)\b")
 _NEGATED_METRIC = re.compile(r"(?:\s+\w+){0,2}\s+(?:değil\w*|olmayan|hariç|yerine|dışında\w*)\b")
+_COMPARISON_INTENT = re.compile(r"\b(?:karşılaştır\w*|kıyasla\w*)\b")
+_COMPARISON_OUT_OF_SCOPE = re.compile(r"\b(?:ortalama\w*|tahmin\w*|öngör\w*|neden\w*|nedensellik\w*)\b")
 
 
 def _question_text(question: str) -> str:
@@ -181,7 +206,45 @@ def _explicit_period(question: str) -> tuple[str, str] | None:
     return None
 
 
-def _ready_plan_guard(question: str, plan: EconomicReadyPlan) -> EconomicClarification | EconomicUnsupported | None:
+def _comparison_years(question: str) -> tuple[int, int] | None:
+    """Read only two explicitly ordered whole years next to a comparison request."""
+    text = _question_text(question)
+    if not _COMPARISON_INTENT.search(text):
+        return None
+    years = [int(year) for year in _YEAR_TOKEN.findall(text)]
+    if len(years) != 2 or years[0] == years[1]:
+        return None
+    return years[0], years[1]
+
+
+def _comparison_out_of_scope(question: str) -> bool:
+    """Average, forecast/causality and partial-period comparisons are not this feature."""
+    text = _question_text(question)
+    if _COMPARISON_OUT_OF_SCOPE.search(text):
+        return True
+    return any(
+        pattern.search(text)
+        for pattern in (_DAY_MONTH_YEAR, _NAMED_SPAN, _NAMED_SPAN_YEAR_LAST, _FIRST_QUARTER)
+    )
+
+
+def _ready_plan_guard(
+    question: str, plan: EconomicReadyPlan | EconomicComparisonReadyPlan,
+) -> EconomicClarification | EconomicUnsupported | None:
+    comparison_requested = bool(_COMPARISON_INTENT.search(_question_text(question)))
+    if isinstance(plan, EconomicComparisonReadyPlan):
+        if not comparison_requested:
+            return EconomicClarification(status="clarification_required", reason="period_required")
+        if _comparison_out_of_scope(question):
+            return EconomicUnsupported(status="unsupported", reason="unsupported_analysis")
+        requested = _comparison_years(question)
+        if requested != (plan.first_year, plan.second_year):
+            return EconomicClarification(status="clarification_required", reason="period_required")
+        return None
+    if comparison_requested:
+        if _comparison_out_of_scope(question):
+            return EconomicUnsupported(status="unsupported", reason="unsupported_analysis")
+        return EconomicClarification(status="clarification_required", reason="period_required")
     requested = _explicit_period(question)
     if requested != (plan.start_period, plan.end_period):
         return EconomicClarification(status="clarification_required", reason="period_required")
@@ -220,7 +283,7 @@ class InflationQuestionData:
 class EconomicQuestionRun:
     decision: EconomicDecision
     coverage: EconomicCoverage
-    analysis: HousingAnalysisRun | InflationEvidence | None
+    analysis: HousingAnalysisRun | InflationEvidence | InflationComparison | None
 
 
 def _periods(frame: pd.DataFrame) -> set[str]:
@@ -293,6 +356,8 @@ Hesaplanmış sayı, yorum, Markdown veya ek alan üretme.
 - {HOUSING_ID}: faiz düşerken reel konut kredisi stokunun artmadığı ayları bul.
 - {INFLATION_ID}: genel TÜFE endeksinin aylık, geçen yılın aynı ayına göre
   yıllık ve seçilen ilk-son ay değişimlerini özetle. Yıllık oran 12 aylık ortalama değildir.
+- {COMPARISON_ID}: iki tam takvim yılının Ocak–Aralık TÜFE değişimlerini ve Aralık
+  yıllık oran farkını karşılaştır. Yalnız first_year ve second_year alanlarını kullan.
 
 Kurallar:
 - Yalnızca analiz ve istenen dönemin anlamı açıksa ready üret.
@@ -305,6 +370,11 @@ Kurallar:
   Bu bilgiler eksik veya belirsizse period_required üret; yıl veya sınır varsayma.
   available_periods yalnız veri uygunluk sınırıdır, kullanıcının dönem tercihi değildir.
   Kapsam tek bir yılı içerse bile eksik yılı/sınırı kapsamdan veya bugünden tamamlama.
+- {COMPARISON_ID} için yalnız kullanıcının açıkça verdiği iki farklı tam yılı,
+  söylediği sırayla first_year ve second_year alanlarına yaz. Tek yıl, "geçen yıl",
+  aynı yılın iki kez verilmesi, ortalama, kısmi dönem, tahmin veya nedensellik
+  istenirse ready üretme; uygun clarification/unsupported kararını ver.
+  "2023-2024 TÜFE değişimlerini özetle" bir aralık özetidir; karşılaştırma değildir.
 - Tahmin, nedensellik, serbest ekonomik yorum, web araştırması, başka analiz
   veya iki analizin birlikte çalıştırılması istenirse unsupported üret.
 - Tam yıl aralığını aylara aç: 2021-2025 -> 2021-01 / 2025-12.
@@ -331,7 +401,7 @@ def validate_economic_question_plan(
         decision = _MODEL_DECISION.validate_json(response)
     except ValidationError:
         raise EconomicPlanValidationError("Model planı izin verilen karar şemasına uymuyor.") from None
-    if isinstance(decision, EconomicReadyPlan):
+    if isinstance(decision, (EconomicReadyPlan, EconomicComparisonReadyPlan)):
         available = coverage.housing if decision.analysis_id == HOUSING_ID else coverage.inflation
         if available is None:
             return EconomicDataUnavailable(status="data_unavailable", analysis_id=decision.analysis_id)
@@ -339,7 +409,16 @@ def validate_economic_question_plan(
             guarded = _ready_plan_guard(question, decision)
             if guarded is not None:
                 return guarded
-        if decision.start_period < available.start_period or decision.end_period > available.end_period:
+        if isinstance(decision, EconomicComparisonReadyPlan) and decision.first_year == decision.second_year:
+            return EconomicClarification(status="clarification_required", reason="period_required")
+        if isinstance(decision, EconomicComparisonReadyPlan):
+            for year in (decision.first_year, decision.second_year):
+                if (
+                    f"{year:04d}-01" < available.start_period
+                    or f"{year:04d}-12" > available.end_period
+                ):
+                    return EconomicClarification(status="clarification_required", reason="outside_coverage")
+        elif decision.start_period < available.start_period or decision.end_period > available.end_period:
             return EconomicClarification(status="clarification_required", reason="outside_coverage")
     return decision
 
@@ -370,9 +449,16 @@ def run_economic_question(
     except Exception:
         raise EconomicPlanningError("Modelden analiz planı alınamadı.") from None
     decision = validate_economic_question_plan(response, coverage, question=question)
-    if not isinstance(decision, EconomicReadyPlan):
+    if not isinstance(decision, (EconomicReadyPlan, EconomicComparisonReadyPlan)):
         return EconomicQuestionRun(decision=decision, coverage=coverage, analysis=None)
-    if decision.analysis_id == HOUSING_ID:
+    if isinstance(decision, EconomicComparisonReadyPlan):
+        assert inflation is not None
+        analysis = compare_inflation_years(
+            inflation.cpi_monthly,
+            first_year=decision.first_year, second_year=decision.second_year,
+            source_ref=inflation.source_ref,
+        )
+    elif decision.analysis_id == HOUSING_ID:
         assert housing is not None
         analysis = run_housing_analysis(
             housing.bddk_monthly, housing.evds_monthly,

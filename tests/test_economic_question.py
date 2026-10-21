@@ -11,6 +11,7 @@ from app.connectors import llm_client
 from app.services import economic_question as service
 from app.services.housing_analysis import run_housing_analysis
 from app.services.inflation_analysis import build_inflation_evidence
+from app.services.inflation_comparison import compare_inflation_years
 
 
 @pytest.fixture(autouse=True)
@@ -137,6 +138,147 @@ def test_explicit_full_year_range_stays_executable_with_complete_history():
     )
     assert run.decision.status == "ready"
     assert len(run.analysis.observations) == 60
+
+
+COMPARISON_PERIODS = pd.period_range("2022-12", "2024-12", freq="M").astype(str).tolist()
+COMPARISON_INDEX = [
+    100.0, 102.0, 104.0, 106.0, 108.0, 110.0, 112.0, 114.0, 116.0, 118.0, 119.0, 119.5,
+    120.0, 123.0, 126.0, 129.0, 132.0, 135.0, 138.0, 141.0, 144.0, 146.0, 147.0, 148.5,
+    150.0,
+]
+
+
+def comparison_inflation() -> service.InflationQuestionData:
+    return service.InflationQuestionData(
+        cpi_monthly=pd.DataFrame({"period": COMPARISON_PERIODS, "cpi_index": COMPARISON_INDEX}),
+        source_ref="synthetic://comparison",
+    )
+
+
+def comparison_ready(first=2023, second=2024, **extra):
+    return {"status": "ready", "analysis_id": service.COMPARISON_ID,
+            "first_year": first, "second_year": second, **extra}
+
+
+@pytest.mark.parametrize("question,first,second,difference", [
+    ("2023 ve 2024 TÜFE değişimlerini karşılaştır.", 2023, 2024, 5.0),
+    ("2024 ile 2023 Aralık yıllık TÜFE enflasyonunu karşılaştır.", 2024, 2023, -5.0),
+])
+def test_comparison_plan_runs_existing_core_once_and_matches_direct_result(
+    monkeypatch, question, first, second, difference,
+):
+    inflation = comparison_inflation()
+    calls = []
+    original = service.compare_inflation_years
+
+    def comparison(*args, **kwargs):
+        calls.append(kwargs)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(service, "compare_inflation_years", comparison)
+    prompts = []
+
+    def model(prompt):
+        prompts.append(prompt)
+        return json.dumps(comparison_ready(first, second))
+
+    result = service.run_economic_question(question, inflation=inflation, model_call=model)
+    direct = compare_inflation_years(
+        inflation.cpi_monthly, first_year=first, second_year=second,
+        source_ref=inflation.source_ref,
+    )
+    assert len(prompts) == 1 and len(calls) == 1
+    assert result.decision == service.EconomicComparisonReadyPlan(**comparison_ready(first, second))
+    assert result.analysis == direct
+    assert result.analysis.second_minus_first_december_annual_inflation_pp == pytest.approx(difference)
+    assert [item.year for item in result.analysis.years] == [first, second]
+    assert result.analysis.years[0].evidence.observations[-1].annual_inflation_pct == pytest.approx(
+        20.0 if first == 2023 else 25.0
+    )
+    assert result.analysis.years[0].evidence.first_to_last_index_change_pct != pytest.approx(
+        result.analysis.years[0].evidence.observations[-1].annual_inflation_pct
+    )
+
+
+@pytest.mark.parametrize("question,plan,expected", [
+    ("2023 ve 2024 TÜFE değişimlerini karşılaştır.", comparison_ready(2024, 2023), ("clarification_required", "period_required")),
+    ("2023 ve 2024 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2025), ("clarification_required", "period_required")),
+    ("2023 TÜFE değişimini 2024 ile karşılaştır.", comparison_ready(2023, 2023), ("clarification_required", "period_required")),
+    ("2023 TÜFE değişimlerini göster.", comparison_ready(2023, 2024), ("clarification_required", "period_required")),
+    ("2023 ve 2024 ortalama TÜFE enflasyonunu karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
+    ("2023 Ocak-Haziran ile 2024 Ocak-Haziran TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
+    ("2023 ve 2024 TÜFE değişimlerini karşılaştır.", ready(service.INFLATION_ID, "2023-01", "2024-12"), ("clarification_required", "period_required")),
+    ("2023-2024 TÜFE değişimlerini özetle.", comparison_ready(2023, 2024), ("clarification_required", "period_required")),
+])
+def test_wrong_comparison_plans_never_execute_analysis(monkeypatch, question, plan, expected):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A wrong comparison plan must not run an analysis")
+
+    monkeypatch.setattr(service, "compare_inflation_years", forbidden)
+    monkeypatch.setattr(service, "build_inflation_evidence", forbidden)
+    result = service.run_economic_question(
+        question, inflation=comparison_inflation(), model_call=lambda _: json.dumps(plan),
+    )
+    assert result.analysis is None
+    assert (result.decision.status, result.decision.reason) == expected
+
+
+def test_comparison_outside_coverage_or_missing_previous_december_is_controlled():
+    inflation = comparison_inflation()
+    outside = service.run_economic_question(
+        "2021 ve 2023 TÜFE değişimlerini karşılaştır.", inflation=inflation,
+        model_call=lambda _: json.dumps(comparison_ready(2021, 2023)),
+    )
+    assert outside.analysis is None
+    assert (outside.decision.status, outside.decision.reason) == ("clarification_required", "outside_coverage")
+
+    without_history = service.InflationQuestionData(
+        cpi_monthly=inflation.cpi_monthly.loc[
+            inflation.cpi_monthly["period"] != "2022-12"
+        ].reset_index(drop=True),
+        source_ref=inflation.source_ref,
+    )
+    missing = service.run_economic_question(
+        "2023 ve 2024 TÜFE değişimlerini karşılaştır.", inflation=without_history,
+        model_call=lambda _: json.dumps(comparison_ready(2023, 2024)),
+    )
+    assert missing.decision.status == "ready"
+    assert missing.analysis.years[0].evidence.observations[-1].annual_inflation_pct is None
+    assert missing.analysis.years[1].evidence.observations[-1].annual_inflation_pct == pytest.approx(25.0)
+    assert missing.analysis.second_minus_first_december_annual_inflation_pp is None
+
+
+@pytest.mark.parametrize("plan", [
+    comparison_ready(True, 2024),
+    comparison_ready(2023, "2024"),
+    comparison_ready(2023, 2024, start_period="2023-01"),
+    comparison_ready(2023, 2024, path="../../.env"),
+    comparison_ready(2023, 2024, sql="SELECT * FROM secrets"),
+])
+def test_comparison_plan_schema_rejects_extra_or_wrong_typed_fields(plan):
+    with pytest.raises(service.EconomicPlanValidationError):
+        service.validate_economic_question_plan(json.dumps(plan), service.EconomicCoverage(
+            housing=None, inflation=service.PeriodRange(start_period="2022-12", end_period="2024-12"),
+        ), question="2023 ve 2024 TÜFE değişimlerini karşılaştır.")
+
+
+def test_comparison_without_inflation_data_skips_analysis(monkeypatch):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Missing data must not run an analysis")
+
+    monkeypatch.setattr(service, "compare_inflation_years", forbidden)
+    result = service.run_economic_question(
+        "2023 ve 2024 TÜFE değişimlerini karşılaştır.",
+        housing=service.HousingQuestionData(
+            pd.DataFrame({"period": ["2023-01"]}), pd.DataFrame({"period": ["2023-01"]}),
+            "synthetic://bddk", "synthetic://evds",
+        ),
+        model_call=lambda _: json.dumps(comparison_ready(2023, 2024)),
+    )
+    assert result.analysis is None
+    assert result.decision == service.EconomicDataUnavailable(
+        status="data_unavailable", analysis_id=service.COMPARISON_ID,
+    )
 
 
 @pytest.mark.parametrize("analysis_id", [service.HOUSING_ID, service.INFLATION_ID])

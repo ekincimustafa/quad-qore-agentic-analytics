@@ -23,7 +23,7 @@ analysis window is January 2021 to December 2025: 60 months.
 | Guarded narration | Model JSON checked against the same month/metric; Turkish text rendered from evidence | [Narration contract](docs/housing-narration.md) |
 | LLM client | Configured OpenAI-compatible Chat Completions, bounded SDK timeout, one attempt and safe application errors | [LLM guide](docs/llm-client.md) |
 | Question analysis | Turkish question + normalized rows, typed decisions, one allowed Housing analysis and shared period validation | [Question API guide](docs/housing-question.md) |
-| Economic question | Bounded question plan and shared HTTP dispatch to existing Housing/CPI services | [Economic question guide](docs/economic-question.md) |
+| Economic question | Bounded question plan and shared HTTP dispatch to existing Housing/CPI services, including two full-year CPI comparison | [Economic question guide](docs/economic-question.md) |
 | Question evaluation | Nine Housing cases; 28 Economic cases with offline HTTP checks and explicitly selected, budgeted live planning | [Housing evaluation](docs/housing-question-evals.md), [Economic evaluation](docs/economic-question.md#offline-değerlendirme) |
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
 | File demo CLI | Physical EVDS manifest checks, source/output protection, evidence/chart/summary and optional offline HTML | [Demo guide](docs/housing-demo.md) |
@@ -148,8 +148,8 @@ Interactive API documentation: <http://127.0.0.1:8000/docs>.
 | `POST /analysis/housing/demo` | Period and optional narration; reads server-controlled local Silver files |
 | `POST /analysis/housing/question` | Turkish question + normalized rows; validates the model plan before analysis, or returns clarification/unsupported |
 | `POST /analysis/inflation` | Normalized monthly CPI rows and period; deterministic monthly/annual changes, no model or narration |
-| `POST /analysis/economic/question` | Turkish question + optional Housing/CPI row groups; typed plan, one analysis, clarification/unsupported or data unavailable |
-| `POST /analysis/economic/question/files` | Only `question`; verifies server-configured BDDK/EVDS files before planning, then runs at most one existing analysis |
+| `POST /analysis/economic/question` | Turkish question + optional Housing/CPI row groups; typed plan, one analysis (including two full-year CPI comparison), clarification/unsupported or data unavailable |
+| `POST /analysis/economic/question/files` | Only `question`; verifies server-configured BDDK/EVDS files before planning, then runs at most one existing analysis or two-year CPI comparison |
 
 `include_narration` defaults to `false`, so normalized-row analysis needs no key.
 Try [the three-month synthetic request](docs/housing-api-example.json) in a second terminal.
@@ -180,9 +180,11 @@ requires a configured live model even when `include_narration=false`.
 The separate [CPI example](docs/inflation-api-example.json) and
 [inflation guide](docs/inflation-analysis.md) work without an API key.
 The two-analysis [question endpoint](docs/economic-question.md) routes CPI and
-Housing questions through the bounded service core. Its twelve-case evaluator
-runs offline with stub plans. The Housing question endpoint still allows only
-its existing Housing analysis.
+Housing questions through the bounded service core. A third bounded path compares
+two explicitly requested full calendar years of CPI changes with the existing
+`compare_inflation_years` core; average/partial-period comparison remains out of
+scope. Its 28-case evaluator runs offline with stub plans. The Housing question
+endpoint still allows only its existing Housing analysis.
 
 The file-backed endpoint expects these paths relative to the repository root:
 

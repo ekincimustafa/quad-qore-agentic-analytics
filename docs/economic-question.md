@@ -14,6 +14,10 @@ analizini desteklemeye devam eder.
 - `cpi_inflation_summary`: genel TÜFE endeksinin aylık, aynı ayın önceki yılına
   göre yıllık ve seçilen ilk-son ay değişimleri; mevcut
   `build_inflation_evidence()` servisi.
+- `cpi_two_year_comparison`: iki tam takvim yılının Ocak–Aralık TÜFE
+  değişimleri ve Aralık yıllık oran farkı; mevcut
+  `compare_inflation_years()` çekirdeği. Plan yalnız `first_year` ve
+  `second_year` taşır; yıl sırası kullanıcının söylediği sıradır.
 
 Çağıran, normalize edilmiş `HousingQuestionData` ve/veya
 `InflationQuestionData` sağlar. Servis konut kapsamını ortak, kesintisiz
@@ -22,8 +26,10 @@ doğrulanmış CPI satırlarından türetir. Kaynak referansları ve tablolar mo
 gönderilmez. Bu satırlar henüz fiziksel dosya/manifest ile doğrulanmış veri
 sayılmaz.
 
-Plan yalnızca `status`, izinli `analysis_id`, `start_period`, `end_period`
-alanlarını taşıyabilir. `ready` için dönem açık olmalıdır. Belirsiz dönem/metrik
+Konut/TÜFE planı yalnızca `status`, izinli `analysis_id`, `start_period`,
+`end_period`; karşılaştırma planı yalnızca `status`, `analysis_id`,
+`first_year`, `second_year` alanlarını taşıyabilir. `ready` için dönem veya iki
+yıl açık olmalıdır. Belirsiz dönem/metrik
 veya analiz `clarification_required`; tahmin, nedensellik, başka analiz ve iki
 analizi birlikte isteme `unsupported` kararıdır. İstenen dönem veriye sığmazsa
 kırpılmaz, `outside_coverage` açıklaması döner. Seçilen veri yoksa
@@ -63,6 +69,33 @@ her iki soru API'sinin ortak çekirdeğinde ve analizden önce uygulanır; redde
 planda analiz **0** kez çalışır. Bunlar sınırlı açık ifade kontrolleridir;
 modelin tüm ekonomik niyeti doğru seçtiğini garanti etmez.
 
+### İki tam yıl TÜFE karşılaştırması
+
+“2023 ve 2024 TÜFE değişimlerini karşılaştır.” ve “2024 ile 2023 Aralık yıllık
+TÜFE enflasyonunu karşılaştır.” iki tam yıl için çalışır; yıl sırası korunur.
+Yanıt iki yılın 12'şer aylık evidence tablosunu, ayrı Ocak–Aralık endeks
+değişimlerini, Aralık yıllık oranlarını ve `ikinci yıl - birinci yıl` farkını
+yüzde puan olarak taşır. Hesaplama mevcut `compare_inflation_years()` içinde bir
+kez yapılır; formüller yönlendirme/API/ekran katmanında tekrarlanmaz.
+
+Python planı analizden önce soruyla karşılaştırır. İki yıl açık değilse, yıllar
+eksik/uyuşmuyor veya ters verilmişse, model tek dönem özeti seçmişse ya da soru
+aynı yılı iki kez/tek yıl belirtiyorsa `period_required` döner. Ortalama, kısmi
+dönem, tahmin ve nedensellik istekleri `unsupported`; tam yıl veri kapsamı
+dışındaysa `outside_coverage` olur. Bu durumlarda analiz 0 kez çalışır. Eksik
+önceki Aralık nedeniyle yıllık oran veya fark `null` kalabilir; sıfır/tahmin
+üretilmez. “2023-2024 TÜFE değişimlerini özetle.” aralık özeti karşılaştırma
+sayılmaz. Yeni bir HTTP endpoint'i, genel tarih ayrıştırıcısı, grafik katmanı
+veya model çağrısı eklenmedi.
+
+```json
+{"status":"ready","analysis_id":"cpi_two_year_comparison","first_year":2023,"second_year":2024}
+```
+
+Yerel soru ekranı iki yılın evidence tablolarını ve yüzde puan farkını mevcut
+sayfada gösterir; `null` değerler `—` olarak açıklanır. Sayfa açılışında istek
+yoktur ve yeni CDN/bağımlılık eklenmemiştir.
+
 ## Soru API'si
 
 İstek, zorunlu `question` ve isteğe bağlı iki veri grubu alır:
@@ -97,8 +130,10 @@ Kaynak etiketleri fiziksel dosya doğrulaması yerine geçmez; bu HTTP yüzeyi
 
 `available_periods` içinde `housing` ve `inflation` dönemleri veya `null` vardır.
 `analysis.analysis_id`, `analysis.evidence` tipini belirler. Konut sonucunda
-ayrıca mevcut altı trace'li `analysis.chart` bulunur; TÜFE sonucu evidence
-taşır. Endpoint anlatım çağrısı yapmaz ve sohbet geçmişi tutmaz.
+ayrıca mevcut altı trace'li `analysis.chart` bulunur; TÜFE özeti ve iki yıl
+karşılaştırması evidence taşır. Karşılaştırmada iki nested evidence'ın kaynak
+referansı ve `input_origin` bilgisi korunur. Endpoint anlatım çağrısı yapmaz ve
+sohbet geçmişi tutmaz.
 
 ### Sentetik istek örnekleri
 

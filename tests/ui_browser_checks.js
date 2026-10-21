@@ -54,6 +54,14 @@
     assert(result.querySelectorAll("tbody tr").length === 1 && result.querySelector("tbody tr td").textContent === "2021-02", "match table displays calculated evidence row");
     assert(result.textContent.includes("3 ayın 1 tanesinde"), "summary reads evidence counters");
     assert(!result.querySelector("img") && !window.UI_XSS && result.textContent.includes("<img src=x"), "source text is inert text, not HTML");
+    const comparison = __COMPARISON_PAYLOAD__;
+    window.fetch = async () => new Response(JSON.stringify(comparison), {headers: {"Content-Type": "application/json"}});
+    await send("comparison response");
+    assert(result.querySelectorAll("tbody tr").length === 24, "both full-year CPI tables render");
+    assert(result.textContent.includes("2023 · Ocak–Aralık") && result.textContent.includes("2024 · Ocak–Aralık"), "each compared year is labelled");
+    assert(result.textContent.includes("+5 yüzde puan"), "comparison difference uses percentage points");
+    assert(result.textContent.includes("null kalır"), "missing-value behavior is explained");
+    assert(result.textContent.includes("TÜFE makbuz"), "comparison sources remain visible");
     const marker = document.createElement("pre"); marker.id = "ui-test-result"; marker.textContent = JSON.stringify({ok: true, checks: checks.length}); document.body.append(marker);
   } catch (error) {
     const marker = document.createElement("pre"); marker.id = "ui-test-result"; marker.textContent = JSON.stringify({ok: false, checks, error: String(error)}); document.body.append(marker);
