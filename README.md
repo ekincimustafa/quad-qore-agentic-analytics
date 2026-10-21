@@ -228,7 +228,7 @@ The API was merged in PR #72; the #70 screen was merged in PR #73 (`5bc12a7`).
 The screen at <http://127.0.0.1:8000/> calls this API; summaries only format
 evidence, with no extra model call. The normal screen supports the three bounded
 analyses (Housing, CPI summary and two-year CPI comparison); the offline preview
-below fixes plans for only the two example questions. No live-model success is
+below fixes plans for only the three example questions. No live-model success is
 claimed for the two-year comparison.
 
 ### Local question screen — offline preview
@@ -241,11 +241,14 @@ $env:ANALYTICS_DATA_ROOT = (Resolve-Path .\out\housing-acceptance-20261018\input
 ```
 
 Open <http://127.0.0.1:8000/>. This explicit **offline preview** runs fixed plans for
-the two example questions; click an example, then **Analiz et**. The Housing example
+the three example questions; click an example, then **Analiz et**. The Housing example
 uses 2021–2025 (60 months / 22 matches in the verified delivery); CPI uses 2023
-(12 monthly rows). Other preview questions ask for clarification. The visible
-offline label distinguishes fixed-plan behavior from live model understanding.
-No installation, model key, data download or live model call is needed for preview.
+(12 monthly rows); the comparison uses the two full years 2023 and 2024 in that
+order (12+12 rows). Other preview questions ask for clarification. The visible
+offline label states that only these three fixed examples are supported and that
+free-form questions need normal structured model mode; it does not claim
+natural-language understanding. No installation, model key, data download or live
+model call is needed for preview.
 
 The normal `uvicorn app.api.main:app` command serves the same screen with configured
 model planning. **The four-call acceptance budget in #71 has been consumed; do not
@@ -255,7 +258,8 @@ Press Ctrl+C in the server terminal to stop it.
 
 Mustafa confirmed both offline examples, the Housing chart/table and interactions,
 the CPI table, and sources/limitations on 19 October 2026. This offline user review
-is complete. The four live cases ran on 19 October. On 20 October, Mustafa confirmed
+is complete. (The preview had two examples then; the 2023/2024 comparison example
+was added later in #91.) The four live cases ran on 19 October. On 20 October, Mustafa confirmed
 the four saved static screenshots: Housing period/count/chart/table, CPI period
 and monthly/annual distinction, clarification/unsupported messages with no stale
 result, and no obvious overflow/overlap. This was a static review with no new

@@ -22,12 +22,64 @@ from app.connectors import llm_client
 from app.services.economic_question import run_economic_question, HousingQuestionData
 from app.services.housing_question_files import VerifiedHousingQuestionPaths
 from app.services.inflation_comparison import compare_inflation_years
+from scripts.preview_question_ui import fixed_plan
 from tests.housing_test_support import write_bddk
 import pandas as pd
 
 
 def no_model(*args, **kwargs):
     raise AssertionError("Live model access forbidden")
+
+
+def plan_for(question: str) -> dict:
+    prompt = "İSTEK_VERİSİ:\n" + json.dumps({"question": question})
+    return json.loads(fixed_plan(prompt))
+
+
+EXAMPLES = [
+    ("2021-2025 faiz düşerken reel konut kredisi stokunun artmadığı aylar hangileri?",
+     {"status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up",
+      "start_period": "2021-01", "end_period": "2025-12"}),
+    ("2023 Ocak-Aralık TÜFE aylık ve yıllık değişimlerini özetle.",
+     {"status": "ready", "analysis_id": "cpi_inflation_summary",
+      "start_period": "2023-01", "end_period": "2023-12"}),
+    ("2023 ve 2024 TÜFE değişimlerini karşılaştır.",
+     {"status": "ready", "analysis_id": "cpi_two_year_comparison",
+      "first_year": 2023, "second_year": 2024}),
+]
+
+
+def test_offline_preview_plans_only_the_three_examples():
+    for question, expected in EXAMPLES:
+        assert plan_for(question) == expected
+    assert plan_for("2024 TÜFE değişimlerini özetle.") == {
+        "status": "clarification_required", "reason": "question_ambiguous",
+    }
+
+
+def test_page_offers_three_non_submitting_examples():
+    with TestClient(create_app()) as client:
+        page = client.get("/")
+    assert page.status_code == 200
+    assert page.text.count('type="button" data-example=') == 3
+    for question, _ in EXAMPLES:
+        assert f'data-example="{html.escape(question)}"' in page.text
+    assert "TÜFE karşılaştırması · 2023 / 2024" in page.text
+
+
+def test_normal_and_offline_modes_explain_their_planning():
+    with TestClient(create_app()) as client:
+        normal = client.get("/").text
+    app = create_app()
+    app.state.offline_preview = True
+    with TestClient(app) as client:
+        offline = client.get("/").text
+    assert "yapılandırılmış modelle planlanır" in normal
+    assert "OFFLINE ÖNİZLEME" not in normal
+    assert "OFFLINE ÖNİZLEME" in offline
+    assert "Yalnız üç sabit örnek desteklenir" in offline
+    assert "normal yapılandırılmış model modu gerekir" in offline
+    assert "doğal dil anlama başarısı göstermez" in offline
 
 
 def test_page_and_local_assets_do_not_read_keys_or_call_models(monkeypatch):

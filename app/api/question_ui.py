@@ -14,7 +14,9 @@ router = APIRouter(include_in_schema=False)
 def question_page(request: Request) -> HTMLResponse:
     preview = getattr(request.app.state, "offline_preview", False)
     notice = (
-        "OFFLINE ÖNİZLEME · Sabit planlar kullanılır; canlı model çağrısı yapılmaz."
+        "OFFLINE ÖNİZLEME · Yalnız üç sabit örnek desteklenir; farklı serbest sorular için "
+        "normal yapılandırılmış model modu gerekir. Canlı model çağrısı yapılmaz ve bu "
+        "önizleme doğal dil anlama başarısı göstermez."
         if preview else "Yerel analiz · Sorunuz yapılandırılmış modelle planlanır."
     )
     return HTMLResponse(
