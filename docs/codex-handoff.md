@@ -2,13 +2,32 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli `34918f8` (PR #86 sonrası main).
+için bir sürüm garantisi değildir. Kod temeli `2b58e3c` (PR #92 sonrası main).
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
 güncel durumu belirtir. Tarihli bölümlerdeki dal/CI/onay bekleme ifadeleri yalnız
 o tarihin kanıtıdır ve güncel engel değildir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
+
+## PR #79 kalan belge birleştirmesi — 21 Ekim 2026
+
+- Başlangıç dalı `docs/issue-76-local-setup`; uzak head `15515fa` yeniden
+  doğrulandı. Güncel main `2b58e3c` (PR #92 merge) normal merge ile bu dala
+  alındı; force-push veya toplu ours/theirs yok.
+- README çakışmasında Osman'ın mevcut Python 3.12/.venv, ayrı çıkarma, `inputs`
+  kökü ve boşluklu yol yönergeleri korundu; main'in üçüncü offline örneği
+  (2023/2024 TÜFE karşılaştırması), 37 ekonomik vaka, #71/#87 kabulleri ve
+  rc.1 sürüm kayıtları birlikte tutuldu.
+- Devir notunda #91, #89 ve #88 kayıtları ile Osman'ın 20 Ekim tarihli kurulum
+  kanıtı korundu. Görsel/runtime kanıtı `5bc12a7` üzerinde alınmış tarihli kayıt
+  olarak kalır; bu head'de yeniden üretilmiş gibi sunulmaz.
+- Doğrulama: yerel bağlantılar, PowerShell bloklarının sözdizimi ve
+  `git diff --check`; belge değişikliği olduğu için tam yerel test tekrarı yok.
+  Zorunlu PR CI'si bu commit/push sonrası son head üzerinden kontrol edilir.
+- Uygulama/test/CI kodu değişmedi; yeni canlı LLM/EVDS çağrısı, veri indirme,
+  merge veya release yok. Sıradaki adım güncel PR #79 head'inin bağımsız
+  incelenmesi.
 
 ## #91 üç analizli offline ekran demosu — 21 Ekim 2026
 
@@ -98,6 +117,78 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   release/yayın, canlı uygulama LLM/EVDS çağrısı yok; gerçek veri/rapor/anahtar
   Git'e eklenmedi.
 
+## PR #79 inceleme düzeltmesi — 21 Ekim 2026
+
+- Önce `main` fast-forward pull edildi: `34918f87cdc6325791c3104c9abd683bcbfdfa87`.
+  Güncel main, `docs/issue-76-local-setup` dalına `f8bb7b9` merge commit'iyle
+  alındı; force-push yok. Devir notu çakışmasında main'in #77/#78 dönem/metrik
+  kayıtları ve sonraki kayıtlar ile aşağıdaki 20 Ekim kurulum kanıtı korundu.
+  Uygulama/test/eval/CI dosyaları güncel main ile aynı; PR diff'i yalnız belgedir.
+- #75'in kalan görsel maddeleri, 20 Ekim'de `5bc12a7` üzerinde gerçek in-app
+  tarayıcıda alınan `out/issue-076 setup/cpi-full.jpg` ve `cpi-dom.json` ile
+  teyit edildi: 2023-01–2023-12 **12 satır**; **TÜFE (2025=100)** endeksi;
+  **Aylık değişim (%)** ve **Yıllık değişim (%)** ayrı sütunlar. Üstteki
+  **İlk aydan son aya TÜFE endeksi değişimi %54,5003** ifadesi, tablodaki
+  Aralık yıllık **%64,7729** oranından ayrı ve okunur. Tablonun altındaki
+  **—: Karşılaştırma için geçmiş ay yok** açıklaması ve yıllık oranın geçen
+  yılın aynı ayına göre olduğu, 12 aylık ortalama olmadığı bilgisi okunur.
+  2023 satırlarında eksik geçmiş olmadığı için hücrelerde — üretildiği iddia edilmez.
+- Yeni birleşik sürümde sunucu başladı; ancak in-app sekmesi webview bağlantı
+  zaman aşımı nedeniyle açılamadı. Bu nedenle yukarıdaki görsel kanıtın kaynağı
+  açıkça eski commit'tir; yeni head'de görsel tekrar veya 46 testin yeniden
+  geçtiği iddia edilmez. Bu oturum yalnız mevcut ekran kaydının kapsamını
+  tamamlar; hesap/veri yeniden üretilmedi, yeni canlı LLM/EVDS çağrısı 0.
+- Yeni birleşik belge için yerel bağlantı, PowerShell sözdizimi, çatışma işareti,
+  main koduyla eşitlik ve diff kontrolleri yapıldı. Tam yerel test tekrarı yok;
+  son gönderilen PR head'inin zorunlu CI sonucu GitHub'da ayrıca doğrulanacak.
+  Mevcut 145 kaynak korundu, bu oturumun preview sunucusu durduruldu.
+- Sonuç yorumu kullanıcı tarafından #76'ya bir kez gönderilecek ve #75'e
+  bağlanacak; asistan issue/PR yorumu göndermez, PR'ı merge etmez.
+
+## Osman #76 — yerel kurulum ve ekran kabulü, 20 Ekim 2026
+
+- Kullanıcı planı inceledikten sonra uygulama ve kontrolleri onayladı. Temiz
+  `feat/housing-demo-e2e` dalından `main` dalına geçilip fast-forward pull yapıldı.
+  Kabulün runtime kaynağı `5bc12a7213cd4f3a47d691803c443e1ad463b445`;
+  çalışma dalı `docs/issue-76-local-setup`. #72/#73 birleşmiş, #68/#74 açık.
+- Windows 11 (10.0.26200), mevcut `.venv` Python 3.12.4 kullanıldı. Temiz checkout
+  veya yeni venv kurulumu iddiası yok. `pip check` ve gerekli importlar geçti.
+- Önceki `Housing_tam_teslim_20261018.zip` (SHA-256
+  `956e47c3a7d922b4da7b755635379ccc357423aeceed2bcdef817a1098ca312f`)
+  bir kez ayrı, boşluklu `out/issue-076 setup/delivery/` altına açıldı. Arşiv
+  envanteri ve 145 kaynak doğrulandı; `ANALYTICS_DATA_ROOT` buradaki `inputs/`.
+- Repo kökünde çalışan PowerShell akışı:
+
+  ```powershell
+  $env:ANALYTICS_DATA_ROOT = (Resolve-Path -LiteralPath '.\out\issue-076 setup\delivery\inputs').Path
+  .\.venv\Scripts\python.exe -m scripts.preview_question_ui
+  ```
+
+- Gerçek in-app tarayıcıda iki örnek yalnız soru alanını doldurdu; Analiz et
+  sonrası konut **60 ay/22 eşleşme**, 22 tablo satırı ve Plotly grafiği; TÜFE
+  **2023-01–2023-12 için 12 satır** gösterildi. TÜFE sonucunda eski konut grafiği
+  temizlendi. BDDK kaynak bölümü açıldı; Pan modu ve Reset axes düğmeleri denendi.
+  Grafik sürükleme/hover için bu oturumda ayrı bir kabul iddiası yapılmıyor.
+- Ayrı preview oturumunda bulunmayan veri kökü güvenli UI hatası ve HTTP 503
+  `economic_data_unavailable` verdi. Sonuç gizli, düğme tekrar kullanılabilir;
+  ekranda ham hata, anahtar veya yerel dosya yolu görünmedi. Geçerli veri bozulmadı.
+- Aynı veri köküyle normal `.\.venv\Scripts\python.exe -m uvicorn app.api.main:app
+  --host 127.0.0.1 --port 8000` oturumunda yalnız GET `/`, `/health`, `/docs`
+  kontrol edildi: üçü de 200. Normal sunucudan soru gönderilmedi. Kendi açtığımız
+  dört sunucu süreci kapatıldı; 145 kaynak ve özgün ZIP hash'i değişmedi.
+- README'deki makineye özel `out/clean312` ve veri yolu örnekleri yerine mevcut
+  `.venv`, bir kez ayrı çıkarma, `inputs` kökü, boşluklu yol yazımı ve sunucular
+  arasında Ctrl+C ile geçiş anlatıldı. Runtime/hesap kodu değişmedi.
+- Ek offline kontroller: `tests/test_question_ui.py` ve
+  `tests/test_economic_question_files_api.py` **46 passed in 15.14s**. İlk kısıtlı
+  çalıştırma Windows `socketpair` oluştururken takıldı; aynı testler gerekli
+  sandbox izniyle geçti. Tam pytest paketi bu belge değişikliğinde tekrar koşulmadı.
+- 56 yerel belge bağlantısı, PowerShell bloklarının sözdizimi ve
+  `git diff --check` geçti. Kayıtlar/görüntüler `out/issue-076 setup/` altında,
+  Git dışında. Canlı LLM/EVDS **0**; yeni veri indirme veya `.env` değişikliği yok.
+- Kullanıcı son inceleme sonrası `docs/issue-76-local-setup` dalının push edilmesini
+  onayladı; PR'ı ve #76 yorumunu kendisi açacak. Bu kayıt push öncesinde yazıldı;
+  zorunlu PR CI'si gönderilen son başlıkta ayrıca kontrol edilecek.
 
 ## #85 iki yıl TÜFE karşılaştırmasını soru akışına bağlama — 21 Ekim 2026
 
