@@ -30,8 +30,8 @@
 ## Environment and verification
 
 - Use Python 3.12 and the repository's existing `.venv` when available.
-- Single offline verification, using the same interpreter from any working
-  directory:
+- Single offline verification, using the same interpreter from the repository
+  root:
   - Windows PowerShell: `.\.venv\Scripts\python.exe -m scripts.verify_project`
   - Linux: `.venv/bin/python -m scripts.verify_project`
   It runs the test suite, both offline stub evaluations and `git diff --check` in
