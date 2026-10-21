@@ -2,13 +2,37 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli `f20bf4a` (PR #79 sonrası main).
+için bir sürüm garantisi değildir. Kod temeli `efa22a7` (PR #93 sonrası main).
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
 güncel durumu belirtir. Tarihli bölümlerdeki dal/CI/onay bekleme ifadeleri yalnız
 o tarihin kanıtıdır ve güncel engel değildir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
+
+## #81 TÜFE HTML raporu ikinci aşama — 21 Ekim 2026
+
+- Dal `feat/inflation-html-report`; başlangıç güncel `origin/main` `efa22a7`
+  (PR #93 merge). Grafik ve hesaplar yeniden yazılmadı.
+- `app/tools/inflation_report.py` üç panelli mevcut grafiği, 12 aylık tabloyu,
+  dönem/ilk-son özetini ve kaynak/yöntem metnini aynı evidence'dan üretir.
+  Plotly.js gömülüdür; dinamik metinler escape edilir. Aylık, yıllık ve ilk-son
+  oranları ayrı etiketlenir; null `—` ve açıklamayla gösterilir.
+- `scripts/render_inflation_report.py` varsayılan sentetik üretim ve
+  `--manifest/--root` ile doğrulanmış EVDS modu sunar. CSV, manifest
+  doğrulamasından sonra okunan baytların hash'iyle bağlanır; BDDK gerekmez.
+  Girdilerle çakışan çıktı reddedilir, yazma atomiktir.
+- Kullanım: `docs/inflation-report.md`. Odaklı testler:
+  `tests/test_inflation_report.py` + mevcut `tests/test_inflation_chart.py`.
+- Gerçek yerel paket `out/housing-acceptance-20261018/inputs` ile 2023 raporu
+  üretildi: 12 ay, ilk-son **%54,5003**, Aralık yıllık **%64,7729**. Headless
+  Chrome'da masaüstü ve 390 px genişlikte üç panel, tablo, hover, zoom/pan/reset,
+  kaynak/etiket görünürlüğü, harici kaynak yokluğu ve null `—` açıklamaları
+  otomatik kontrol edildi; ekran görüntüleri görsel olarak da incelendi.
+  Raporlar `out/` altında, Git dışında.
+- Son doğrulama `scripts.verify_project` ile geçti: 986 test geçti, 2 atlandı;
+  housing 9/9, economic 37/37, diff-check temiz. Soru ekranı/API entegrasyonu,
+  canlı LLM/EVDS ve yeni bağımlılık yok. PR incelemesi bağımsız oturumda.
 
 ## #81 TÜFE grafiği ilk aşama — 21 Ekim 2026
 
