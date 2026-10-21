@@ -389,4 +389,3 @@ def test_cpi_chart_failure_is_safe_503_without_retry(package, monkeypatch):
     assert response.json()["detail"]["code"] == "economic_data_unavailable"
     assert "private-chart-detail" not in response.text
     assert len(prompts) == 1
-

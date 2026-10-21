@@ -397,4 +397,3 @@ def test_cpi_chart_failure_is_safe_422_without_retry(monkeypatch, payload):
     assert response.json()["detail"]["code"] == "invalid_economic_input"
     assert "private-chart-detail" not in response.text
     assert len(prompts) == 1
-

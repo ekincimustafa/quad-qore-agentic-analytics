@@ -39,8 +39,9 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   try bloğuna alındı; InflationChartError artık normalize istekte güvenli 422,
   dosya isteğinde güvenli 503 verir. İki HTTP regresyonu önce hatayı yeniden
   üretti; düzeltme sonrasında tek planlama denemesi ve ham ayrıntı gizliliği
-  kontrol edilir. Yukarıdaki 986/2 sonucu ilk teslimindir; son head'in CI'si
-  düzeltme sonrası ayrıca kontrol edilmelidir.
+  kontrol edilir. İnceleme ortamında odaklı API/dosya/grafik/UI paketi
+  **115 passed, 1 skipped** (Chrome yok); yerel tam paket tekrarlanmadı.
+  Yukarıdaki 986/2 ilk teslimindir; son head'in CI'si ayrıca doğrulanır.
 
 
 ## #81 TÜFE HTML raporu ikinci aşama — 21 Ekim 2026
