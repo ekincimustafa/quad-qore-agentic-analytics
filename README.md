@@ -37,11 +37,12 @@ Bronze-to-report source chain were independently checked on the delivered real
 data (60 months, 22 matching months). EVDS delivery [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39)
 and the real-data demo [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40)
 are complete, including Mustafa's browser acceptance on 18 October 2026.
-The published [v0.1.0-rc.1](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
-still targets `abea431`. The unrecorded video in
-[#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) is optional
-portfolio work; it does not block the authorized local question product
-(backend #69, screen #70, acceptance #71).
+The [v0.1.0-rc.1 prerelease](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
+is published from `abea431`. The optional portfolio screen recording remains open in
+[#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
+The local question product (#69 backend, #70 screen, #71 end-to-end acceptance)
+is complete; the offline and bounded live acceptance recorded four calls for that
+run only and is not a general model-accuracy metric.
 Weekly publication coverage is explicitly unverified without an official calendar;
 the timestamp and coverage policy is documented in the [EVDS guide](docs/evds-ingestion.md).
 See the [acceptance record](docs/release-acceptance.md) for verified checks and open gates.
@@ -225,7 +226,10 @@ in #71 is complete; additional automated live requests need separate approval.
 Offline tests use stub plans.
 The API was merged in PR #72; the #70 screen was merged in PR #73 (`5bc12a7`).
 The screen at <http://127.0.0.1:8000/> calls this API; summaries only format
-evidence, with no extra model call.
+evidence, with no extra model call. The normal screen supports the three bounded
+analyses (Housing, CPI summary and two-year CPI comparison); the offline preview
+below fixes plans for only the two example questions. No live-model success is
+claimed for the two-year comparison.
 
 ### Local question screen — offline preview
 

@@ -4,12 +4,11 @@ Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
 için bir sürüm garantisi değildir. Kod temeli `34918f8` (PR #86 sonrası main).
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
-güncel durumu belirtir.
+güncel durumu belirtir. Tarihli bölümlerdeki dal/CI/onay bekleme ifadeleri yalnız
+o tarihin kanıtıdır ve güncel engel değildir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
-
-
 
 ## #88 eski yayın ve canlı kabul belgelerini PR #74'te uzlaştırma — 21 Ekim 2026
 
@@ -119,6 +118,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   yürütülecek. Merge ve release yapılmayacak.
 
 ## #77 ekonomik soru değerlendirmesi — 20 Ekim 2026
+
+Bu bölüm 20 Ekim tarihli kayıttır; dal/CI/onay ifadeleri o tarihe aittir.
 
 ### Güncel oturum: analiz öncesi Python kontrolü, yalnız offline
 
@@ -259,6 +260,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 
 
 ## Sınırlı canlı kabul sonucu — 19–20 Ekim 2026
+
+Bu bölüm 19–20 Ekim tarihli kabul kanıtıdır; dal/CI/onay ifadeleri o tarihe aittir.
 
 - Başlangıç ağacı temiz, aktif dal **`docs/live-acceptance-plan`**; açık
   **PR #74** güncellenir, merge edilmedi. Ürün kodu main `5bc12a7` ile aynı;
@@ -453,10 +456,42 @@ sonraki adım üstteki Aşama 2 bölümündedir.
   canlı Gemini çağrısından önce Mustafa'ya göster. Bu oturumda ekran, canlı
   kabul veya yeni release tamamlandı sayılmaz.
 
-## PR #67 ilk gerçek demo kabul kaydı — 18 Ekim 2026
+## v0.1.0-rc.1 yayımlandı; ekran kaydı açık — 18 Ekim 2026
 
-Bu ve aşağıdaki bölümler tarihli kanıttır; ürün kapsamı/onay/dal ve sonraki iş
-için üstteki 19 Ekim güncellemesi geçerlidir.
+19 Ekim ürün kararı: #46 videosu **isteğe bağlı portföy işi**, kaydedilmedi;
+ürün geliştirmesinin zorunlu kabul kapısı değildir. Yalnızca soruyla çalışan
+yerel ürün artık açıkça yetkili: backend #69, ekran #70, uçtan uca kabul #71.
+Önceki “yeni özellik açma” sınırı bu kapsam için geçersizdir. PR #68 açık,
+başarılı CI'li belge teslimidir; main'de varmış gibi kullanılmaz. rc.1 değişmez.
+
+- Başlangıç çalışma ağacı temizdi; kullanıcının değişikliği yoktu. Aktif dal
+  **`docs/rc1-publication`**, güncel main `abea431` tabanlıdır. PR #67 main'e
+  merge edilmiştir; runtime `7ee7225` ile aynı, yalnızca kabul belgeleri değişti.
+- Mustafa bu oturumda yalnızca **`v0.1.0-rc.1` sürüm adayının yayımlanmasına**
+  açık onay verdi. Güncel main tam SHA
+  `abea43137eed8a6ceb20cd9bbd22cd0afeb58f1b` yeniden kontrol edildi;
+  bu commit'in [main CI'si](https://github.com/ekincimustafa/quad-qore-agentic-analytics/actions/runs/39153169544)
+  **796 passed in 20.89s**. Gereksiz yerel tam pytest tekrarı yapılmadı.
+- Annotated `v0.1.0-rc.1` tag'i tam bu commit'e oluşturulup gönderildi;
+  [GitHub prerelease](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
+  **18 Ekim 2026 18:36:49 UTC** yayımlandı. `prerelease=true`, `draft=false`,
+  release kimliği `416628413`, yüklenen ek sayısı **0**. Tag hedefi ve yayımlanan
+  notlar bağımsız GET ile kontrol edildi. Gerçek veri, HTML, yerel audit veya
+  operasyon script'i eklenmedi; kaynak arşivleri yalnızca Git'teki dosyalardır.
+- #39/#40/#42 tamamdır. #46'da prerelease/onay maddeleri işaretlendi;
+  **60–90 saniyelik ekran kaydı alınmadı**, isteğe bağlı portföy işi olarak açık.
+  Kullanıcının önceki gerçek HTML görsel kabulü kayıt yapıldığı anlamına gelmez.
+- Bu dal yalnızca mevcut README/kabul/teslim/devir kaydını günceller; sürüm
+  tag'i bu yayın sonrası belge commit'lerine taşınmaz. Belge commit/push/PR
+  rutini uygulanır; yeni PR'nin merge'i veya kararlı release için onay yoktur.
+  Bu belgelerde **63 yerel bağlantı**, **12 PowerShell bloğu** ve
+  `git diff --check` geçti; zorunlu belge PR CI'si son commit için izlenir.
+  Bu yayın kaydının tarihli sonraki adımı videoydu; 19 Ekim ürün kararıyla artık
+  geliştirmeyi bekletmez. Yeni geliştirme #69 ile başlar; canlı EVDS/LLM yok.
+## PR #67 gerçek demo kabul teslimi — 18 Ekim 2026
+
+Bu bölüm yayın öncesi tarihli kabul kaydıdır; güncel yayın ve aktif dal durumu
+üstteki `v0.1.0-rc.1` bölümündedir. Önceki onay sınırları bu tarihe aittir.
 
 - Aktif dal `docs/real-demo-readiness`; başlangıç çalışma ağacı temizdi,
   mevcut kullanıcı değişikliği yoktu. Runtime `7ee7225`, Python 3.12.15

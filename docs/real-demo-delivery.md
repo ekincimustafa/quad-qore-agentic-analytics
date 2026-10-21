@@ -19,7 +19,8 @@ EVDS/BDDK alıcı ve birleşik teknik doğrulamayı izler; Mustafa'nın görsel 
   Mustafa'da doğrulandı. EVDS'nin 12 dosyası eski kabul kopyasıyla bayt eşit.
 - Mustafa'nın bağımsız **tek CLI koşusu 60 ay/22 eşleşme** verdi; yeni dört çıktı
   teslim `outputs/` ile bayt eşit. Aynı girdilerle açık sabit planlı #42 wrapper'ı
-  aynı evidence/grafiği verdi. #39/#40/#42 tamamlandı; #46 kısa sunum ve sürüm teslimi açık.
+  aynı evidence/grafiği verdi. #39/#40/#42 tamamlandı; rc.1 yayımlandı,
+  #46 ekran kaydı isteğe bağlı portföy işi olarak açık; ürün geliştirmesini bloke etmez.
 - Üretici/tüketici kodu, şema ve ortak sentetik fixture zaten teslim edildi.
   Bu işler yeniden istenmez. Yerel `data/` yalnızca `.gitkeep` içerir.
 
@@ -108,7 +109,7 @@ Bu CLI yalnızca yerel dosyaları kullanır. 60 tekil ay, ilk ay null değişiml
 mevcut hesap kuralı, evidence/grafik uyumu ve üç gerçek örnek ay kontrol edilir.
 Gerçek eşleşme sayısı şimdiden varsayılmaz. Kaynak dosyalarının ilk/son hash'leri,
 komut sonuçları ve dört çıktı kaydedilir. [Kabul kaydı](release-acceptance.md)
-gerçek sonuçlarla güncellendi; #40/#42 tamamlandı, #46 kısa sunum ve sürüm teslimini bekler.
+gerçek sonuçlarla güncellendi; #40/#42 tamamlandı, #46 isteğe bağlı portföy kaydıdır.
 
 ## Şimdi açılacak gerçek rapor
 
@@ -120,9 +121,37 @@ Mustafa 18 Ekim'de bu gerçek dosyada 60 ay/22 eşleşmeyi, hover–zoom–pan�
 seçtiği ayda tablo/grafik uyumunu, 2021-01'in eşleşmemesini ve kaynak/birim/baz yılı
 ile sınırlamaların okunabilirliğini teyit etti. Bu kullanıcı incelemesidir;
 Codex'in tarayıcı testi değildir. Teslimdeki orijinal `outputs/` ve inputs değişmedi.
-Sürüm notu, önerilen `v0.1.0-rc.1` tag'i ve 60–90 saniyelik anlatım
-[mevcut kabul kaydındadır](release-acceptance.md). Sunum/sürüm teslimi tamamlanmış
-sayılmaz; tag/release/yayınlama öncesinde ayrı kullanıcı onayı beklenir.
+Sürüm notu ve 60–90 saniyelik anlatım [mevcut kabul kaydındadır](release-acceptance.md).
+Mustafa'nın ayrı onayıyla `abea431` main commit'i
+[`v0.1.0-rc.1` prerelease](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
+olarak yayımlandı; veri/HTML/audit eki yüklenmedi. Ekran kaydı henüz alınmadı;
+sunum ve demo teslimi tamamlanmış sayılmaz. 19 Ekim kararıyla bu video isteğe
+bağlıdır; yeni yerel soru ürününün geliştirmesini veya kabulünü bloke etmez.
+
+### 60–90 saniyelik ekran kaydı
+
+Bu adımlar Mustafa'nın uygulayacağı yönergedir; henüz yapılmış kayıt değildir.
+
+1. Yukarıdaki gerçek HTML'yi tarayıcıda açın. Grafiği sıfırlayın, üstte 60 ay/22
+   eşleşme görünür olsun. Pencereyi büyütün; yazılar okunacak yakınlıkta kalsın.
+2. `Win+G` ile Xbox Game Bar'ı açın. Yakalama panelinde mikrofonu açın;
+   `Win+Alt+M` mikrofonu açıp kapatır. Önce kısa bir ses denemesi kaydedip dinleyin.
+3. Rapor tarayıcısı aktifken `Win+Alt+R` ile kaydı başlatın. Birkaç saniye bekleyip
+   [kabul kaydındaki anlatımı](release-acceptance.md) izleyin:
+   **0–20 sn** kapsam/60 ay/22; **20–40 sn** Şubat 2021 hover, zoom, pan ve sıfırlama;
+   **40–60 sn** eşleşme tablosu ve Ocak 2021'in listede olmaması;
+   **60–90 sn** kaynaklar, birimler ve sınırlamalar.
+4. `Win+Alt+R` ile durdurun. Varsayılan çıktı **Videolar > Yakalamalar
+   (Videos > Captures)** altında MP4'tür. Dosyayı `housing-demo-v0.1.0-rc.1.mp4`
+   gibi tanınabilir bir adla saklayın; mevcut bir dosyanın üzerine yazmayın.
+5. MP4'ü baştan sona açıp 60–90 saniye olduğunu, sesinizi, sayıların ve kaynakların
+   okunmasını kontrol edin. Dosya oluşması tek başına demo kabulünü tamamlamaz.
+6. Kayıt hazır olduğunda yerel yolunu ve kontrol sonucunu Mustafa paylaşır;
+   #46'daki demo maddesi ancak bu kanıtla güncellenir. Video yayımlama/yükleme
+   bu yönergenin parçası olarak yapılmadı.
+
+Kısayollar ve varsayılan MP4 konumu için
+[Microsoft'un Xbox Game Bar yönergesi](https://support.microsoft.com/en-us/accessibility/windows/use-a-screen-reader-to-record-your-screen-with-xbox-game-bar).
 
 ## Önceki sentetik örnek
 
