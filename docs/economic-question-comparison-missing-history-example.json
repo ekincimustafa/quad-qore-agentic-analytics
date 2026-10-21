@@ -1,0 +1,32 @@
+{
+  "question": "2023 ve 2024 TÜFE değişimlerini karşılaştır.",
+  "inflation": {
+    "cpi_monthly": [
+      {"period": "2023-01", "cpi_index": 102.0},
+      {"period": "2023-02", "cpi_index": 104.0},
+      {"period": "2023-03", "cpi_index": 106.0},
+      {"period": "2023-04", "cpi_index": 108.0},
+      {"period": "2023-05", "cpi_index": 110.0},
+      {"period": "2023-06", "cpi_index": 112.0},
+      {"period": "2023-07", "cpi_index": 114.0},
+      {"period": "2023-08", "cpi_index": 116.0},
+      {"period": "2023-09", "cpi_index": 118.0},
+      {"period": "2023-10", "cpi_index": 119.0},
+      {"period": "2023-11", "cpi_index": 119.5},
+      {"period": "2023-12", "cpi_index": 120.0},
+      {"period": "2024-01", "cpi_index": 123.0},
+      {"period": "2024-02", "cpi_index": 126.0},
+      {"period": "2024-03", "cpi_index": 129.0},
+      {"period": "2024-04", "cpi_index": 132.0},
+      {"period": "2024-05", "cpi_index": 135.0},
+      {"period": "2024-06", "cpi_index": 138.0},
+      {"period": "2024-07", "cpi_index": 141.0},
+      {"period": "2024-08", "cpi_index": 144.0},
+      {"period": "2024-09", "cpi_index": 146.0},
+      {"period": "2024-10", "cpi_index": 147.0},
+      {"period": "2024-11", "cpi_index": 148.5},
+      {"period": "2024-12", "cpi_index": 150.0}
+    ],
+    "source_ref": "synthetic://comparison-missing-history"
+  }
+}

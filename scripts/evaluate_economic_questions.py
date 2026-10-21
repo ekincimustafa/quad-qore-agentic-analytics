@@ -6,11 +6,13 @@ import argparse
 import copy
 import hashlib
 import json
+import math
 from pathlib import Path
 import subprocess
 from typing import Any, Literal
 from unittest.mock import patch
 
+import pandas as pd
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
 
@@ -18,6 +20,7 @@ from app.api.economic_question import EconomicQuestionRequest, get_economic_ques
 from app.api.main import create_app
 from app.connectors import llm_client
 from app.services import economic_question as service
+from app.services.inflation_comparison import compare_inflation_years as reference_comparison
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,9 +28,19 @@ CASES_PATH = ROOT / "evals/economic_question_cases.json"
 FIXTURES = {
     "both": ROOT / "docs/economic-question-api-example.json",
     "cpi_history": ROOT / "docs/economic-question-cpi-example.json",
+    "comparison": ROOT / "docs/economic-question-comparison-example.json",
+    "comparison_missing_history": ROOT / "docs/economic-question-comparison-missing-history-example.json",
 }
 ENDPOINT = "/analysis/economic/question"
 MODEL_DECISION = TypeAdapter(service.ModelDecision)
+
+
+class ComparisonExpectation(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    observed_month_counts: tuple[int, int]
+    december_annual_inflation_pct: tuple[float | None, float | None]
+    second_minus_first_december_annual_inflation_pp: float | None
 
 
 class EconomicCase(BaseModel):
@@ -35,21 +48,27 @@ class EconomicCase(BaseModel):
 
     id: str = Field(pattern=r"^EQ-[0-9]{3}$")
     question: str = Field(min_length=1, max_length=2_000)
-    fixture: Literal["both", "cpi_history", "housing_only", "none"] = "both"
+    fixture: Literal[
+        "both", "cpi_history", "comparison", "comparison_missing_history", "housing_only", "none",
+    ] = "both"
     offline_response: dict[str, Any]
     expected_decision: service.EconomicDecision
     accepted_model_decisions: list[service.ModelDecision] | None = Field(default=None, min_length=1)
     rationale: str = ""
     expected_observed_month_count: int | None = Field(default=None, ge=1)
     expected_matched_periods: list[str] | None = None
+    expected_comparison: ComparisonExpectation | None = None
 
     @model_validator(mode="after")
     def expectations(self) -> EconomicCase:
         if not self.question.strip():
             raise ValueError("Case question must not be blank.")
         ready = isinstance(self.expected_decision, service.EconomicReadyPlan)
+        comparison = isinstance(self.expected_decision, service.EconomicComparisonReadyPlan)
         if ready != (self.expected_observed_month_count is not None):
-            raise ValueError("Only ready cases need an observation count.")
+            raise ValueError("Only single-analysis ready cases need an observation count.")
+        if comparison != (self.expected_comparison is not None):
+            raise ValueError("Only comparison ready cases need comparison expectations.")
         housing = ready and self.expected_decision.analysis_id == service.HOUSING_ID
         if housing != (self.expected_matched_periods is not None):
             raise ValueError("Only Housing ready cases need matching periods.")
@@ -68,7 +87,7 @@ class EconomicSuite(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     schema_version: Literal["1.0"]
-    cases: list[EconomicCase] = Field(min_length=1, max_length=30)
+    cases: list[EconomicCase] = Field(min_length=1, max_length=40)
 
     @model_validator(mode="after")
     def unique_ids(self) -> EconomicSuite:
@@ -80,7 +99,12 @@ class EconomicSuite(BaseModel):
 def _payload(case: EconomicCase, fixtures: dict[str, dict]) -> dict:
     if case.fixture == "none":
         return {"question": case.question}
-    payload = copy.deepcopy(fixtures["cpi_history" if case.fixture == "cpi_history" else "both"])
+    fixture = {
+        "cpi_history": "cpi_history",
+        "comparison": "comparison",
+        "comparison_missing_history": "comparison_missing_history",
+    }.get(case.fixture, "both")
+    payload = copy.deepcopy(fixtures[fixture])
     payload["question"] = case.question
     if case.fixture == "housing_only":
         payload.pop("inflation")
@@ -107,6 +131,22 @@ def _reference(client: TestClient, payload: dict, analysis_id: str, start: str, 
     return response.json()
 
 
+def _comparison_reference(payload: dict, plan: service.EconomicComparisonReadyPlan) -> dict:
+    frame = pd.DataFrame(payload["inflation"]["cpi_monthly"])
+    return reference_comparison(
+        frame,
+        first_year=plan.first_year,
+        second_year=plan.second_year,
+        source_ref=payload["inflation"]["source_ref"],
+    ).model_dump(mode="json")
+
+
+def _close(actual: float | None, expected: float | None) -> bool:
+    if expected is None or actual is None:
+        return actual is expected
+    return math.isclose(actual, expected, rel_tol=0.0, abs_tol=1e-9)
+
+
 def _prepare(client: TestClient, cases: list[EconomicCase], fixtures: dict[str, dict]) -> dict[str, dict]:
     """Validate fixtures and human calculation expectations before any provider call."""
     references = {}
@@ -131,15 +171,41 @@ def _prepare(client: TestClient, cases: list[EconomicCase], fixtures: dict[str, 
             ):
                 raise ValueError("Human evidence expectations disagree with the synthetic fixture.")
             references[case.id] = reference
+        elif isinstance(plan, service.EconomicComparisonReadyPlan):
+            reference = _comparison_reference(payload, plan)
+            expected = case.expected_comparison
+            assert expected is not None
+            years = reference["years"]
+            counts = tuple(item["evidence"]["observed_month_count"] for item in years)
+            december_rates = tuple(item["evidence"]["observations"][-1]["annual_inflation_pct"] for item in years)
+            december_periods = tuple(item["evidence"]["observations"][-1]["period"] for item in years)
+            if (
+                [item["year"] for item in years] != [plan.first_year, plan.second_year]
+                or december_periods != (f"{plan.first_year:04d}-12", f"{plan.second_year:04d}-12")
+                or counts != expected.observed_month_counts
+                or not all(_close(actual, wanted) for actual, wanted in zip(
+                    december_rates, expected.december_annual_inflation_pct,
+                ))
+                or not _close(
+                    reference["second_minus_first_december_annual_inflation_pp"],
+                    expected.second_minus_first_december_annual_inflation_pp,
+                )
+            ):
+                raise ValueError("Human comparison expectations disagree with the synthetic fixture.")
+            references[case.id] = reference
     return references
 
 
 def _check_analysis(reference: dict | None, body: dict, case: EconomicCase) -> str | None:
     plan = case.expected_decision
-    if not isinstance(plan, service.EconomicReadyPlan):
-        return None if body["analysis"] is None else "unexpected_analysis"
-    housing = plan.analysis_id == service.HOUSING_ID
     analysis = body["analysis"]
+    if isinstance(plan, service.EconomicComparisonReadyPlan):
+        if analysis is None or analysis["analysis_id"] != plan.analysis_id:
+            return "reference_or_analysis_mismatch"
+        return None if analysis["evidence"] == reference else "evidence_mismatch"
+    if not isinstance(plan, service.EconomicReadyPlan):
+        return None if analysis is None else "unexpected_analysis"
+    housing = plan.analysis_id == service.HOUSING_ID
     if analysis is None or analysis["analysis_id"] != plan.analysis_id:
         return "reference_or_analysis_mismatch"
     if analysis["evidence"] != reference["evidence"]:
@@ -174,6 +240,7 @@ def evaluate_cases(
         TestClient(app) as client,
         patch.object(service, "run_housing_analysis", wraps=service.run_housing_analysis) as housing,
         patch.object(service, "build_inflation_evidence", wraps=service.build_inflation_evidence) as inflation,
+        patch.object(service, "compare_inflation_years", wraps=service.compare_inflation_years) as comparison,
     ):
         references = _prepare(client, cases, fixtures)
         for case in cases:
@@ -186,7 +253,8 @@ def evaluate_cases(
                 "application_decision_matches_expectation": None,
                 "python_blocked_ready_plan": False,
                 "outcome": "skipped", "reason": stopped,
-                "model_call_attempts": 0, "stub_calls": 0, "housing_calls": 0, "inflation_calls": 0,
+                "model_call_attempts": 0, "stub_calls": 0, "housing_calls": 0,
+                "inflation_calls": 0, "comparison_calls": 0,
             }
             if live and (stopped or live_calls >= max_model_calls):
                 row["reason"] = stopped or "budget_exhausted"
@@ -194,6 +262,7 @@ def evaluate_cases(
                 continue
             housing.reset_mock()
             inflation.reset_mock()
+            comparison.reset_mock()
             model_calls = []
             actual_model_text = None
             limit_error = None
@@ -221,7 +290,9 @@ def evaluate_cases(
                 body = response.json()
                 row["http_status"] = response.status_code
                 expected = case.expected_decision
-                expected_status = "ok" if isinstance(expected, service.EconomicReadyPlan) else expected.status
+                expected_status = "ok" if isinstance(
+                    expected, (service.EconomicReadyPlan, service.EconomicComparisonReadyPlan),
+                ) else expected.status
                 if response.status_code == 200:
                     row["application_decision_matches_expectation"] = (
                         body.get("status") == expected_status
@@ -247,8 +318,16 @@ def evaluate_cases(
                     )
                     if not row["model_decision_matches_expectation"]:
                         reason = reason or "model_decision_mismatch"
-                expected_calls = int(isinstance(expected, service.EconomicReadyPlan))
-                if housing.call_count + inflation.call_count != expected_calls:
+                expected_housing = int(
+                    isinstance(expected, service.EconomicReadyPlan) and expected.analysis_id == service.HOUSING_ID
+                )
+                expected_inflation = int(
+                    isinstance(expected, service.EconomicReadyPlan) and expected.analysis_id == service.INFLATION_ID
+                )
+                expected_comparison = int(isinstance(expected, service.EconomicComparisonReadyPlan))
+                if (
+                    housing.call_count, inflation.call_count, comparison.call_count,
+                ) != (expected_housing, expected_inflation, expected_comparison):
                     reason = reason or "analysis_call_count_mismatch"
                 if len(model_calls) != (0 if case.fixture == "none" else 1):
                     reason = reason or "planning_call_count_mismatch"
@@ -261,6 +340,7 @@ def evaluate_cases(
                 "model_call_attempts": live_calls - attempts_before,
                 "stub_calls": 0 if live else len(model_calls),
                 "housing_calls": housing.call_count, "inflation_calls": inflation.call_count,
+                "comparison_calls": comparison.call_count,
             })
             rows.append(row)
             if live and reason is not None:

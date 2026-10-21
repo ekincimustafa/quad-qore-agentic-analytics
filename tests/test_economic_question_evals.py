@@ -1,5 +1,6 @@
 """Offline harness and selected live-mode control flow; providers are always fake."""
 
+import copy
 import json
 
 import httpx
@@ -31,11 +32,12 @@ def test_offline_command_runs_curated_cases_and_counts_only_question_executions(
     report = json.loads(report_path.read_text(encoding="utf-8"))
     assert report["measurement"] == "harness_behavior_only"
     assert report["live_model_call_attempts"] == 0
-    assert report["passed_cases"] == report["selected_cases"] == 28
-    assert sum(row["stub_calls"] for row in report["results"]) == 27
+    assert report["passed_cases"] == report["selected_cases"] == 37
+    assert sum(row["stub_calls"] for row in report["results"]) == 36
     assert sum(row["housing_calls"] for row in report["results"]) == 4
     assert sum(row["inflation_calls"] for row in report["results"]) == 5
-    assert report["case_set_sha256"] and len(report["fixture_sha256"]) == 2
+    assert sum(row["comparison_calls"] for row in report["results"]) == 3
+    assert report["case_set_sha256"] and len(report["fixture_sha256"]) == 4
     assert report["source_commit"] and report["evaluator_sha256"]
     assert report["results"][0]["expected_decision"] == report["results"][0]["actual_decision"]
 
@@ -303,6 +305,96 @@ def test_bad_fixture_expectation_spends_no_provider_calls(cases, fixtures):
             model_call=lambda prompt: calls.append(prompt), max_model_calls=1)
     assert not calls
 
+
+def test_comparison_cases_run_one_comparison_and_keep_hand_calculated_constants(cases, fixtures):
+    selected = evaluator.select_cases(cases, ["EQ-029", "EQ-030", "EQ-031"])
+    report = evaluator.evaluate_cases(selected, fixtures)
+    assert report["all_selected_cases_passed"]
+    assert [row["comparison_calls"] for row in report["results"]] == [1, 1, 1]
+    assert all(row["housing_calls"] == row["inflation_calls"] == 0 for row in report["results"])
+
+
+def test_bad_comparison_expectation_spends_no_provider_calls(cases, fixtures):
+    base = evaluator.select_cases(cases, ["EQ-029"])[0]
+    wrong = base.expected_comparison.model_copy(
+        update={"second_minus_first_december_annual_inflation_pp": 6.0},
+    )
+    calls = []
+    with pytest.raises(ValueError, match="comparison expectations"):
+        evaluator.evaluate_cases([base.model_copy(update={"expected_comparison": wrong})], fixtures,
+            live=True, model_call=lambda prompt: calls.append(prompt), max_model_calls=1)
+    assert not calls
+
+
+def test_missing_interior_month_is_rejected_before_provider(cases, fixtures):
+    selected = evaluator.select_cases(cases, ["EQ-029"])
+    broken = copy.deepcopy(fixtures)
+    broken["comparison"]["inflation"]["cpi_monthly"] = [
+        row for row in broken["comparison"]["inflation"]["cpi_monthly"] if row["period"] != "2023-06"
+    ]
+    calls = []
+    with pytest.raises(ValueError):
+        evaluator.evaluate_cases(selected, broken, live=True,
+            model_call=lambda prompt: calls.append(prompt), max_model_calls=1)
+    assert not calls
+
+
+def test_python_blocks_wrong_comparison_ready_plan_and_marks_raw_model_failure(
+    cases, fixtures, fake_provider,
+):
+    selected = evaluator.select_cases(cases, ["EQ-035", "EQ-010"])
+    observed = {"status": "ready", "analysis_id": "cpi_two_year_comparison",
+                "first_year": 2023, "second_year": 2024}
+    requests, _, _ = fake_provider(lambda request: _response(json.dumps(observed)))
+    report = evaluator.evaluate_cases(selected, fixtures, live=True,
+        model_call=llm_client.ask_llm, max_model_calls=2)
+    row = report["results"][0]
+    assert len(requests) == report["live_model_call_attempts"] == 1
+    assert row["actual_model_decision"] == observed
+    assert row["actual_decision"] == row["expected_decision"] == {
+        "status": "unsupported", "reason": "unsupported_analysis",
+    }
+    assert row["model_decision_matches_expectation"] is False
+    assert row["application_decision_matches_expectation"] is True
+    assert row["python_blocked_ready_plan"] is True
+    assert row["outcome"] == "failed" and row["reason"] == "model_decision_mismatch"
+    assert row["comparison_calls"] == row["housing_calls"] == row["inflation_calls"] == 0
+    assert report["results"][1]["reason"] == "not_run_after_failure"
+
+
+
+@pytest.mark.parametrize(
+    ("case_id", "first_year", "second_year"),
+    [("EQ-032", 2023, 2023), ("EQ-034", 2023, 2024)],
+)
+def test_invalid_comparison_ready_is_not_an_accepted_model_decision(
+    cases, fixtures, case_id, first_year, second_year,
+):
+    selected = evaluator.select_cases(cases, [case_id, "EQ-029"])
+    observed = {"status": "ready", "analysis_id": "cpi_two_year_comparison",
+                "first_year": first_year, "second_year": second_year}
+    calls = []
+
+    def fake_model(prompt):
+        calls.append(prompt)
+        return json.dumps(observed)
+
+    report = evaluator.evaluate_cases(
+        selected, fixtures, live=True, model_call=fake_model, max_model_calls=2,
+    )
+    row = report["results"][0]
+    expected = {"status": "clarification_required", "reason": "period_required"}
+    assert len(calls) == report["live_model_call_attempts"] == 1
+    assert row["accepted_model_decisions"] == [expected]
+    assert row["actual_model_decision"] == observed
+    assert row["actual_decision"] == row["expected_decision"] == expected
+    assert row["application_decision_matches_expectation"] is True
+    assert row["model_decision_matches_expectation"] is False
+    assert row["python_blocked_ready_plan"] is True
+    assert row["outcome"] == "failed" and row["reason"] == "model_decision_mismatch"
+    assert row["comparison_calls"] == row["housing_calls"] == row["inflation_calls"] == 0
+    assert not report["all_selected_cases_passed"]
+    assert report["results"][1]["reason"] == "not_run_after_failure"
 
 @pytest.mark.parametrize("ids", [["EQ-999"], ["EQ-001", "EQ-001"]])
 def test_bad_selection_never_contacts_or_configures_provider(ids, tmp_path, monkeypatch):
