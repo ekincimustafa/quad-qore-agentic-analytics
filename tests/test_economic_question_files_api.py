@@ -15,11 +15,15 @@ from app.api.main import create_app
 from app.connectors import llm_client
 from app.lakehouse.gold import GoldAnalysisError
 from app.services import economic_question as core
+from app.services import economic_question_files as files_service
+from app.services.housing_question import HousingDataCoverage
 from app.services.housing_question_files import (
     VerifiedHousingQuestionPaths,
+    VerifiedQuestionInputs,
     run_verified_housing_question,
 )
 from app.services.inflation_analysis import build_inflation_evidence
+from app.services.inflation_comparison import compare_inflation_years
 from tests.housing_test_support import write_bddk
 
 
@@ -154,6 +158,53 @@ def test_cpi_history_and_coverage_are_not_clipped_to_housing(package):
     month = body["analysis"]["evidence"]["observations"][0]
     assert month["monthly_inflation_pct"] == pytest.approx(1)
     assert month["annual_inflation_pct"] is None
+
+
+def test_files_comparison_matches_core_and_marks_nested_verified_provenance(
+    package, monkeypatch,
+):
+    periods = pd.period_range("2022-12", "2024-12", freq="M").astype(str).tolist()
+    cpi = pd.DataFrame({
+        "period": periods,
+        "cpi_index": [
+            100.0, 102.0, 104.0, 106.0, 108.0, 110.0, 112.0, 114.0, 116.0, 118.0, 119.0, 119.5,
+            120.0, 123.0, 126.0, 129.0, 132.0, 135.0, 138.0, 141.0, 144.0, 146.0, 147.0, 148.5,
+            150.0,
+        ],
+    })
+    inputs = VerifiedQuestionInputs(
+        bddk_monthly=pd.DataFrame({"period": periods}),
+        evds_monthly=cpi,
+        housing_coverage=HousingDataCoverage(start_period="2022-12", end_period="2024-12"),
+        evds_source_refs="synthetic://evds",
+        cpi_source_ref="verified://cpi-receipt",
+    )
+    monkeypatch.setattr(files_service, "load_verified_question_inputs", lambda _: inputs)
+    question = "2023 ve 2024 TÜFE değişimlerini karşılaştır."
+    plan = {"status": "ready", "analysis_id": core.COMPARISON_ID,
+            "first_year": 2023, "second_year": 2024}
+    with client_with_model(package, lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json={"question": question})
+    assert response.status_code == 200
+    body = response.json()
+    direct = compare_inflation_years(
+        cpi, first_year=2023, second_year=2024, source_ref="verified://cpi-receipt",
+    )
+    assert body["status"] == "ok" and body["decision"] == plan
+    assert body["analysis"]["analysis_id"] == core.COMPARISON_ID
+    evidence = body["analysis"]["evidence"]
+    assert evidence["source_ref"] == "verified://cpi-receipt"
+    assert evidence["second_minus_first_december_annual_inflation_pp"] == pytest.approx(5.0)
+    for year, direct_year in zip(evidence["years"], direct.years):
+        assert year["year"] == direct_year.year
+        nested = year["evidence"]
+        assert nested["input_origin"] == "verified_files"
+        assert nested["source_ref"] == "verified://cpi-receipt"
+        assert nested["limitations"][0] == files_service._VERIFIED_CPI_LIMITATION
+        assert nested["limitations"][1:] == list(direct_year.evidence.limitations[1:])
+        assert {key: value for key, value in nested.items() if key not in {"input_origin", "limitations"}} == (
+            direct_year.evidence.model_dump(mode="json", exclude={"input_origin", "limitations"})
+        )
 
 
 @pytest.mark.parametrize("plan,expected_status,http_status", [

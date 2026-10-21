@@ -83,8 +83,10 @@ yıllık enflasyonundan birinci yılın Aralık yıllık enflasyonunu çıkarır
 puan cinsindendir. Yıllar ters verilirse farkın işareti de tersine döner.
 Gerekli önceki Aralık yoksa ilgili yıllık oran ve karşılaştırma farkı `null`
 olur. Ocak–Aralık endeks değişimi ayrı alanlardır; Aralık yıllık enflasyonuyla
-karıştırılmaz ve aylık oranlar toplanmaz. Bu çekirdek yeni bir HTTP endpoint'i
-eklemez.
+karıştırılmaz ve aylık oranlar toplanmaz. Bu çekirdek ayrı bir HTTP endpoint'i
+eklemez; mevcut ekonomik soru API'si `cpi_two_year_comparison` planıyla onu
+kullanır. Kullanım ve sınırlar
+[ekonomik soru belgesindedir](economic-question.md).
 
 ## Sentetik örneği çalıştırma
 

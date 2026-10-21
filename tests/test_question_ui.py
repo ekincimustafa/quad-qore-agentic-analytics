@@ -21,6 +21,7 @@ from app.api.main import create_app
 from app.connectors import llm_client
 from app.services.economic_question import run_economic_question, HousingQuestionData
 from app.services.housing_question_files import VerifiedHousingQuestionPaths
+from app.services.inflation_comparison import compare_inflation_years
 from tests.housing_test_support import write_bddk
 import pandas as pd
 
@@ -90,7 +91,32 @@ def test_browser_question_flow_with_offline_plans(tmp_path, monkeypatch):
     matched_payload = {"status": "ok", "available_periods": run.coverage.model_dump(),
                        "analysis": {"analysis_id": run.analysis.evidence.analysis_id,
                                     "evidence": run.analysis.evidence.model_dump(mode="json"), "chart": run.analysis.chart}}
-    script = (Path(__file__).parent / "ui_browser_checks.js").read_text(encoding="utf-8").replace("__MATCHED_PAYLOAD__", json.dumps(matched_payload))
+    comparison_periods = pd.period_range("2022-12", "2024-12", freq="M").astype(str).tolist()
+    comparison = compare_inflation_years(
+        pd.DataFrame({
+            "period": comparison_periods,
+            "cpi_index": [
+                100.0, 102.0, 104.0, 106.0, 108.0, 110.0, 112.0, 114.0, 116.0, 118.0, 119.0, 119.5,
+                120.0, 123.0, 126.0, 129.0, 132.0, 135.0, 138.0, 141.0, 144.0, 146.0, 147.0, 148.5,
+                150.0,
+            ],
+        }),
+        first_year=2023, second_year=2024, source_ref="synthetic://comparison",
+    )
+    comparison_payload = {
+        "status": "ok",
+        "available_periods": {
+            "housing": None,
+            "inflation": {"start_period": "2022-12", "end_period": "2024-12"},
+        },
+        "decision": {"status": "ready", "analysis_id": "cpi_two_year_comparison",
+                     "first_year": 2023, "second_year": 2024},
+        "analysis": {"analysis_id": "cpi_two_year_comparison",
+                     "evidence": comparison.model_dump(mode="json")},
+    }
+    script = (Path(__file__).parent / "ui_browser_checks.js").read_text(encoding="utf-8")
+    script = script.replace("__MATCHED_PAYLOAD__", json.dumps(matched_payload))
+    script = script.replace("__COMPARISON_PAYLOAD__", json.dumps(comparison_payload))
 
     @app.get("/__ui_test.js", include_in_schema=False)
     def checks():

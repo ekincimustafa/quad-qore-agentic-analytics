@@ -22,12 +22,13 @@ from app.services.economic_question import (
     INFLATION_ID,
     MAX_QUESTION_CHARACTERS,
     EconomicClarification,
+    EconomicComparisonReadyPlan,
     EconomicCoverage,
     EconomicDataUnavailable,
     EconomicInputError,
     EconomicPlanningError,
     EconomicPlanValidationError,
-    EconomicReadyPlan,
+    EconomicReadyDecision,
     EconomicQuestionRun,
     EconomicUnsupported,
     HousingQuestionData,
@@ -42,6 +43,7 @@ from app.services.economic_question_files import (
 from app.services.housing_question_files import VerifiedHousingQuestionPaths
 from app.services.housing_analysis import HousingAnalysisRun
 from app.services.inflation_analysis import InflationAnalysisError, InflationEvidence
+from app.services.inflation_comparison import InflationComparison
 from app.tools.housing_chart import HousingChartError
 from app.tools.housing_evidence import EvidenceBuildError, HousingAnalysisEvidence
 
@@ -137,8 +139,16 @@ class InflationQuestionAnalysis(_StrictModel):
     evidence: InflationEvidence
 
 
+class InflationComparisonQuestionAnalysis(_StrictModel):
+    analysis_id: Literal["cpi_two_year_comparison"] = "cpi_two_year_comparison"
+    evidence: InflationComparison
+
+
 EconomicAnalysis = Annotated[
-    Union[HousingQuestionAnalysis, InflationQuestionAnalysis], Field(discriminator="analysis_id"),
+    Union[
+        HousingQuestionAnalysis, InflationQuestionAnalysis, InflationComparisonQuestionAnalysis,
+    ],
+    Field(discriminator="analysis_id"),
 ]
 
 
@@ -148,7 +158,7 @@ class _CoverageResponse(_StrictModel):
 
 class EconomicQuestionSuccess(_CoverageResponse):
     status: Literal["ok"] = "ok"
-    decision: EconomicReadyPlan
+    decision: EconomicReadyDecision
     analysis: EconomicAnalysis
 
 
@@ -288,11 +298,19 @@ def _question_response(result: EconomicQuestionRun) -> EconomicQuestionResponse:
         return EconomicQuestionClarification(**common, message=messages[result.decision.reason])
     if isinstance(result.decision, EconomicUnsupported):
         return EconomicQuestionUnsupported(
-            **common, message="Bu sürüm tek istekte konut koşulunu veya TÜFE değişimlerini inceleyebilir.",
+            **common,
+            message=(
+                "Bu sürüm tek istekte konut koşulunu, TÜFE değişimlerini veya iki tam yılın "
+                "TÜFE karşılaştırmasını inceleyebilir."
+            ),
         )
     if isinstance(result.decision, EconomicDataUnavailable):
         return EconomicQuestionUnavailable(**common, message="İstenen analiz için kullanılabilir veri grubu yok.")
-    if result.decision.analysis_id == HOUSING_ID and isinstance(result.analysis, HousingAnalysisRun):
+    if isinstance(result.decision, EconomicComparisonReadyPlan):
+        if not isinstance(result.analysis, InflationComparison):
+            raise RuntimeError("A comparison decision must contain the comparison result.")
+        analysis = InflationComparisonQuestionAnalysis(evidence=result.analysis)
+    elif result.decision.analysis_id == HOUSING_ID and isinstance(result.analysis, HousingAnalysisRun):
         analysis = HousingQuestionAnalysis(evidence=result.analysis.evidence, chart=result.analysis.chart)
     elif result.decision.analysis_id == INFLATION_ID and isinstance(result.analysis, InflationEvidence):
         analysis = InflationQuestionAnalysis(evidence=result.analysis)
