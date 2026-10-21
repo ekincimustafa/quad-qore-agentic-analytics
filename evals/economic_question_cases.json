@@ -259,11 +259,7 @@
       "question": "2023 ve 2023 TÜFE değişimlerini karşılaştır.",
       "fixture": "comparison",
       "rationale": "Aynı yıl iki kez verilmiş; karşılaştırma yılları farklı olmalıdır.",
-      "accepted_model_decisions": [
-        {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2023, "second_year": 2023},
-        {"status": "clarification_required", "reason": "period_required"}
-      ],
-      "offline_response": {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2023, "second_year": 2023},
+      "offline_response": {"status": "clarification_required", "reason": "period_required"},
       "expected_decision": {"status": "clarification_required", "reason": "period_required"}
     },
     {
@@ -283,11 +279,7 @@
       "question": "TÜFE değişimlerini karşılaştır.",
       "fixture": "comparison",
       "rationale": "Karşılaştırma niyeti var fakat iki yıl belirtilmemiş; yıl uydurulmaz.",
-      "accepted_model_decisions": [
-        {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2023, "second_year": 2024},
-        {"status": "clarification_required", "reason": "period_required"}
-      ],
-      "offline_response": {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2023, "second_year": 2024},
+      "offline_response": {"status": "clarification_required", "reason": "period_required"},
       "expected_decision": {"status": "clarification_required", "reason": "period_required"}
     },
     {

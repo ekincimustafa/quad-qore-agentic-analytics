@@ -362,6 +362,40 @@ def test_python_blocks_wrong_comparison_ready_plan_and_marks_raw_model_failure(
     assert report["results"][1]["reason"] == "not_run_after_failure"
 
 
+
+@pytest.mark.parametrize(
+    ("case_id", "first_year", "second_year"),
+    [("EQ-032", 2023, 2023), ("EQ-034", 2023, 2024)],
+)
+def test_invalid_comparison_ready_is_not_an_accepted_model_decision(
+    cases, fixtures, case_id, first_year, second_year,
+):
+    selected = evaluator.select_cases(cases, [case_id, "EQ-029"])
+    observed = {"status": "ready", "analysis_id": "cpi_two_year_comparison",
+                "first_year": first_year, "second_year": second_year}
+    calls = []
+
+    def fake_model(prompt):
+        calls.append(prompt)
+        return json.dumps(observed)
+
+    report = evaluator.evaluate_cases(
+        selected, fixtures, live=True, model_call=fake_model, max_model_calls=2,
+    )
+    row = report["results"][0]
+    expected = {"status": "clarification_required", "reason": "period_required"}
+    assert len(calls) == report["live_model_call_attempts"] == 1
+    assert row["accepted_model_decisions"] == [expected]
+    assert row["actual_model_decision"] == observed
+    assert row["actual_decision"] == row["expected_decision"] == expected
+    assert row["application_decision_matches_expectation"] is True
+    assert row["model_decision_matches_expectation"] is False
+    assert row["python_blocked_ready_plan"] is True
+    assert row["outcome"] == "failed" and row["reason"] == "model_decision_mismatch"
+    assert row["comparison_calls"] == row["housing_calls"] == row["inflation_calls"] == 0
+    assert not report["all_selected_cases_passed"]
+    assert report["results"][1]["reason"] == "not_run_after_failure"
+
 @pytest.mark.parametrize("ids", [["EQ-999"], ["EQ-001", "EQ-001"]])
 def test_bad_selection_never_contacts_or_configures_provider(ids, tmp_path, monkeypatch):
     monkeypatch.setattr(evaluator, "ROOT", tmp_path)

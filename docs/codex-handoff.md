@@ -24,6 +24,12 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   Rapor: `out/verification/20261021T122540Z-20544-d8628610/`.
 - Sonraki adım: bağımsız inceleme ve PR birleştirme kararı. Bu oturum merge/release yapmadı.
 
+- Bağımsız inceleme düzeltmesi: EQ-032 (aynı yıl) ve EQ-034 (yıl yok) artık hatalı
+  ready planı kabul edilen model yanıtı saymıyor; offline stub netleştirme istiyor.
+  İki sahte sağlayıcı regresyonu Python engelini model başarısından ayırıp ilk hatada
+  durmayı kontrol ediyor. Yukarıdaki 956/2 sonucu ilk teslimindir; düzeltme sonrası
+  zorunlu CI sonucu güncel PR head'i üzerinden ayrıca kontrol edilmelidir.
+
 ## #88 eski yayın ve canlı kabul belgelerini PR #74'te uzlaştırma — 21 Ekim 2026
 
 - Bu bölüm güncel durumdur; altındaki tarihli kayıtlar kaynak kanıtıdır.
