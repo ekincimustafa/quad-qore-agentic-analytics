@@ -39,6 +39,10 @@
     {
       "id": "EQ-006",
       "question": "2020 Aralık-2021 Mart TÜFE değişimlerini göster.",
+      "accepted_model_decisions": [
+        {"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2020-12", "end_period": "2021-03"},
+        {"status": "clarification_required", "reason": "outside_coverage"}
+      ],
       "offline_response": {"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2020-12", "end_period": "2021-03"},
       "expected_decision": {"status": "clarification_required", "reason": "outside_coverage"}
     },
@@ -70,6 +74,9 @@
       "id": "EQ-011",
       "question": "2021 Ocak-Mart TÜFE değişimlerini göster.",
       "fixture": "housing_only",
+      "accepted_model_decisions": [
+        {"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2021-01", "end_period": "2021-03"}
+      ],
       "offline_response": {"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2021-01", "end_period": "2021-03"},
       "expected_decision": {"status": "data_unavailable", "analysis_id": "cpi_inflation_summary"}
     },
@@ -79,6 +86,134 @@
       "fixture": "none",
       "offline_response": {"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2021-01", "end_period": "2021-03"},
       "expected_decision": {"status": "data_unavailable", "analysis_id": null}
+    },
+    {
+      "id": "EQ-013",
+      "question": "2021'in ilk üç ayında konut kredisi faizi gerilerken enflasyondan arındırılmış konut kredisi bakiyesinin yükselmediği ayları göster.",
+      "rationale": "İlk üç ay Ocak-Mart; enflasyondan arındırılmış bakiye reel stoktur. Koşul mevcut konut analizidir.",
+      "offline_response": {"status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up", "start_period": "2021-01", "end_period": "2021-03"},
+      "expected_decision": {"status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up", "start_period": "2021-01", "end_period": "2021-03"},
+      "expected_observed_month_count": 3,
+      "expected_matched_periods": ["2021-02"]
+    },
+    {
+      "id": "EQ-014",
+      "question": "01/2021 ile 03/2021 arasında faiz azalıp reel konut kredisi stoku sabit kalan veya düşen aylar hangileri?",
+      "rationale": "Ay/yıl biçimi açık; sabit kalma veya düşme, reel stokun artmaması koşuludur.",
+      "offline_response": {"status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up", "start_period": "2021-01", "end_period": "2021-03"},
+      "expected_decision": {"status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up", "start_period": "2021-01", "end_period": "2021-03"},
+      "expected_observed_month_count": 3,
+      "expected_matched_periods": ["2021-02"]
+    },
+    {
+      "id": "EQ-015",
+      "question": "2021 Şubat-Mart döneminde konut kredisi faizi düşerken reel konut kredisi stoku artmayan ayları listele.",
+      "rationale": "Alt dönem açık. Seçimin ilk ayı Şubat olduğundan değişimleri null olur; Mart'ta faiz artar, eşleşme yoktur.",
+      "offline_response": {"status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up", "start_period": "2021-02", "end_period": "2021-03"},
+      "expected_decision": {"status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up", "start_period": "2021-02", "end_period": "2021-03"},
+      "expected_observed_month_count": 2,
+      "expected_matched_periods": []
+    },
+    {
+      "id": "EQ-016",
+      "question": "2021'in ilk çeyreğinde genel tüketici fiyat endeksinin aylık ve geçen yılın aynı ayına göre değişimlerini ver.",
+      "fixture": "cpi_history",
+      "rationale": "TÜFE kısaltması kullanılmıyor; ilk çeyrek Ocak-Mart ve yıllık oran aynı ayın önceki yılıdır.",
+      "offline_response": {"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2021-01", "end_period": "2021-03"},
+      "expected_decision": {"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2021-01", "end_period": "2021-03"},
+      "expected_observed_month_count": 3
+    },
+    {
+      "id": "EQ-017",
+      "question": "2021-02 ile 2021-03 arasındaki TÜFE'nin aylık ve yıllık oranlarını göster.",
+      "fixture": "cpi_history",
+      "rationale": "YYYY-MM alt dönemi açık; hesap geçmişi seçilen döneme kırpılmamalıdır.",
+      "offline_response": {"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2021-02", "end_period": "2021-03"},
+      "expected_decision": {"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2021-02", "end_period": "2021-03"},
+      "expected_observed_month_count": 2
+    },
+    {
+      "id": "EQ-018",
+      "question": "1 Ocak 2021–31 Mart 2021 için genel TÜFE değişimlerini özetler misin?",
+      "fixture": "cpi_history",
+      "rationale": "Tam gün sınırları üç tam takvim ayını açıkça belirler; yeni günlük analiz istenmiyor.",
+      "offline_response": {"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2021-01", "end_period": "2021-03"},
+      "expected_decision": {"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2021-01", "end_period": "2021-03"},
+      "expected_observed_month_count": 3
+    },
+    {
+      "id": "EQ-019",
+      "question": "Faiz gerilerken reel konut kredisi stoku büyümeyen ayları çıkar.",
+      "rationale": "Konut koşulu açık fakat dönem yok; mevcut veri kapsamı kendiliğinden dönem seçimi değildir.",
+      "offline_response": {"status": "clarification_required", "reason": "period_required"},
+      "expected_decision": {"status": "clarification_required", "reason": "period_required"}
+    },
+    {
+      "id": "EQ-020",
+      "question": "Ocak-Mart TÜFE aylık ve yıllık oranlarını göster.",
+      "rationale": "Yıl eksik; mevcut yıl veya veri setinin yılı varsayılmamalı.",
+      "offline_response": {"status": "clarification_required", "reason": "period_required"},
+      "expected_decision": {"status": "clarification_required", "reason": "period_required"}
+    },
+    {
+      "id": "EQ-021",
+      "question": "Son birkaç ayın TÜFE değişimlerini göster.",
+      "rationale": "Kaç ay ve hangi bitiş ayı belirsiz; göreli tarih çözümü/as-of tarihi bu sözleşmede yok.",
+      "offline_response": {"status": "clarification_required", "reason": "period_required"},
+      "expected_decision": {"status": "clarification_required", "reason": "period_required"}
+    },
+    {
+      "id": "EQ-022",
+      "question": "2021 Ocak-Mart'ta konut kredisi faizi düşerken kredi bakiyesinin artmadığı ayları göster.",
+      "rationale": "Bakiye nominal veya reel olabilir. Yalnız tarihler açık diye reel konut koşulu varsayılmaz.",
+      "offline_response": {"status": "clarification_required", "reason": "metric_ambiguous"},
+      "expected_decision": {"status": "clarification_required", "reason": "metric_ambiguous"}
+    },
+    {
+      "id": "EQ-023",
+      "question": "2021 Ocak-Mart için ekonomik verileri özetler misin?",
+      "rationale": "Dönem açık fakat hangi izinli analiz istendiği belli değil; keyfi konut/TÜFE seçimi yapılmaz.",
+      "offline_response": {"status": "clarification_required", "reason": "question_ambiguous"},
+      "expected_decision": {"status": "clarification_required", "reason": "question_ambiguous"}
+    },
+    {
+      "id": "EQ-024",
+      "question": "2022 Ocak-Mart faiz düşerken reel konut kredisi stoku artmayan ayları göster.",
+      "rationale": "Soru anlamlı ve izinli analizdir fakat sentetik konut kapsamı 2021 Ocak-Mart. Dönem kırpılmaz.",
+      "accepted_model_decisions": [
+        {"status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up", "start_period": "2022-01", "end_period": "2022-03"},
+        {"status": "clarification_required", "reason": "outside_coverage"}
+      ],
+      "offline_response": {"status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up", "start_period": "2022-01", "end_period": "2022-03"},
+      "expected_decision": {"status": "clarification_required", "reason": "outside_coverage"}
+    },
+    {
+      "id": "EQ-025",
+      "question": "2021 Ocak-Mart faiz yükselirken reel konut kredisi stokunun arttığı aylar hangileri?",
+      "rationale": "Anlamlı yakın ekonomik koşul fakat izinli analiz faiz düşüşü ve reel stokun artmamasıdır; koşul tersine çevrilmez.",
+      "offline_response": {"status": "unsupported", "reason": "unsupported_analysis"},
+      "expected_decision": {"status": "unsupported", "reason": "unsupported_analysis"}
+    },
+    {
+      "id": "EQ-026",
+      "question": "2020 yılıyla 2021 yılının ortalama TÜFE enflasyonunu karşılaştır.",
+      "rationale": "Anlamlı dönem karşılaştırması/yıllık ortalama isteği; mevcut tek dönem TÜFE özeti değildir. Karşılaştırma özelliği eklenmez.",
+      "offline_response": {"status": "unsupported", "reason": "unsupported_analysis"},
+      "expected_decision": {"status": "unsupported", "reason": "unsupported_analysis"}
+    },
+    {
+      "id": "EQ-027",
+      "question": "Akşam için mercimek çorbası tarifi verir misin?",
+      "rationale": "Anlaşılır fakat iki ekonomik analizle alakasız istek; ekonomik analiz seçilmez.",
+      "offline_response": {"status": "unsupported", "reason": "unsupported_analysis"},
+      "expected_decision": {"status": "unsupported", "reason": "unsupported_analysis"}
+    },
+    {
+      "id": "EQ-028",
+      "question": "2021 başından itibaren TÜFE değişimlerini özetle.",
+      "rationale": "Başlangıç açık, bitiş eksik; bitiş tarihi veri sonundan veya bugünden uydurulmaz.",
+      "offline_response": {"status": "clarification_required", "reason": "period_required"},
+      "expected_decision": {"status": "clarification_required", "reason": "period_required"}
     }
   ]
 }

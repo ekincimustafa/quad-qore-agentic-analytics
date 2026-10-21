@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import httpx
+import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
@@ -13,6 +14,7 @@ from app.api.main import create_app
 from app.connectors import llm_client
 from app.lakehouse.gold import GoldAnalysisError
 from app.services import economic_question as service
+from app.services.inflation_comparison import compare_inflation_years
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -97,6 +99,100 @@ def test_documented_requests_call_one_service_and_equal_direct_api(monkeypatch, 
         assert "chart" not in body["analysis"]
 
 
+COMPARISON_PERIODS = pd.period_range("2022-12", "2024-12", freq="M").astype(str).tolist()
+COMPARISON_INDEX = [
+    100.0, 102.0, 104.0, 106.0, 108.0, 110.0, 112.0, 114.0, 116.0, 118.0, 119.0, 119.5,
+    120.0, 123.0, 126.0, 129.0, 132.0, 135.0, 138.0, 141.0, 144.0, 146.0, 147.0, 148.5,
+    150.0,
+]
+
+
+def comparison_payload(question="2023 ve 2024 TÜFE değişimlerini karşılaştır."):
+    return {
+        "question": question,
+        "inflation": {
+            "cpi_monthly": [
+                {"period": period, "cpi_index": value}
+                for period, value in zip(COMPARISON_PERIODS, COMPARISON_INDEX)
+            ],
+            "source_ref": "synthetic://comparison",
+        },
+    }
+
+
+def comparison_ready(first=2023, second=2024):
+    return {"status": "ready", "analysis_id": service.COMPARISON_ID,
+            "first_year": first, "second_year": second}
+
+
+def test_comparison_endpoint_matches_existing_core_and_exposes_typed_evidence(monkeypatch):
+    calls = []
+    original = service.compare_inflation_years
+
+    def comparison(*args, **kwargs):
+        calls.append(kwargs)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(service, "compare_inflation_years", comparison)
+    with client_with_model(lambda _: json.dumps(comparison_ready(2024, 2023))) as client:
+        response = client.post(
+            ENDPOINT,
+            json=comparison_payload("2024 ile 2023 Aralık yıllık TÜFE enflasyonunu karşılaştır."),
+        )
+    assert response.status_code == 200
+    body = response.json()
+    direct = compare_inflation_years(
+        pd.DataFrame({"period": COMPARISON_PERIODS, "cpi_index": COMPARISON_INDEX}),
+        first_year=2024, second_year=2023, source_ref="synthetic://comparison",
+    )
+    assert calls == [{"first_year": 2024, "second_year": 2023, "source_ref": "synthetic://comparison"}]
+    assert body["status"] == "ok"
+    assert body["decision"] == comparison_ready(2024, 2023)
+    assert body["analysis"] == {
+        "analysis_id": service.COMPARISON_ID, "evidence": direct.model_dump(mode="json"),
+    }
+    assert body["analysis"]["evidence"]["second_minus_first_december_annual_inflation_pp"] == pytest.approx(-5.0)
+    assert [year["evidence"]["observed_month_count"] for year in body["analysis"]["evidence"]["years"]] == [12, 12]
+    assert body["available_periods"]["inflation"] == {"start_period": "2022-12", "end_period": "2024-12"}
+
+
+@pytest.mark.parametrize("question,plan,expected", [
+    ("2023 ve 2024 TÜFE değişimlerini karşılaştır.", comparison_ready(2024, 2023),
+     {"status": "clarification_required", "reason": "period_required"}),
+    ("2023 ve 2024 TÜFE değişimlerini karşılaştır.", ready(service.INFLATION_ID, start_period="2023-01", end_period="2024-12"),
+     {"status": "clarification_required", "reason": "period_required"}),
+    ("2023 Aralık ile 2024 Aralık yıllıklandırılmış TÜFE enflasyonunu karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 yıllıklandırılmış TÜFE enflasyonunu karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 ortalama TÜFE enflasyonunu karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 Ocak ile 2024 Ocak TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023-01 ile 2024-01 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 konut kredisi faizlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2021 ve 2024 TÜFE değişimlerini karşılaştır.", comparison_ready(2021, 2024),
+     {"status": "clarification_required", "reason": "outside_coverage"}),
+])
+def test_wrong_comparison_ready_plans_are_blocked_before_analysis(
+    monkeypatch, question, plan, expected,
+):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A blocked comparison plan must not run an analysis")
+
+    monkeypatch.setattr(service, "compare_inflation_years", forbidden)
+    monkeypatch.setattr(service, "build_inflation_evidence", forbidden)
+    with client_with_model(lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json=comparison_payload(question))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == expected["status"]
+    assert body["decision"] == expected
+    assert body["analysis"] is None
+
+
 @pytest.mark.parametrize("decision,mode,expected", [
     ({"status": "clarification_required", "reason": "period_required"}, "both", "clarification_required"),
     ({"status": "clarification_required", "reason": "metric_ambiguous"}, "both", "clarification_required"),
@@ -111,6 +207,8 @@ def test_non_ready_results_never_execute_analysis(monkeypatch, payload, decision
         payload.pop("inflation")
     elif mode == "none":
         payload = {"question": payload["question"]}
+    elif decision.get("start_period") == "2020-12":
+        payload["question"] = "2020 Aralık-2021 Mart TÜFE değişimlerini göster."
 
     def forbidden(*args, **kwargs):
         raise AssertionError("Non-ready results must not execute either analysis")
@@ -130,6 +228,38 @@ def test_non_ready_results_never_execute_analysis(monkeypatch, payload, decision
     assert len(calls) == (0 if mode == "none" else 1)
     if decision.get("start_period") == "2020-12":
         assert body["decision"]["reason"] == "outside_coverage"
+
+
+@pytest.mark.parametrize("question", [
+    "2021 Ocak ayından itibaren TÜFE değişimlerini göster.",
+    "2021 Ocak'tan sonraki TÜFE değişimlerini göster.",
+])
+def test_open_ended_single_month_ready_plan_is_blocked_before_analysis(
+    monkeypatch, payload, question,
+):
+    cpi = json.loads((ROOT / "docs/economic-question-cpi-example.json").read_text(encoding="utf-8"))
+    payload["inflation"] = cpi["inflation"]
+    payload["question"] = question
+    model_calls = []
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Open-ended period must not execute an analysis")
+
+    def model(prompt):
+        model_calls.append(prompt)
+        return json.dumps(ready(service.INFLATION_ID, end_period="2021-01"))
+
+    monkeypatch.setattr(service, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(service, "build_inflation_evidence", forbidden)
+    with client_with_model(model) as client:
+        response = client.post(ENDPOINT, json=payload)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "clarification_required"
+    assert body["decision"] == {"status": "clarification_required", "reason": "period_required"}
+    assert body["analysis"] is None
+    assert len(model_calls) == 1
 
 
 @pytest.mark.parametrize("problem", [

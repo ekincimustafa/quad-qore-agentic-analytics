@@ -68,6 +68,26 @@ ayrı hesaplanır ve sıfır olmak zorunda değildir. Seçilen ilk ay ile öncek
 ayı arasındaki değişim ilk-son endeks değişimine dahil değildir. Hesaplar
 çıktıda yuvarlanmaz; sunum katmanı gerekirse yuvarlayabilir.
 
+## İki yıl karşılaştırması
+
+`app/services/inflation_comparison.py::compare_inflation_years`, aylık TÜFE
+tablosunu, `first_year` ve `second_year` yıllarını ve `source_ref` değerini alır.
+Her iki yılın Ocak–Aralık sonuçlarını mevcut `build_inflation_evidence` kanıt
+yapısıyla, verilen yıl sırasını koruyarak döndürür. Girdi yalnızca seçilen
+yıllara kesilmez; önceki Aralık ayı gerektiğinde yıllık oran için kullanılabilir.
+Aynı yılın iki kez verilmesi ve bool, tam sayı olmayan veya 1–9999 aralığı dışındaki
+yıl girdileri açık hatayla reddedilir.
+
+`second_minus_first_december_annual_inflation_pp` alanı, ikinci yılın Aralık
+yıllık enflasyonundan birinci yılın Aralık yıllık enflasyonunu çıkarır ve yüzde
+puan cinsindendir. Yıllar ters verilirse farkın işareti de tersine döner.
+Gerekli önceki Aralık yoksa ilgili yıllık oran ve karşılaştırma farkı `null`
+olur. Ocak–Aralık endeks değişimi ayrı alanlardır; Aralık yıllık enflasyonuyla
+karıştırılmaz ve aylık oranlar toplanmaz. Bu çekirdek ayrı bir HTTP endpoint'i
+eklemez; mevcut ekonomik soru API'si `cpi_two_year_comparison` planıyla onu
+kullanır. Kullanım ve sınırlar
+[ekonomik soru belgesindedir](economic-question.md).
+
 ## Sentetik örneği çalıştırma
 
 API'yi başlat:

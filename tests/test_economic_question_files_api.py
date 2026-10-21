@@ -15,11 +15,15 @@ from app.api.main import create_app
 from app.connectors import llm_client
 from app.lakehouse.gold import GoldAnalysisError
 from app.services import economic_question as core
+from app.services import economic_question_files as files_service
+from app.services.housing_question import HousingDataCoverage
 from app.services.housing_question_files import (
     VerifiedHousingQuestionPaths,
+    VerifiedQuestionInputs,
     run_verified_housing_question,
 )
 from app.services.inflation_analysis import build_inflation_evidence
+from app.services.inflation_comparison import compare_inflation_years
 from tests.housing_test_support import write_bddk
 
 
@@ -55,6 +59,36 @@ def client_with_model(package, model):
     app.dependency_overrides[api.get_verified_economic_paths] = lambda: package
     app.dependency_overrides[api.get_economic_question_model] = lambda: model
     return TestClient(app)
+
+
+@pytest.mark.parametrize("question,plan,reason", [
+    ("Ocak-Şubat TÜFE aylık ve yıllık oranlarını göster.",
+     ready(core.INFLATION_ID), "period_required"),
+    ("2021 Ocak-Şubat konut kredisi faizi düşerken kredi bakiyesinin artmadığı ayları göster.",
+     ready(core.HOUSING_ID), "metric_ambiguous"),
+    ("2021 Ocak ayından itibaren TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID, end_period="2021-01"), "period_required"),
+    ("2021 Ocak'tan sonraki TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID, end_period="2021-01"), "period_required"),
+])
+def test_observed_ready_mistakes_are_blocked_after_file_verification(
+    package, monkeypatch, question, plan, reason,
+):
+    monkeypatch.setattr(core, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(core, "build_inflation_evidence", forbidden)
+    prompts = []
+
+    def model(prompt):
+        prompts.append(prompt)
+        return json.dumps(plan)
+
+    with client_with_model(package, model) as client:
+        response = client.post(ENDPOINT, json={"question": question})
+    assert response.status_code == 200 and len(prompts) == 1
+    body = response.json()
+    assert body["status"] == "clarification_required"
+    assert body["decision"] == {"status": "clarification_required", "reason": reason}
+    assert body["analysis"] is None
 
 
 @pytest.mark.parametrize("analysis_id", [core.HOUSING_ID, core.INFLATION_ID])
@@ -126,6 +160,53 @@ def test_cpi_history_and_coverage_are_not_clipped_to_housing(package):
     assert month["annual_inflation_pct"] is None
 
 
+def test_files_comparison_matches_core_and_marks_nested_verified_provenance(
+    package, monkeypatch,
+):
+    periods = pd.period_range("2022-12", "2024-12", freq="M").astype(str).tolist()
+    cpi = pd.DataFrame({
+        "period": periods,
+        "cpi_index": [
+            100.0, 102.0, 104.0, 106.0, 108.0, 110.0, 112.0, 114.0, 116.0, 118.0, 119.0, 119.5,
+            120.0, 123.0, 126.0, 129.0, 132.0, 135.0, 138.0, 141.0, 144.0, 146.0, 147.0, 148.5,
+            150.0,
+        ],
+    })
+    inputs = VerifiedQuestionInputs(
+        bddk_monthly=pd.DataFrame({"period": periods}),
+        evds_monthly=cpi,
+        housing_coverage=HousingDataCoverage(start_period="2022-12", end_period="2024-12"),
+        evds_source_refs="synthetic://evds",
+        cpi_source_ref="verified://cpi-receipt",
+    )
+    monkeypatch.setattr(files_service, "load_verified_question_inputs", lambda _: inputs)
+    question = "2023 ve 2024 TÜFE değişimlerini karşılaştır."
+    plan = {"status": "ready", "analysis_id": core.COMPARISON_ID,
+            "first_year": 2023, "second_year": 2024}
+    with client_with_model(package, lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json={"question": question})
+    assert response.status_code == 200
+    body = response.json()
+    direct = compare_inflation_years(
+        cpi, first_year=2023, second_year=2024, source_ref="verified://cpi-receipt",
+    )
+    assert body["status"] == "ok" and body["decision"] == plan
+    assert body["analysis"]["analysis_id"] == core.COMPARISON_ID
+    evidence = body["analysis"]["evidence"]
+    assert evidence["source_ref"] == "verified://cpi-receipt"
+    assert evidence["second_minus_first_december_annual_inflation_pp"] == pytest.approx(5.0)
+    for year, direct_year in zip(evidence["years"], direct.years):
+        assert year["year"] == direct_year.year
+        nested = year["evidence"]
+        assert nested["input_origin"] == "verified_files"
+        assert nested["source_ref"] == "verified://cpi-receipt"
+        assert nested["limitations"][0] == files_service._VERIFIED_CPI_LIMITATION
+        assert nested["limitations"][1:] == list(direct_year.evidence.limitations[1:])
+        assert {key: value for key, value in nested.items() if key not in {"input_origin", "limitations"}} == (
+            direct_year.evidence.model_dump(mode="json", exclude={"input_origin", "limitations"})
+        )
+
+
 @pytest.mark.parametrize("plan,expected_status,http_status", [
     ({"status": "clarification_required", "reason": "period_required"}, "clarification_required", 200),
     ({"status": "clarification_required", "reason": "metric_ambiguous"}, "clarification_required", 200),
@@ -142,13 +223,18 @@ def test_non_ready_and_invalid_plans_never_analyze(package, monkeypatch, plan, e
     monkeypatch.setattr(core, "run_housing_analysis", forbidden)
     monkeypatch.setattr(core, "build_inflation_evidence", forbidden)
     prompts = []
+    question = QUESTION
+    if isinstance(plan, dict) and plan.get("start_period") == "2020-12":
+        question = "2020 Aralık-2021 Şubat faiz düşerken reel konut kredisi stokunu göster."
+    elif isinstance(plan, dict) and plan.get("end_period") == "2021-03":
+        question = "2021 Ocak-Mart TÜFE değişimlerini göster."
 
     def model(prompt):
         prompts.append(prompt)
         return plan if isinstance(plan, str) else json.dumps(plan)
 
     with client_with_model(package, model) as client:
-        response = client.post(ENDPOINT, json={"question": QUESTION})
+        response = client.post(ENDPOINT, json={"question": question})
     assert response.status_code == http_status and len(prompts) == 1
     assert "private" not in response.text
     if expected_status:
