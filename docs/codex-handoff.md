@@ -12,7 +12,7 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 
 ## #88 eski yayın ve canlı kabul belgelerini PR #74'te uzlaştırma — 21 Ekim 2026
 
-- Bu bölüm güncel durumdur; altındaki 19–20 Ekim kayıtları tarihli kanıttır.
+- Bu bölüm güncel durumdur; altındaki tarihli kayıtlar kaynak kanıtıdır.
   Başlangıç `origin/main` `34918f8`. `docs/live-acceptance-plan` dalına güncel
   main ve `docs/rc1-publication` `b6fc985` normal merge ile alındı; çakışmalar
   içerik değerlendirilerek çözüldü. Force push/reset veya toplu ours/theirs yok;

@@ -405,4 +405,6 @@ Kişisel katkılar ilgili PR'ların kod farklarıyla değerlendirilir.
 
 Açık görevler tamamlanmış katkı olarak raporlanmaz. Sürüm adayı yayını ekran
 kaydını tamamlamaz; #46 isteğe bağlı portföy işi olarak açık kalır. 19 Ekim'de
-yetkilendirilen yerel soru ürününün backend/ekran/kabul işleri #69/#70/#71'dir.
+yetkilendirilen yerel soru ürününün backend/ekran/kabul işleri #69/#70/#71
+tamamlandı; #71'in dört canlı çağrısı yalnız o koşuya aittir ve genel doğruluk
+metriği değildir.
