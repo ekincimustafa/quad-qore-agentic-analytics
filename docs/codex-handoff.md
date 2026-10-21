@@ -9,6 +9,34 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## PR #79 inceleme düzeltmesi — 21 Ekim 2026
+
+- Önce `main` fast-forward pull edildi: `34918f87cdc6325791c3104c9abd683bcbfdfa87`.
+  Güncel main, `docs/issue-76-local-setup` dalına `f8bb7b9` merge commit'iyle
+  alındı; force-push yok. Devir notu çakışmasında main'in #77/#78 dönem/metrik
+  kayıtları ve sonraki kayıtlar ile aşağıdaki 20 Ekim kurulum kanıtı korundu.
+  Uygulama/test/eval/CI dosyaları güncel main ile aynı; PR diff'i yalnız belgedir.
+- #75'in kalan görsel maddeleri, 20 Ekim'de `5bc12a7` üzerinde gerçek in-app
+  tarayıcıda alınan `out/issue-076 setup/cpi-full.jpg` ve `cpi-dom.json` ile
+  teyit edildi: 2023-01–2023-12 **12 satır**; **TÜFE (2025=100)** endeksi;
+  **Aylık değişim (%)** ve **Yıllık değişim (%)** ayrı sütunlar. Üstteki
+  **İlk aydan son aya TÜFE endeksi değişimi %54,5003** ifadesi, tablodaki
+  Aralık yıllık **%64,7729** oranından ayrı ve okunur. Tablonun altındaki
+  **—: Karşılaştırma için geçmiş ay yok** açıklaması ve yıllık oranın geçen
+  yılın aynı ayına göre olduğu, 12 aylık ortalama olmadığı bilgisi okunur.
+  2023 satırlarında eksik geçmiş olmadığı için hücrelerde — üretildiği iddia edilmez.
+- Yeni birleşik sürümde sunucu başladı; ancak in-app sekmesi webview bağlantı
+  zaman aşımı nedeniyle açılamadı. Bu nedenle yukarıdaki görsel kanıtın kaynağı
+  açıkça eski commit'tir; yeni head'de görsel tekrar veya 46 testin yeniden
+  geçtiği iddia edilmez. Bu oturum yalnız mevcut ekran kaydının kapsamını
+  tamamlar; hesap/veri yeniden üretilmedi, yeni canlı LLM/EVDS çağrısı 0.
+- Yeni birleşik belge için yerel bağlantı, PowerShell sözdizimi, çatışma işareti,
+  main koduyla eşitlik ve diff kontrolleri yapıldı. Tam yerel test tekrarı yok;
+  son gönderilen PR head'inin zorunlu CI sonucu GitHub'da ayrıca doğrulanacak.
+  Mevcut 145 kaynak korundu, bu oturumun preview sunucusu durduruldu.
+- Sonuç yorumu kullanıcı tarafından #76'ya bir kez gönderilecek ve #75'e
+  bağlanacak; asistan issue/PR yorumu göndermez, PR'ı merge etmez.
+
 ## Osman #76 — yerel kurulum ve ekran kabulü, 20 Ekim 2026
 
 - Kullanıcı planı inceledikten sonra uygulama ve kontrolleri onayladı. Temiz
