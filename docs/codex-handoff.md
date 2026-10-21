@@ -23,8 +23,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   passed**. Tek komut `out/verification/20261021T092436Z-24428-e8da83d9`:
   **919 passed, 2 skipped**; Housing **9/9**, Economic **28/28**, canlı çağrı 0;
   `git diff --check` temiz.
-- Durum: yerel uygulama hazır; commit/push/PR teslimi bu oturumda yürütülecek.
-  Uygulayıcı PR'ı bağımsız incelemeye bırakır; merge/release yapılmaz.
+- Durum: PR [#84](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/84)
+  açıldı ve bağımsız incelemeye bırakıldı; merge/release yapılmadı.
 
 ## #80 iki yıl TÜFE karşılaştırması — 21 Ekim 2026
 
