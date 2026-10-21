@@ -2,13 +2,28 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli `98cbb9c` (PR #94 sonrası main).
+için bir sürüm garantisi değildir. Kod temeli `56ffc46` (PR #96 sonrası main).
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
 güncel durumu belirtir. Tarihli bölümlerdeki dal/CI/onay bekleme ifadeleri yalnız
 o tarihin kanıtıdır ve güncel engel değildir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
+
+## Portföy README düzenlemesi — 21 Ekim 2026
+
+- Dal `docs/portfolio-readme`; başlangıç güncel `main` `56ffc46` (PR #96 merge).
+- README girişi doğal dilde soru, sınırlı LLM planlama, Python hesapları, FastAPI
+  ekranı, konut analizi, TÜFE özeti ve iki tam yıl TÜFE karşılaştırmasını anlatıyor.
+  Normal model modu ile yalnız üç sabit örneği çalıştıran offline preview ayrımı
+  kısa ve görünür. Gerçek veri paketinin Git'te olmadığı ve anahtarsız sentetik
+  HTML örneğinin bulunduğu belirtildi. Kısa ekip katkıları bölümü Git geçmişiyle
+  uyumlu; tarihli gerçek veri kabul kanıtları korundu ve tamamlanmış kontrolleri
+  güncel engel gibi gösteren cümleler düzeltildi.
+- Doğrulama: README'de 50 yerel bağlantı/başlık çözüldü, `git diff --check`
+  temiz. Uygulama/test/CI kodu değişmedi; canlı çağrı, tarayıcı veya release yok.
+- PR [#97](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/97)
+  açık; bağımsız inceleme bekliyor. Bu oturum merge etmedi.
 
 ## #95 TÜFE grafiğini soru ekranına bağlama — 21 Ekim 2026
 
