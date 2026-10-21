@@ -148,11 +148,11 @@ _NOMINAL_CREDIT = re.compile(rf"\bnominal\s+{_CREDIT_METRIC}\b|\b{_CREDIT_METRIC
 _MIXED_METRICS = re.compile(r"\b(?:reel|nominal)\s+(?:ve|veya|ya\s+da|ile|mi)\s+(?:reel|nominal)\b")
 _NEGATED_METRIC = re.compile(r"(?:\s+\w+){0,2}\s+(?:değil\w*|olmayan|hariç|yerine|dışında\w*)\b")
 _COMPARISON_INTENT = re.compile(r"\b(?:karşılaştır\w*|kıyasla\w*)\b")
-_COMPARISON_OUT_OF_SCOPE = re.compile(r"\b(?:ortalama\w*|tahmin\w*|öngör\w*|neden\w*|nedensellik\w*)\b")
+_COMPARISON_OUT_OF_SCOPE = re.compile(r"\b(?:ortalama\w*|tahmin\w*|öngör\w*|yıllıklandır\w*|neden\w*|nedensellik\w*)\b")
 _EXPLICIT_NON_CPI_METRIC = re.compile(
     rf"\b(?:(?:konut\s+)?kredi\w*|stok\w*|bakiy\w*|tutar\w*|faiz\w*)\b"
 )
-_ANNUAL_INFLATION = re.compile(r"\b(?:yıllık|yıllıklandırılmış|12\s+aylık)\b")
+_ANNUAL_INFLATION = re.compile(r"\b(?:yıllık|12\s+aylık)\b")
 
 
 def _question_text(question: str) -> str:
