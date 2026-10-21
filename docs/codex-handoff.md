@@ -32,7 +32,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   Raporlar `out/` altında, Git dışında.
 - Son doğrulama `scripts.verify_project` ile geçti: 986 test geçti, 2 atlandı;
   housing 9/9, economic 37/37, diff-check temiz. Soru ekranı/API entegrasyonu,
-  canlı LLM/EVDS ve yeni bağımlılık yok. PR incelemesi bağımsız oturumda.
+  canlı LLM/EVDS ve yeni bağımlılık yok. PR #94 açık; inceleme/merge bağımsız
+  oturumda, `Closes #81`.
 
 ## #81 TÜFE grafiği ilk aşama — 21 Ekim 2026
 
