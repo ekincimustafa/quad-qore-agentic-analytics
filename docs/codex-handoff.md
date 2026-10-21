@@ -2,13 +2,32 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli `2b58e3c` (PR #92 sonrası main).
+için bir sürüm garantisi değildir. Kod temeli `f20bf4a` (PR #79 sonrası main).
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
 güncel durumu belirtir. Tarihli bölümlerdeki dal/CI/onay bekleme ifadeleri yalnız
 o tarihin kanıtıdır ve güncel engel değildir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
+
+## #81 TÜFE grafiği ilk aşama — 21 Ekim 2026
+
+- Dal `feat/inflation-chart`; başlangıç `origin/main` `f20bf4a`. Yalnız
+  `app/tools/inflation_chart.py` ve `tests/test_inflation_chart.py` eklendi;
+  HTML/CLI ve soru ekranı bu PR'ın kapsamı dışında bırakıldı.
+- `build_inflation_chart(InflationEvidence)` üç panelli Plotly spec üretir:
+  TÜFE endeksi (2025=100), aylık değişim (%) ve yıllık değişim (%). Değerler
+  evidence sırasıyla ve tam hassasiyetle aktarılır; null'lar boşluk kalır;
+  hover en çok dört ondalık gösterir. Tek ay ve tümüyle eksik yıllık geçmiş
+  açıklanır; tutarsız dönem/satır/özet reddedilir. Hesaplama, sıralama veya
+  doldurma yapılmaz.
+- Odaklı `tests/test_inflation_chart.py`: **11 passed**. Tek
+  `python -m scripts.verify_project`: **972 passed, 2 skipped**; Housing
+  **9/9**, Economic **37/37**, canlı çağrı **0**, `git diff --check` temiz.
+  Günlük: `out/verification/20261021T154724Z-19648-a71563e0/`.
+- Sıradaki adım: PR'ın bağımsız incelenmesi. İkinci aşama (HTML/CLI ve gerçek
+  EVDS kontrolü) ilk PR main'e alındıktan sonra ayrı dal/PR olarak ele alınır.
+  Canlı LLM/EVDS, yeni bağımlılık veya veri indirme yok.
 
 ## PR #79 kalan belge birleştirmesi — 21 Ekim 2026
 
