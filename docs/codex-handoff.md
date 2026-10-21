@@ -2,12 +2,120 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli `190093d` (PR #82 sonrası main).
+için bir sürüm garantisi değildir. Kod temeli `2b58e3c` (PR #92 sonrası main).
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
-güncel durumu belirtir.
+güncel durumu belirtir. Tarihli bölümlerdeki dal/CI/onay bekleme ifadeleri yalnız
+o tarihin kanıtıdır ve güncel engel değildir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
+
+## PR #79 kalan belge birleştirmesi — 21 Ekim 2026
+
+- Başlangıç dalı `docs/issue-76-local-setup`; uzak head `15515fa` yeniden
+  doğrulandı. Güncel main `2b58e3c` (PR #92 merge) normal merge ile bu dala
+  alındı; force-push veya toplu ours/theirs yok.
+- README çakışmasında Osman'ın mevcut Python 3.12/.venv, ayrı çıkarma, `inputs`
+  kökü ve boşluklu yol yönergeleri korundu; main'in üçüncü offline örneği
+  (2023/2024 TÜFE karşılaştırması), 37 ekonomik vaka, #71/#87 kabulleri ve
+  rc.1 sürüm kayıtları birlikte tutuldu.
+- Devir notunda #91, #89 ve #88 kayıtları ile Osman'ın 20 Ekim tarihli kurulum
+  kanıtı korundu. Görsel/runtime kanıtı `5bc12a7` üzerinde alınmış tarihli kayıt
+  olarak kalır; bu head'de yeniden üretilmiş gibi sunulmaz.
+- Doğrulama: yerel bağlantılar, PowerShell bloklarının sözdizimi ve
+  `git diff --check`; belge değişikliği olduğu için tam yerel test tekrarı yok.
+  Zorunlu PR CI'si bu commit/push sonrası son head üzerinden kontrol edilir.
+- Uygulama/test/CI kodu değişmedi; yeni canlı LLM/EVDS çağrısı, veri indirme,
+  merge veya release yok. Sıradaki adım güncel PR #79 head'inin bağımsız
+  incelenmesi.
+
+## #91 üç analizli offline ekran demosu — 21 Ekim 2026
+
+- Dal `feat/three-analysis-offline-demo`; başlangıç güncel `origin/main` `244c44c`.
+  `question.html` üçüncü örnek düğmesini (`TÜFE karşılaştırması · 2023 / 2024`) ve
+  tam soruyu içeriyor; düğmeler yalnız alanı dolduruyor, istek/model çağrısı yok.
+- `scripts/preview_question_ui.py::fixed_plan` bu tam soruya
+  `cpi_two_year_comparison / first_year=2023 / second_year=2024` veriyor. Diğer
+  sorular güvenli netleştirmede kalıyor. Offline etiket yalnız üç sabit örneğin
+  desteklendiğini, serbest soruların normal yapılandırılmış model modu gerektirdiğini
+  ve doğal dil anlama başarısı iddia etmediğini söylüyor. Renderer/hesap çekirdeği
+  ve normal sunucu dependency override'ı değişmedi.
+- Odaklı `tests/test_question_ui.py` **5 passed** (üç plan, üç düğme/otomatik
+  gönderim yok, normal/offline metni, tarayıcı akışı). Tek
+  `python -m scripts.verify_project`: **961 passed, 2 skipped**; Economic stub
+  **37/37**, Housing stub **9/9**, canlı çağrı **0**, `git diff --check` temiz.
+  Günlük: `out/verification/20261021T144946Z-10136-536a0231/`.
+- Gerçek paket `out/housing-acceptance-20261018/inputs` ile Chrome'da üç örnek
+  birer kez denendi: Konut 60 ay/22 eşleşme, TÜFE 2023 12 satır, karşılaştırma
+  2023→2024 sırası ve 12+12 satır, fark **-20,3941 yüzde puan**. Ekran görüntüleri
+  `out/three-analysis-check/example-{1,2,3}.png`, DOM/JSON log aynı dizinde.
+  Bu çıktılar Git dışındadır; canlı LLM/EVDS çağrısı yapılmadı.
+- Sonraki adım: [#92](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/92)
+  PR'ının bağımsız incelenmesi ve birleştirme kararı. Bu oturum merge/release yapmadı.
+
+## #89 iki yıl TÜFE karşılaştırmasını offline değerlendirmeye ekleme — 21 Ekim 2026
+
+- Dal `feat/inflation-comparison-evals`; başlangıç `origin/main` `31b1711`. Evaluator
+  artık `EconomicComparisonReadyPlan` için `compare_inflation_years` referansını, her
+  yılın 12 gözlemini ve elle hesaplanan Aralık oranı/fark sabitlerini doğruluyor.
+  Konut/TÜFE/karşılaştırma üst düzey çağrıları ayrı sayılıyor; reddedilen istekte üçü de sıfır.
+- `evals/economic_question_cases.json` eski 28 vakayı koruyarak 37'ye çıktı; iki küçük
+  sentetik karşılaştırma fixture'ı eklendi. Önceki Aralık yokluğu null, seçilen yıl
+  içindeki eksik ay red olarak ayrı sınanıyor. EQ-026 unsupported kaldı.
+- Tek `python -m scripts.verify_project`: **956 passed, 2 skipped**; Economic stub
+  **37/37**, Housing stub **9/9**, canlı çağrı **0**, `git diff --check` temiz.
+  Rapor: `out/verification/20261021T122540Z-20544-d8628610/`.
+- Sonraki adım: bağımsız inceleme ve PR birleştirme kararı. Bu oturum merge/release yapmadı.
+
+- Bağımsız inceleme düzeltmesi: EQ-032 (aynı yıl) ve EQ-034 (yıl yok) artık hatalı
+  ready planı kabul edilen model yanıtı saymıyor; offline stub netleştirme istiyor.
+  İki sahte sağlayıcı regresyonu Python engelini model başarısından ayırıp ilk hatada
+  durmayı kontrol ediyor. Yukarıdaki 956/2 sonucu ilk teslimindir; düzeltme sonrası
+  zorunlu CI sonucu güncel PR head'i üzerinden ayrıca kontrol edilmelidir.
+
+## #88 eski yayın ve canlı kabul belgelerini PR #74'te uzlaştırma — 21 Ekim 2026
+
+- Bu bölüm güncel durumdur; altındaki tarihli kayıtlar kaynak kanıtıdır.
+  Başlangıç `origin/main` `34918f8`. `docs/live-acceptance-plan` dalına güncel
+  main ve `docs/rc1-publication` `b6fc985` normal merge ile alındı; çakışmalar
+  içerik değerlendirilerek çözüldü. Force push/reset veya toplu ours/theirs yok;
+  eski dalların benzersiz kanıtı ve katkı geçmişi korundu.
+- [#82](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/82),
+  [#84](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/84)
+  ve [#86](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/86)
+  merge edildi; [#80](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/80),
+  [#83](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/83),
+  [#85](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/85)
+  ve [#87](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/87)
+  tamamlandı. #87'de yerel uygulayıcı API/çekirdek alan eşitliğini, fiziksel
+  manifest zincirini ve 145 girdinin değişmezliğini doğruladı; ayrı inceleme
+  yalnız yayımlanan beş endeksle Aralık yıllık oranlarını, Ocak–Aralık endeks
+  değişimlerini ve yüzde puan farkını Decimal ile yeniden hesapladı. İnceleme
+  yerel `report.json`/veri dosyalarını açmadı ve fiziksel kontrolleri yeniden
+  çalıştırmış sayılmaz. İkisi de yeni canlı model/EVDS çağrısı veya genel model
+  başarı metriği değildir.
+- `v0.1.0-rc.1` hedefi `abea43137eed8a6ceb20cd9bbd22cd0afeb58f1b`, yayın
+  18 Ekim 2026 18:36:49 UTC, prerelease, ek 0. Tag/release değiştirilmedi; bu
+  sürüm sonraki soru ekranı/TÜFE karşılaştırma kodunu içeriyor gibi sunulmaz.
+- README: rc.1 yayımlandı; #71 offline ve sınırlı canlı kabulü tamamlandı;
+  video isteğe bağlı. Normal ekran üç analizi (konut, TÜFE özeti, iki yıl
+  karşılaştırması) destekler; offline preview yalnız iki sabit örnek verir.
+  İki yıl karşılaştırması için canlı model başarısı iddia edilmez. #71'in dört
+  canlı çağrısı yalnız o koşuya aittir; #77'nin ayrı tarihli çağrılarıyla genel
+  toplam yapılmaz.
+- #68'in README/handoff/real-demo-delivery/release-acceptance kayıtları bu
+  PR'da birleştirildi; #68 kapatılmadı. #81 (Afra) ve #76/#79 (Osman) ayrı
+  işlerdir; dosyaları değiştirilmedi.
+- PR #74 yalnız belgeleri değiştirir; uygulama/test/CI/AGENTS değişmedi.
+  README/docs genelinde 84 yerel bağlantı çözüldü; değişen dört belgede 15
+  PowerShell bloğu parser'dan geçti ve `git diff --check` temiz. Tam yerel test
+  paketi tekrarlanmadı. `c25050b` head'i için `Pytest - Python 3.12` başarılı;
+  bu handoff commit'i sonrası güncel head CI'si PR'dan izlenir.
+- Durum: PR #74 başlık/açıklaması birleşik kapsam ve gerçek kontrollerle
+  güncellendi; #68 açıklaması içeriğin #74'te birleştiğini belirtir ve açık
+  kaldı. Sıradaki adım güncel PR #74 head/CI'siyle bağımsız inceleme. Merge,
+  release/yayın, canlı uygulama LLM/EVDS çağrısı yok; gerçek veri/rapor/anahtar
+  Git'e eklenmedi.
 
 ## PR #79 inceleme düzeltmesi — 21 Ekim 2026
 
@@ -149,6 +257,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 
 ## #77 ekonomik soru değerlendirmesi — 20 Ekim 2026
 
+Bu bölüm 20 Ekim tarihli kayıttır; dal/CI/onay ifadeleri o tarihe aittir.
+
 ### Güncel oturum: analiz öncesi Python kontrolü, yalnız offline
 
 - Başlangıç temiz `feat/economic-question-evaluation` dalı, PR #78 head
@@ -285,10 +395,118 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   Bu ilk teslimin ardından ayrı onayla yapılan kontrol üsttedir. Yeni özellik,
   merge, release veya tag değişimi bu görevin dışında.
 
+
+
+## Sınırlı canlı kabul sonucu — 19–20 Ekim 2026
+
+Bu bölüm 19–20 Ekim tarihli kabul kanıtıdır; dal/CI/onay ifadeleri o tarihe aittir.
+
+- Başlangıç ağacı temiz, aktif dal **`docs/live-acceptance-plan`**; açık
+  **PR #74** güncellenir, merge edilmedi. Ürün kodu main `5bc12a7` ile aynı;
+  mevcut kullanıcı değişiklikleri/veri/anahtar korunur. #70 ve #71 kapalı.
+- Mustafa #71'deki dört sabit vaka için mevcut Gemini yapılandırmasında
+  **azami 4 toplam çağrı, retry 0, ilk sağlayıcı/plan/hesap hatasında durma**
+  onayı verdi. Normal `create_app()` ve `/analysis/economic/question/files`
+  kullanıldı; **stub veya dependency override yok**. CUA tarayıcısı/native
+  pipe kullanılamadı; kurulu Chrome ayrı başsız profille gerçek formu gönderdi.
+  Gözlem katmanı yalnız sayım/karşılaştırma yaptı, plan veya yanıt üretmedi.
+- 19 Ekim **23:34 TRT**: **4 orijinal model çağrısı, retry 0**, model
+  `gemini-3.5-flash-lite`, timeout 60 saniye; her soru yalnız bir gönderim.
+  Aynı yanıtla plan/hesap ve ekran kontrol edildi. API'den sonra ekran için
+  ikinci istek yok. Hata/uyuşmazlık görülmedi; bütçe tamamen tüketildi.
+- Vaka 1: konut `ready`, **2021-01–2025-12**. Evidence **ve grafik JSON'u**
+  önceki doğrudan CLI ile birebir aynı, **60 ay/22 eşleşme**. Ekranın 22 satırı,
+  altı trace'in x/y/adları ve özet aynı yanıtla eşleşti; ilk ay eşleşme dışında.
+- Vaka 2: TÜFE `ready`, **2023-01–2023-12**, **12 ay**. Hesap alanları ve
+  aylık/yıllık oranlar aynı doğrulanmış geçmişten doğrudan mevcut Python
+  servisiyle eşit; verified_files kökeni/sınırlamaları ayrıca kontrol edildi.
+  Ekranda 12 satır ve ilk-son endeks değişimi **%54,5003**; bu Aralık/Aralık
+  yıllık oranı değildir.
+- Vaka 3: `clarification_required / period_required`; dönem varsayılmadı.
+  Vaka 4: `unsupported / unsupported_analysis`; döviz tahmini reddedildi.
+  Bu iki vakada analiz çağrısı 0, evidence/grafik yok; ekran doğru mesajları
+  gösterdi ve önceki sonucu temizledi. Dört HTTP yanıtı 200; toplam iki analiz.
+- Aynı yanıtlarla kaydedilen DOM ek çağrı olmadan incelendi: konut 22 satır/
+  **132 hücre**, TÜFE 12 satır/**48 hücre**; dönemler ve sayılar dört ondalık
+  gösterim hassasiyetinde API evidence ile uyumlu. Hesap eşitliği ayrıca tam
+  JSON/değer eşitliğiyle kontrol edildi; gösterim yuvarlamasıyla karıştırılmadı.
+- Modelden önce mevcut fiziksel doğrulayıcı: BDDK/EVDS **66 ay**, kapsam
+  2021-01–2026-06. **145 girdi SHA-256'sı aynı**. EVDS/yeniden indirme, ek
+  anlatım, ücretli plana/model/sağlayıcıya geçiş, yeni özellik/merge/release yok.
+- Gerçek yanıtlar, özgün/annotasyonlu audit ve ekranlar
+  `out/live-acceptance-20261019/` altında, **Git dışında**. Agent dört
+  `case-1.png` … `case-4.png` görselini inceledi. Çağrı sayımı orijinal
+  `ask_llm` sınırında 4 ve SDK retry 0 üzerinden; opsiyonel httpx sayacı SDK'nin
+  httpx2 transport'unu görmedi, bu sınırlama audit'te açıklanmıştır. Sayacı
+  düzeltmek için yeni çağrı yapılmadı; sağlayıcı logları sorgulanmadı.
+- **20 Ekim: Mustafa case-1–case-4 statik ekran görüntülerini teyit etti.**
+  Konutta dönem/60 ay/22 eşleşme doğru, grafik/tablo okunur; TÜFE'de dönem ve
+  aylık/yıllık ayrımı anlaşılır. Dönemsiz soruda dönem, döviz tahmininde kapsam
+  dışı mesajı var; ikisinde önceki sonuç görünmüyor. Görüntülerde belirgin
+  taşma/çakışma görülmedi. **Bu yalnız statik görsel teyittir; yeni etkileşim
+  testi veya model çağrısı yapılmadı.** Önceki offline teyit ayrı kanıttır.
+  #71'in son kabul maddesi işaretlenip issue **closed/completed** kapatıldı.
+  Dört vaka genel model başarı oranı değildir; toplam canlı çağrı hâlâ 4/retry 0.
+  Ek canlı gönderim için yeni açık onay gerekir.
+- Python 3.12.15 için mevcut `out/clean312` kullanıldı; eski `.venv` Python
+  yolu hâlâ eksik, değiştirilmedi. Ürün kodu değişmedi; tam yerel test tekrarı
+  yok. **56 yerel belge bağlantısı**, **7 PowerShell bloğu** ve diff kontrolü
+  geçti; README/devir değişikliği mevcut PR #74'e commit/push edilir.
+  Önceki head `cd2df9e` CI'si **842 passed in 39.42s**; bu statik teyit
+  güncellemesinin CI'si kendi yeni head'i için PR'dan izlenir. 20 Ekim'de
+  yerelde tam test paketi veya UI/model koşusu tekrarlanmadı; değişiklik yalnız
+  belgedir, zorunlu PR CI'si mevcut offline kontrolleri ayrıca çalıştırır.
+  rc.1 `abea431` aynı, #46 videosu isteğe bağlı/çekilmedi, PR #68 korunur.
+- Sonraki adım: mevcut PR #74'ün dokümantasyon merge'i için ayrı onay bekle.
+  Bu teyit merge/release veya yeni canlı çağrı yetkisi vermez; yeni kapsam açma.
+
+## Ekran merge ve canlı kabul hazırlığı tarihli kaydı — 19 Ekim 2026
+
+Bu bölüm canlı koşu öncesinin kaydıdır; eski onay bekleme/canlı0 ifadeleri
+güncel durum değildir. Güncel sonuç ve kalan kullanıcı teyidi üsttedir.
+
+- Başlangıç ağacı temizdi. PR #73'ün son head'i
+  `440ad0d0a78ec9c652db660f1f82453bdfe96f87`, 10 dosyalık diff'i,
+  başarılı PR CI'si (**842 passed**), boş review/thread listeleri ve temiz
+  merge durumu yeniden kontrol edildi. Mustafa'nın açık onayıyla
+  **`5bc12a7213cd4f3a47d691803c443e1ad463b445`** olarak main'e merge edildi;
+  #70 **closed/completed** doğrulandı. #70 ve PR açıklamaları güncellendi.
+- Mustafa offline önizlemede iki örneği denediğini; konut grafiği/eşleşme
+  tablosu, TÜFE tablosu, kaynaklar/sınırlamalar ve grafik etkileşimlerini uygun
+  bulduğunu teyit etti. Bu kullanıcı teyididir; canlı model kabulü değildir.
+- [#71](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/71)
+  içinde dört soru ve beklenen analiz/dönem/karar **çalıştırılmadan önce**
+  yazıldı: konut 2021-01–2025-12, TÜFE 2023-01–2023-12, dönem eksikliği ve
+  kapsam dışı tahmin. Aynı vaka listesi yeni bir takip belgesine kopyalanmadı.
+- Yerel yapılandırmadan yalnız model/zaman aşımı ağsız okundu:
+  **`gemini-3.5-flash-lite`, 60 saniye**. Öneri: **azami 4 toplam çağrı**,
+  vaka başına 1 planlama, **yeniden deneme 0** (`max_retries=0`). Hatalı
+  deneme bütçeye dahildir; ilk sağlayıcı/plan/doğruluk hatasında durulur.
+  Ek anlatım, ücretli plana/sağlayıcıya otomatik geçiş veya EVDS çağrısı yok.
+  **Canlı çağrı 0; vaka/bütçe onayı bekleniyor. #71 açık.**
+- Aktif dal **`docs/live-acceptance-plan`**, merge edilmiş güncel main'den
+  açıldı. Bu dal yalnız README/devir kaydıdır; ürün kodu/veri/anahtar/audit
+  değiştirilmedi. PR #68 kendi dalında korunur. rc.1 tag'i `abea431`;
+  yeni release yok. Bu dokümantasyon dalı ayrıca onay olmadan merge edilmez.
+- Test durumu: merge edilen ekran head'inin CI'si **842 passed**; önceki
+  yerel tam paket **840 passed, 2 skipped**, odaklı UI/API **46 passed**,
+  Housing stub **9/9**. Dokümantasyon değişikliği için tam yerel test tekrarı
+  yapılmadı. Bu oturumda **56 yerel belge bağlantısı**, **7 PowerShell bloğu**
+  ve `git diff --check` geçti. Bu dokümantasyon dalı commit/push edilip ayrı
+  PR olarak teslim edilir; CI'nin güncel sonucu PR'dan izlenir, merge bekler.
+- Sonraki adım: Mustafa dört vaka/model/azami çağrı bütçesini açıkça onaylarsa,
+  mevcut doğrulanmış yerel dosyalarla normal endpoint'te bu sırayla çalıştır;
+  gerçek sonuçları offline kanıttan ayrı kaydet, genel başarı oranı çıkarma.
+  Onaya kadar normal ekrandan soru gönderme veya canlı smoke testi çalıştırma.
+  #46 videosu isteğe bağlıdır, çekilmedi ve ürün kabulünü bekletmez.
+
+
+
 ## Yerel soru ekranı: Aşama 2 tarihli kaydı — 19 Ekim 2026
 
 Bu bölüm eski kaynak/test kanıtıdır; güncel dal/teslim durumu üsttedir. #73 main'e
 alınmıştır, #70/#71 kapanmıştır; aşağıdaki eski bekleyen ifadeler güncel engel değildir.
+
 
 - Başlangıç ağacı temizdi. Mustafa'nın açık onayıyla PR #72'nin tam başlığı
   `545a285`, diff, başarılı Tests #122 (**840 passed**) ve boş review/thread
@@ -376,10 +594,42 @@ sonraki adım üstteki Aşama 2 bölümündedir.
   canlı Gemini çağrısından önce Mustafa'ya göster. Bu oturumda ekran, canlı
   kabul veya yeni release tamamlandı sayılmaz.
 
-## PR #67 ilk gerçek demo kabul kaydı — 18 Ekim 2026
+## v0.1.0-rc.1 yayımlandı; ekran kaydı açık — 18 Ekim 2026
 
-Bu ve aşağıdaki bölümler tarihli kanıttır; ürün kapsamı/onay/dal ve sonraki iş
-için üstteki 19 Ekim güncellemesi geçerlidir.
+19 Ekim ürün kararı: #46 videosu **isteğe bağlı portföy işi**, kaydedilmedi;
+ürün geliştirmesinin zorunlu kabul kapısı değildir. Yalnızca soruyla çalışan
+yerel ürün artık açıkça yetkili: backend #69, ekran #70, uçtan uca kabul #71.
+Önceki “yeni özellik açma” sınırı bu kapsam için geçersizdir. PR #68 açık,
+başarılı CI'li belge teslimidir; main'de varmış gibi kullanılmaz. rc.1 değişmez.
+
+- Başlangıç çalışma ağacı temizdi; kullanıcının değişikliği yoktu. Aktif dal
+  **`docs/rc1-publication`**, güncel main `abea431` tabanlıdır. PR #67 main'e
+  merge edilmiştir; runtime `7ee7225` ile aynı, yalnızca kabul belgeleri değişti.
+- Mustafa bu oturumda yalnızca **`v0.1.0-rc.1` sürüm adayının yayımlanmasına**
+  açık onay verdi. Güncel main tam SHA
+  `abea43137eed8a6ceb20cd9bbd22cd0afeb58f1b` yeniden kontrol edildi;
+  bu commit'in [main CI'si](https://github.com/ekincimustafa/quad-qore-agentic-analytics/actions/runs/39153169544)
+  **796 passed in 20.89s**. Gereksiz yerel tam pytest tekrarı yapılmadı.
+- Annotated `v0.1.0-rc.1` tag'i tam bu commit'e oluşturulup gönderildi;
+  [GitHub prerelease](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
+  **18 Ekim 2026 18:36:49 UTC** yayımlandı. `prerelease=true`, `draft=false`,
+  release kimliği `416628413`, yüklenen ek sayısı **0**. Tag hedefi ve yayımlanan
+  notlar bağımsız GET ile kontrol edildi. Gerçek veri, HTML, yerel audit veya
+  operasyon script'i eklenmedi; kaynak arşivleri yalnızca Git'teki dosyalardır.
+- #39/#40/#42 tamamdır. #46'da prerelease/onay maddeleri işaretlendi;
+  **60–90 saniyelik ekran kaydı alınmadı**, isteğe bağlı portföy işi olarak açık.
+  Kullanıcının önceki gerçek HTML görsel kabulü kayıt yapıldığı anlamına gelmez.
+- Bu dal yalnızca mevcut README/kabul/teslim/devir kaydını günceller; sürüm
+  tag'i bu yayın sonrası belge commit'lerine taşınmaz. Belge commit/push/PR
+  rutini uygulanır; yeni PR'nin merge'i veya kararlı release için onay yoktur.
+  Bu belgelerde **63 yerel bağlantı**, **12 PowerShell bloğu** ve
+  `git diff --check` geçti; zorunlu belge PR CI'si son commit için izlenir.
+  Bu yayın kaydının tarihli sonraki adımı videoydu; 19 Ekim ürün kararıyla artık
+  geliştirmeyi bekletmez. Yeni geliştirme #69 ile başlar; canlı EVDS/LLM yok.
+## PR #67 gerçek demo kabul teslimi — 18 Ekim 2026
+
+Bu bölüm yayın öncesi tarihli kabul kaydıdır; güncel yayın ve aktif dal durumu
+üstteki `v0.1.0-rc.1` bölümündedir. Önceki onay sınırları bu tarihe aittir.
 
 - Aktif dal `docs/real-demo-readiness`; başlangıç çalışma ağacı temizdi,
   mevcut kullanıcı değişikliği yoktu. Runtime `7ee7225`, Python 3.12.15

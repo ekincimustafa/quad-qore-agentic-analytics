@@ -214,6 +214,97 @@
       "rationale": "Başlangıç açık, bitiş eksik; bitiş tarihi veri sonundan veya bugünden uydurulmaz.",
       "offline_response": {"status": "clarification_required", "reason": "period_required"},
       "expected_decision": {"status": "clarification_required", "reason": "period_required"}
+    },
+    {
+      "id": "EQ-029",
+      "question": "2023 ve 2024 TÜFE değişimlerini karşılaştır.",
+      "fixture": "comparison",
+      "rationale": "İki tam yıl sırayla istenir; Aralık 2023 %20, Aralık 2024 %25, fark +5 yüzde puan.",
+      "offline_response": {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2023, "second_year": 2024},
+      "expected_decision": {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2023, "second_year": 2024},
+      "expected_comparison": {
+        "observed_month_counts": [12, 12],
+        "december_annual_inflation_pct": [20.0, 25.0],
+        "second_minus_first_december_annual_inflation_pp": 5.0
+      }
+    },
+    {
+      "id": "EQ-030",
+      "question": "2024 ile 2023 TÜFE değişimlerini karşılaştır.",
+      "fixture": "comparison",
+      "rationale": "Ters sıra korunur; fark ikinci yıl eksi birinci yıl olduğundan -5 yüzde puandır.",
+      "offline_response": {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2024, "second_year": 2023},
+      "expected_decision": {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2024, "second_year": 2023},
+      "expected_comparison": {
+        "observed_month_counts": [12, 12],
+        "december_annual_inflation_pct": [25.0, 20.0],
+        "second_minus_first_december_annual_inflation_pp": -5.0
+      }
+    },
+    {
+      "id": "EQ-031",
+      "question": "2023 ve 2024 TÜFE değişimlerini karşılaştır.",
+      "fixture": "comparison_missing_history",
+      "rationale": "Önceki Aralık (2022-12) yok; 2023 Aralık yıllık oranı ve fark null, 2024 oranı %25 kalır.",
+      "offline_response": {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2023, "second_year": 2024},
+      "expected_decision": {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2023, "second_year": 2024},
+      "expected_comparison": {
+        "observed_month_counts": [12, 12],
+        "december_annual_inflation_pct": [null, 25.0],
+        "second_minus_first_december_annual_inflation_pp": null
+      }
+    },
+    {
+      "id": "EQ-032",
+      "question": "2023 ve 2023 TÜFE değişimlerini karşılaştır.",
+      "fixture": "comparison",
+      "rationale": "Aynı yıl iki kez verilmiş; karşılaştırma yılları farklı olmalıdır.",
+      "offline_response": {"status": "clarification_required", "reason": "period_required"},
+      "expected_decision": {"status": "clarification_required", "reason": "period_required"}
+    },
+    {
+      "id": "EQ-033",
+      "question": "2021 ve 2023 TÜFE değişimlerini karşılaştır.",
+      "fixture": "comparison",
+      "rationale": "2021 seçili sentetik kapsamın (2022-12–2024-12) dışında; dönem kırpılmaz.",
+      "accepted_model_decisions": [
+        {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2021, "second_year": 2023},
+        {"status": "clarification_required", "reason": "outside_coverage"}
+      ],
+      "offline_response": {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2021, "second_year": 2023},
+      "expected_decision": {"status": "clarification_required", "reason": "outside_coverage"}
+    },
+    {
+      "id": "EQ-034",
+      "question": "TÜFE değişimlerini karşılaştır.",
+      "fixture": "comparison",
+      "rationale": "Karşılaştırma niyeti var fakat iki yıl belirtilmemiş; yıl uydurulmaz.",
+      "offline_response": {"status": "clarification_required", "reason": "period_required"},
+      "expected_decision": {"status": "clarification_required", "reason": "period_required"}
+    },
+    {
+      "id": "EQ-035",
+      "question": "2023 ve 2024 ortalama TÜFE enflasyonunu karşılaştır.",
+      "fixture": "comparison",
+      "rationale": "Ortalama enflasyon isteği Aralık yıllık oran karşılaştırması değildir; desteklenmez.",
+      "offline_response": {"status": "unsupported", "reason": "unsupported_analysis"},
+      "expected_decision": {"status": "unsupported", "reason": "unsupported_analysis"}
+    },
+    {
+      "id": "EQ-036",
+      "question": "2023 ve 2024 yıllıklandırılmış TÜFE enflasyonunu karşılaştır.",
+      "fixture": "comparison",
+      "rationale": "Yıllıklandırma isteği mevcut Aralık yıllık oran hesabı değildir; desteklenmez.",
+      "offline_response": {"status": "unsupported", "reason": "unsupported_analysis"},
+      "expected_decision": {"status": "unsupported", "reason": "unsupported_analysis"}
+    },
+    {
+      "id": "EQ-037",
+      "question": "2023 Aralık ile 2024 Aralık aylık TÜFE değişimlerini karşılaştır.",
+      "fixture": "comparison",
+      "rationale": "Aylık oran karşılaştırması kısmi dönem isteğidir; iki tam yıl karşılaştırması değildir.",
+      "offline_response": {"status": "unsupported", "reason": "unsupported_analysis"},
+      "expected_decision": {"status": "unsupported", "reason": "unsupported_analysis"}
     }
   ]
 }

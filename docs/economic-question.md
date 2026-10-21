@@ -3,7 +3,7 @@
 Takip: [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59).
 `app/services/economic_question.py`, Türkçe bir soruyu tek model çağrısında
 doğrulanmış plana dönüştürür ve en fazla bir mevcut Python analizini çalıştırır.
-Ortak HTTP yüzeyi `POST /analysis/economic/question` ve 28 vakalık offline HTTP
+Ortak HTTP yüzeyi `POST /analysis/economic/question` ve 37 vakalık offline HTTP
 değerlendirme seti mevcuttur. Mevcut `/analysis/housing/question` yalnızca konut
 analizini desteklemeye devam eder.
 
@@ -203,22 +203,24 @@ Offline stub sonuçları modelin Türkçe anlama başarısı değildir.
 .\.venv\Scripts\python.exe -m scripts.evaluate_economic_questions
 ```
 
-`evals/economic_question_cases.json` içindeki 28 vaka gerçek HTTP doğrulaması ve
+`evals/economic_question_cases.json` içindeki 37 vaka gerçek HTTP doğrulaması ve
 Python analizleriyle, sabit model yanıtları kullanılarak çalışır. Housing/TÜFE
-sonuçları aynı girdili doğrudan hesap endpoint'leriyle karşılaştırılır;
+sonuçları aynı girdili doğrudan hesap endpoint'leriyle, karşılaştırma sonucu ise
+mevcut `compare_inflation_years` çekirdeğiyle karşılaştırılır;
 soru başına plan/analiz çağrıları sayılır. Referans hesap istekleri soru
 yürütme sayacına dahil değildir. Rapor `out/economic-question-eval-offline.json`
 altındadır; `--output` yalnızca `out/` içinde başka bir rapor seçebilir.
 
-İlk 12 vakanın soru/beklenti/stub yanıtları korunmuştur. Ek 16 vaka; farklı Türkçe
-ifadeler ve tarih biçimleri, eksik yıl/bitiş, göreli dönem, nominal/reel belirsizliği,
-genel analiz isteği, kapsam dışı dönem, ters faiz koşulu, dönem karşılaştırması ve
-alakasız isteği kapsar. Beklentiler model çıktısı görülmeden yazıldı; yeni vakaların
+İlk 28 vakanın soru/beklenti/stub yanıtları korunmuştur. Son 9 vaka iki tam yıl
+karşılaştırmasını, ters yıl sırasını, önceki Aralık eksikliğinde null davranışını,
+aynı yıl, kapsam dışı yıl, belirsiz dönem ve desteklenmeyen ay/ortalama/
+yıllıklandırma isteklerini kapsar. Aralık yıllık oranları ve farkı elle hesaplanan
+sentetik sabitlerle ayrıca sınanır. Beklentiler model çıktısı görülmeden yazıldı;
 `rationale` alanı gerekçeyi açıklar. Anlamlı fakat desteklenmeyen ekonomik sorular
-anlamsız olarak etiketlenmez. Dağılım: 9 ready, 10 netleştirme, 7 unsupported,
+anlamsız olarak etiketlenmez. Dağılım: 12 ready, 13 netleştirme, 10 unsupported,
 2 veri yokluğu. Tahmin/nedensellik/şema değiştirme talepleri eski sette de vardır.
 
-Rapor **`offline_stub / harness_behavior_only`** olarak etiketlenir; 28/28 gibi
+Rapor **`offline_stub / harness_behavior_only`** olarak etiketlenir; 37/37 gibi
 bir stub sonucu modelin Türkçe anlama başarısı veya injection dayanıklılığı değildir.
 Hazırlıkta gerçek model/EVDS çağrısı yapılmadı. 20 Ekim'deki ayrı onaylı canlı
 koşunun sonucu aşağıda kaydedildi; #71'in dört gerçek vaka kaydı ayrı kanıttır

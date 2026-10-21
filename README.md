@@ -24,7 +24,7 @@ analysis window is January 2021 to December 2025: 60 months.
 | LLM client | Configured OpenAI-compatible Chat Completions, bounded SDK timeout, one attempt and safe application errors | [LLM guide](docs/llm-client.md) |
 | Question analysis | Turkish question + normalized rows, typed decisions, one allowed Housing analysis and shared period validation | [Question API guide](docs/housing-question.md) |
 | Economic question | Bounded question plan and shared HTTP dispatch to existing Housing/CPI services, including two full-year CPI comparison | [Economic question guide](docs/economic-question.md) |
-| Question evaluation | Nine Housing cases; 28 Economic cases with offline HTTP checks and explicitly selected, budgeted live planning | [Housing evaluation](docs/housing-question-evals.md), [Economic evaluation](docs/economic-question.md#offline-değerlendirme) |
+| Question evaluation | Nine Housing cases; 37 Economic cases with offline HTTP checks and explicitly selected, budgeted live planning | [Housing evaluation](docs/housing-question-evals.md), [Economic evaluation](docs/economic-question.md#offline-değerlendirme) |
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
 | File demo CLI | Physical EVDS manifest checks, source/output protection, evidence/chart/summary and optional offline HTML | [Demo guide](docs/housing-demo.md) |
 | Verified question files | Server-controlled local BDDK/EVDS files verified before question planning; Python wrapper only | [File question guide](docs/housing-question-files.md) |
@@ -37,11 +37,12 @@ Bronze-to-report source chain were independently checked on the delivered real
 data (60 months, 22 matching months). EVDS delivery [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39)
 and the real-data demo [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40)
 are complete, including Mustafa's browser acceptance on 18 October 2026.
-The published [v0.1.0-rc.1](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
-still targets `abea431`. The unrecorded video in
-[#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46) is optional
-portfolio work; it does not block the authorized local question product
-(backend #69, screen #70, acceptance #71).
+The [v0.1.0-rc.1 prerelease](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
+is published from `abea431`. The optional portfolio screen recording remains open in
+[#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
+The local question product (#69 backend, #70 screen, #71 end-to-end acceptance)
+is complete; the offline and bounded live acceptance recorded four calls for that
+run only and is not a general model-accuracy metric.
 Weekly publication coverage is explicitly unverified without an official calendar;
 the timestamp and coverage policy is documented in the [EVDS guide](docs/evds-ingestion.md).
 See the [acceptance record](docs/release-acceptance.md) for verified checks and open gates.
@@ -179,11 +180,11 @@ requires a configured live model even when `include_narration=false`.
 
 The separate [CPI example](docs/inflation-api-example.json) and
 [inflation guide](docs/inflation-analysis.md) work without an API key.
-The two-analysis [question endpoint](docs/economic-question.md) routes CPI and
+The shared [question endpoint](docs/economic-question.md) routes CPI and
 Housing questions through the bounded service core. A third bounded path compares
 two explicitly requested full calendar years of CPI changes with the existing
 `compare_inflation_years` core; average/partial-period comparison remains out of
-scope. Its 28-case evaluator runs offline with stub plans. The Housing question
+scope. Its 37-case evaluator runs offline with stub plans. The Housing question
 endpoint still allows only its existing Housing analysis.
 
 The file-backed endpoint expects these paths relative to the repository root:
@@ -243,10 +244,15 @@ The API is at <http://127.0.0.1:8000/docs>. The new endpoint takes only:
 ```
 
 Another supported question is `2023 Ocak-Aralık TÜFE aylık ve yıllık değişimlerini özetle.`
-Question planning uses the configured model: **do not submit a live request until
-the separate case list/call-budget approval in #71**. Offline tests use stub plans.
-The API was merged in PR #72. The separate #70 screen uses it at
-<http://127.0.0.1:8000/>; summaries only format evidence, with no extra model call.
+Question planning uses the configured model. The approved four-call live run
+in #71 is complete; additional automated live requests need separate approval.
+Offline tests use stub plans.
+The API was merged in PR #72; the #70 screen was merged in PR #73 (`5bc12a7`).
+The screen at <http://127.0.0.1:8000/> calls this API; summaries only format
+evidence, with no extra model call. The normal screen supports the three bounded
+analyses (Housing, CPI summary and two-year CPI comparison); the offline preview
+below fixes plans for only the three example questions. No live-model success is
+claimed for the two-year comparison.
 
 ### Local question screen — offline preview
 
@@ -258,24 +264,42 @@ the repository root with the same Python 3.12 environment:
 ```
 
 Open <http://127.0.0.1:8000/>. This explicit **offline preview** runs fixed plans for
-the two example questions; click an example, then **Analiz et**. The Housing example
+the three example questions; click an example, then **Analiz et**. The Housing example
 uses 2021–2025 (60 months / 22 matches in the verified delivery); CPI uses 2023
-(12 monthly rows). Other preview questions ask for clarification. The visible
-offline label distinguishes fixed-plan behavior from live model understanding.
-Once the environment and data package are ready, preview needs no model key,
-additional installation, data download or live model call. A missing or invalid
-data root produces a safe data-package error after **Analiz et**; it does not
-create or download replacement data.
+(12 monthly rows); the comparison uses the two full years 2023 and 2024 in that
+order (12+12 rows). Other preview questions ask for clarification. The visible
+offline label states that only these three fixed examples are supported and that
+free-form questions need normal structured model mode; it does not claim
+natural-language understanding. Once the environment and data package are ready,
+preview needs no model key, additional installation, data download or live model
+call. A missing or invalid data root produces a safe data-package error after
+**Analiz et**; it does not create or download replacement data.
 
 The normal `uvicorn app.api.main:app` command serves the same screen with configured
-model planning. **Live acceptance in #71 still requires its case list and call-budget
-approval.** Opening the page or filling an example never sends a question automatically.
-Both launchers use port 8000. Stop your own server with Ctrl+C before switching
-between them; do not stop another application's process to free the port.
+model planning. **The four-call acceptance budget in #71 has been consumed; do not
+resubmit to reproduce its screenshots.** Opening the page or filling an example
+never sends a question automatically. Both launchers use port 8000. Stop your own
+server with Ctrl+C before switching between them; do not stop another application's
+process to free the port.
 
-Check both examples, hover/zoom/pan/reset in the Housing chart, the matching-month
-table, CPI monthly/annual values, and expandable sources/limitations. This user
-review is still pending; offline browser tests do not replace live acceptance.
+Mustafa confirmed both offline examples, the Housing chart/table and interactions,
+the CPI table, and sources/limitations on 19 October 2026. This offline user review
+is complete. (The preview had two examples then; the 2023/2024 comparison example
+was added later in #91.) The four live cases ran on 19 October. On 20 October, Mustafa confirmed
+the four saved static screenshots: Housing period/count/chart/table, CPI period
+and monthly/annual distinction, clarification/unsupported messages with no stale
+result, and no obvious overflow/overlap. This was a static review with no new
+interaction test or model call. Acceptance is recorded as complete in
+[#71](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/71).
+That issue preserves the expectations written before execution and per-case results.
+The normal screen used `gemini-3.5-flash-lite`: **four calls, zero retries**,
+one submission per case, no extra narration or paid-plan/provider switch.
+Housing evidence/chart matched the prior CLI (60 months/22 matches); CPI matched
+the direct Python service (12 months). Missing period requested clarification;
+the forecast was unsupported, both without analysis. The same responses rendered
+the screen. Local `out/live-acceptance-20261019/case-1.png` through `case-4.png`
+can be reviewed without making another model call. Real data/audits remain outside
+Git; 145 input hashes were unchanged. These four cases are not an accuracy metric.
 
 ## Real-data preparation
 
