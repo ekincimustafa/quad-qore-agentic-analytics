@@ -14,7 +14,9 @@ from app.api.main import create_app
 from app.connectors import llm_client
 from app.lakehouse.gold import GoldAnalysisError
 from app.services import economic_question as service
+from app.services.inflation_analysis import InflationEvidence
 from app.services.inflation_comparison import compare_inflation_years
+from app.tools.inflation_chart import build_inflation_chart
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -96,7 +98,13 @@ def test_documented_requests_call_one_service_and_equal_direct_api(monkeypatch, 
         assert jan["monthly_inflation_pct"] == pytest.approx(4.0)
         assert jan["annual_inflation_pct"] == pytest.approx(30.0)
         assert body["analysis"]["evidence"]["cpi_base_year"] == 2025
-        assert "chart" not in body["analysis"]
+        evidence = InflationEvidence.model_validate(body["analysis"]["evidence"])
+        assert body["analysis"]["chart"] == build_inflation_chart(evidence)
+        chart = body["analysis"]["chart"]
+        assert len(chart["data"]) == 3
+        for trace, field in zip(chart["data"], ("cpi_index", "monthly_inflation_pct", "annual_inflation_pct")):
+            assert trace["y"] == [getattr(row, field) for row in evidence.observations]
+        assert chart["data"][0]["x"] == [f"{row.period}-01" for row in evidence.observations]
 
 
 COMPARISON_PERIODS = pd.period_range("2022-12", "2024-12", freq="M").astype(str).tolist()

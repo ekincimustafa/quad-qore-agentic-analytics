@@ -17,8 +17,8 @@
   };
   const say = (state, text) => { notice.dataset.state = state; notice.textContent = text; };
   const clear = () => {
-    const chart = result.querySelector(".chart");
-    if (chart && window.Plotly) window.Plotly.purge(chart);
+    const charts = result.querySelectorAll(".chart");
+    if (window.Plotly) charts.forEach(chart => window.Plotly.purge(chart));
     result.replaceChildren(); result.hidden = true;
   };
   const busy = value => {
@@ -100,6 +100,12 @@
       });
       result.append(element("p", "—: Gerekli önceki Aralık verisi yoksa Aralık yıllık oran ve iki yıl farkı null kalır; sıfır veya tahmin üretilmez.", "meta"));
     } else {
+      const chart = element("div", undefined, "chart");
+      chart.setAttribute("aria-label", "TÜFE endeksi, aylık ve yıllık değişim grafiği");
+      result.append(chart);
+      const layout = {...analysis.chart.layout, autosize: true, width: undefined,
+        title: {text: ""}};
+      await window.Plotly.newPlot(chart, analysis.chart.data, layout, {responsive: true, displaylogo: false});
       result.append(element("h3", "Aylık ve yıllık TÜFE"));
       table(["Ay", "TÜFE (2025=100)", "Aylık değişim (%)", "Yıllık değişim (%)"], e.observations.map(row => [row.period, ...[row.cpi_index, row.monthly_inflation_pct, row.annual_inflation_pct].map(number)]));
       result.append(element("p", "—: Karşılaştırma için geçmiş ay yok. Yıllık oran, geçen yılın aynı ayına göredir; 12 aylık ortalama değildir.", "meta"));

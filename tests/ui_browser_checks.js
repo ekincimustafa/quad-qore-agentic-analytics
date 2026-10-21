@@ -39,9 +39,15 @@
     await send("2021 Ocak-Şubat TÜFE değişimleri");
     assert(notice.dataset.state === "ok" && result.querySelectorAll("tbody tr").length === 2, "CPI table uses actual API rows");
     assert(result.querySelector("tbody").textContent.includes("—"), "missing CPI history is not zero");
-    assert(!result.querySelector(".chart") && result.textContent.includes("TÜFE makbuz"), "CPI sources without stale housing chart");
+    const cpiPlot = result.querySelector(".js-plotly-plot");
+    assert(cpiPlot?.data.length === 3 && result.querySelectorAll(".js-plotly-plot").length === 1, "CPI renders three panels and replaces the housing chart");
+    assert(cpiPlot.data.map(trace => trace.name).join("|") === "TÜFE endeksi (2025=100)|Aylık değişim (%)|Yıllık değişim (%)", "CPI panel titles are preserved");
+    const cpiPeriods = [...result.querySelectorAll("tbody tr td:first-child")].map(cell => cell.textContent);
+    assert(JSON.stringify(cpiPlot.data[0].x.map(value => value.slice(0, 7))) === JSON.stringify(cpiPeriods), "CPI chart and table use the same evidence months");
+    assert(result.textContent.includes("TÜFE makbuz"), "CPI sources remain visible");
     await send('<img src=x onerror="window.UI_XSS=true">');
     assert(notice.dataset.state === "clarification_required" && result.hidden, "clarification hides stale result");
+    assert(!result.querySelector(".js-plotly-plot"), "clarification purges the previous CPI chart");
     assert(!window.UI_XSS && field.value.startsWith("<img"), "user text never executes");
     await send("unsupported");
     assert(notice.dataset.state === "unsupported", "unsupported decision shown");
@@ -74,6 +80,7 @@
     assert(result.textContent.includes("+5 yüzde puan"), "comparison difference uses percentage points");
     assert(result.textContent.includes("null kalır"), "missing-value behavior is explained");
     assert(result.textContent.includes("TÜFE makbuz"), "comparison sources remain visible");
+    assert(!result.querySelector(".chart"), "comparison removes the previous CPI chart");
     const marker = document.createElement("pre"); marker.id = "ui-test-result"; marker.textContent = JSON.stringify({ok: true, checks: checks.length}); document.body.append(marker);
   } catch (error) {
     const marker = document.createElement("pre"); marker.id = "ui-test-result"; marker.textContent = JSON.stringify({ok: false, checks, error: String(error)}); document.body.append(marker);

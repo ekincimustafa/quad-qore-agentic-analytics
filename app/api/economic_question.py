@@ -46,6 +46,7 @@ from app.services.inflation_analysis import InflationAnalysisError, InflationEvi
 from app.services.inflation_comparison import InflationComparison
 from app.tools.housing_chart import HousingChartError
 from app.tools.housing_evidence import EvidenceBuildError, HousingAnalysisEvidence
+from app.tools.inflation_chart import InflationChartError, build_inflation_chart
 
 
 def _invalid_input() -> HTTPException:
@@ -137,6 +138,7 @@ class HousingQuestionAnalysis(_StrictModel):
 class InflationQuestionAnalysis(_StrictModel):
     analysis_id: Literal["cpi_inflation_summary"] = "cpi_inflation_summary"
     evidence: InflationEvidence
+    chart: dict[str, Any]
 
 
 class InflationComparisonQuestionAnalysis(_StrictModel):
@@ -251,7 +253,10 @@ def analyze_economic_question(
         _error("question_planning_failed", "Modelden analiz planı alınamadı.")
     except EconomicPlanValidationError:
         _error("invalid_question_plan", "Modelin analiz planı doğrulanamadı.")
-    except (EconomicInputError, GoldAnalysisError, InflationAnalysisError, EvidenceBuildError, HousingChartError):
+    except (
+        EconomicInputError, GoldAnalysisError, InflationAnalysisError, EvidenceBuildError,
+        HousingChartError, InflationChartError,
+    ):
         raise _invalid_input() from None
 
     return _question_response(result)
@@ -276,7 +281,7 @@ def analyze_verified_economic_question(
         _error("invalid_question_plan", "Modelin analiz planı doğrulanamadı.")
     except (
         VerifiedEconomicQuestionDataError, EconomicInputError, GoldAnalysisError,
-        InflationAnalysisError, EvidenceBuildError, HousingChartError,
+        InflationAnalysisError, EvidenceBuildError, HousingChartError, InflationChartError,
     ):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -313,7 +318,9 @@ def _question_response(result: EconomicQuestionRun) -> EconomicQuestionResponse:
     elif result.decision.analysis_id == HOUSING_ID and isinstance(result.analysis, HousingAnalysisRun):
         analysis = HousingQuestionAnalysis(evidence=result.analysis.evidence, chart=result.analysis.chart)
     elif result.decision.analysis_id == INFLATION_ID and isinstance(result.analysis, InflationEvidence):
-        analysis = InflationQuestionAnalysis(evidence=result.analysis)
+        analysis = InflationQuestionAnalysis(
+            evidence=result.analysis, chart=build_inflation_chart(result.analysis),
+        )
     else:
         raise RuntimeError("A ready decision must contain the matching analysis result.")
     return EconomicQuestionSuccess(**common, analysis=analysis)

@@ -13,7 +13,8 @@ analizini desteklemeye devam eder.
   stokunun artmadığı aylar; mevcut `run_housing_analysis()` servisi.
 - `cpi_inflation_summary`: genel TÜFE endeksinin aylık, aynı ayın önceki yılına
   göre yıllık ve seçilen ilk-son ay değişimleri; mevcut
-  `build_inflation_evidence()` servisi.
+  `build_inflation_evidence()` servisi ve üç panelli `build_inflation_chart()`
+  çıktısı.
 - `cpi_two_year_comparison`: iki tam takvim yılının Ocak–Aralık TÜFE
   değişimleri ve Aralık yıllık oran farkı; mevcut
   `compare_inflation_years()` çekirdeği. Plan yalnız `first_year` ve
@@ -134,10 +135,12 @@ Kaynak etiketleri fiziksel dosya doğrulaması yerine geçmez; bu HTTP yüzeyi
 
 `available_periods` içinde `housing` ve `inflation` dönemleri veya `null` vardır.
 `analysis.analysis_id`, `analysis.evidence` tipini belirler. Konut sonucunda
-ayrıca mevcut altı trace'li `analysis.chart` bulunur; TÜFE özeti ve iki yıl
-karşılaştırması evidence taşır. Karşılaştırmada iki nested evidence'ın kaynak
-referansı ve `input_origin` bilgisi korunur. Endpoint anlatım çağrısı yapmaz ve
-sohbet geçmişi tutmaz.
+ayrıca mevcut altı trace'li `analysis.chart` bulunur. Tek dönem TÜFE özetinde
+aynı evidence'dan üretilen mevcut üç panelli `analysis.chart` yer alır; grafik
+için ek model, veri veya hesap çağrısı yapılmaz. İki yıl karşılaştırması yalnız
+evidence taşır. Karşılaştırmada iki nested evidence'ın kaynak referansı ve
+`input_origin` bilgisi korunur. Endpoint anlatım çağrısı yapmaz ve sohbet
+geçmişi tutmaz.
 
 ### Sentetik istek örnekleri
 
@@ -181,7 +184,8 @@ kontrolleri gevşetilmedi. Doğrulanmış bellek kopyası plan sonrasında tekra
 kullanır, konut kapsamına kırpılmaz. Soru başına en fazla bir plan ve bir hesap
 çağrısı vardır; netleştirme/unsupported/kapsam dışı planda hesap çalışmaz.
 Yanıt aynı `status/decision/available_periods/analysis` yapısındadır. Konutta mevcut
-evidence/grafik ve weekly coverage notu korunur. TÜFE'de hesaplar aynı kalırken
+evidence/grafik ve weekly coverage notu korunur. TÜFE özetinde hesaplar aynı kalır;
+üç panelli grafik doğrulanmış evidence'dan ek çağrı yapılmadan üretilir ve
 `input_origin=verified_files`, yalnız TÜFE makbuz referansları ve fiziksel doğrulama
 notu döner; eski satır API'sinde `caller_supplied` varsayılanı değişmez.
 
