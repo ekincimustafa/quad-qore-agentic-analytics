@@ -10,6 +10,20 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## #89 iki yıl TÜFE karşılaştırmasını offline değerlendirmeye ekleme — 21 Ekim 2026
+
+- Dal `feat/inflation-comparison-evals`; başlangıç `origin/main` `31b1711`. Evaluator
+  artık `EconomicComparisonReadyPlan` için `compare_inflation_years` referansını, her
+  yılın 12 gözlemini ve elle hesaplanan Aralık oranı/fark sabitlerini doğruluyor.
+  Konut/TÜFE/karşılaştırma üst düzey çağrıları ayrı sayılıyor; reddedilen istekte üçü de sıfır.
+- `evals/economic_question_cases.json` eski 28 vakayı koruyarak 37'ye çıktı; iki küçük
+  sentetik karşılaştırma fixture'ı eklendi. Önceki Aralık yokluğu null, seçilen yıl
+  içindeki eksik ay red olarak ayrı sınanıyor. EQ-026 unsupported kaldı.
+- Tek `python -m scripts.verify_project`: **956 passed, 2 skipped**; Economic stub
+  **37/37**, Housing stub **9/9**, canlı çağrı **0**, `git diff --check` temiz.
+  Rapor: `out/verification/20261021T122540Z-20544-d8628610/`.
+- Sonraki adım: bağımsız inceleme ve PR birleştirme kararı. Bu oturum merge/release yapmadı.
+
 ## #88 eski yayın ve canlı kabul belgelerini PR #74'te uzlaştırma — 21 Ekim 2026
 
 - Bu bölüm güncel durumdur; altındaki tarihli kayıtlar kaynak kanıtıdır.
