@@ -2,12 +2,29 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli `4a1a327` (PR #78 sonrası main).
+için bir sürüm garantisi değildir. Kod temeli `190093d` (PR #82 sonrası main).
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
 güncel durumu belirtir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
+
+## #83 tek komutla offline doğrulama — 21 Ekim 2026
+
+- Başlangıç güncel `origin/main` `190093d`: PR #82 merge edildi ve #80 kapalı.
+  `chore/offline-verification` dalı bu main üzerinden açıldı; #81 ve #76 kapsamına
+  girilmedi.
+- `scripts/verify_project.py` tek komutta sırasıyla `pytest -q tests`, iki offline
+  stub değerlendirmesi ve `git diff --check` çalıştırır. İlk hatada durur, ayrıntılı
+  günlükleri koşuya özel `out/verification/` altında tutar. `tests/test_verify_project.py`
+  başarı, ilk hata, komut başlatma hatası ve repo kökü/yorumlayıcı sınırlarını sahte
+  alt süreçle sınar. CI aynı girişi kullanır; README ve AGENTS.md güncellendi.
+- Doğrulama: odaklı **4 passed**; ilgili evaluator testleriyle birlikte **53
+  passed**. Tek komut `out/verification/20261021T092436Z-24428-e8da83d9`:
+  **919 passed, 2 skipped**; Housing **9/9**, Economic **28/28**, canlı çağrı 0;
+  `git diff --check` temiz.
+- Durum: yerel uygulama hazır; commit/push/PR teslimi bu oturumda yürütülecek.
+  Uygulayıcı PR'ı bağımsız incelemeye bırakır; merge/release yapılmaz.
 
 ## #80 iki yıl TÜFE karşılaştırması — 21 Ekim 2026
 

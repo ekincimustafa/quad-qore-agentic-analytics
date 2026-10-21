@@ -103,6 +103,28 @@ so no CDN or web server is needed. The file is several MB and generated `out/`
 content is ignored by Git. Its 60 observations, including weekly counts, are
 artificial and must not be presented as real economic findings.
 
+### Single offline verification
+
+Run the complete offline check with the same Python 3.12 interpreter from the
+repository root. It runs the test suite, both stub evaluations and
+`git diff --check` in order, stops at the first failure, and writes per-run logs
+and evaluation reports under `out/verification/`.
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.verify_project
+```
+
+Linux:
+
+```bash
+.venv/bin/python -m scripts.verify_project
+```
+
+Focused tests remain available with `python -m pytest -q tests/test_<name>.py`.
+These checks are offline; they do not call a live model or EVDS.
+
 ## Local API
 
 Start the server in one terminal:
