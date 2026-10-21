@@ -31,8 +31,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   2023→2024 sırası ve 12+12 satır, fark **-20,3941 yüzde puan**. Ekran görüntüleri
   `out/three-analysis-check/example-{1,2,3}.png`, DOM/JSON log aynı dizinde.
   Bu çıktılar Git dışındadır; canlı LLM/EVDS çağrısı yapılmadı.
-- Sonraki adım: PR'ın bağımsız incelenmesi ve birleştirme kararı. Bu oturum
-  merge/release yapmadı.
+- Sonraki adım: [#92](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/92)
+  PR'ının bağımsız incelenmesi ve birleştirme kararı. Bu oturum merge/release yapmadı.
 
 ## #89 iki yıl TÜFE karşılaştırmasını offline değerlendirmeye ekleme — 21 Ekim 2026
 
