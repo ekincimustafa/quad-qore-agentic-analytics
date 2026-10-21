@@ -44,12 +44,15 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   PR'da birleştirildi; #68 kapatılmadı. #81 (Afra) ve #76/#79 (Osman) ayrı
   işlerdir; dosyaları değiştirilmedi.
 - PR #74 yalnız belgeleri değiştirir; uygulama/test/CI/AGENTS değişmedi.
-  Doküman bağlantı/örnek kontrolleri ve `git diff --check` yapıldı; tam yerel
-  test paketi tekrarlanmadı. Zorunlu PR CI'si korunur ve kendi head'i için
-  ayrıca izlenir.
-- Sıradaki adım: güncel PR #74 head/CI'siyle bağımsız inceleme. Merge, release/
-  yayın, canlı uygulama LLM/EVDS çağrısı yok; gerçek veri/rapor/anahtar Git'e
-  eklenmedi.
+  README/docs genelinde 84 yerel bağlantı çözüldü; değişen dört belgede 15
+  PowerShell bloğu parser'dan geçti ve `git diff --check` temiz. Tam yerel test
+  paketi tekrarlanmadı. `c25050b` head'i için `Pytest - Python 3.12` başarılı;
+  bu handoff commit'i sonrası güncel head CI'si PR'dan izlenir.
+- Durum: PR #74 başlık/açıklaması birleşik kapsam ve gerçek kontrollerle
+  güncellendi; #68 açıklaması içeriğin #74'te birleştiğini belirtir ve açık
+  kaldı. Sıradaki adım güncel PR #74 head/CI'siyle bağımsız inceleme. Merge,
+  release/yayın, canlı uygulama LLM/EVDS çağrısı yok; gerçek veri/rapor/anahtar
+  Git'e eklenmedi.
 
 
 ## #85 iki yıl TÜFE karşılaştırmasını soru akışına bağlama — 21 Ekim 2026
