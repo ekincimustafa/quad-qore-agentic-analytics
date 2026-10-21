@@ -2,13 +2,38 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli `efa22a7` (PR #93 sonrası main).
+için bir sürüm garantisi değildir. Kod temeli `98cbb9c` (PR #94 sonrası main).
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
 güncel durumu belirtir. Tarihli bölümlerdeki dal/CI/onay bekleme ifadeleri yalnız
 o tarihin kanıtıdır ve güncel engel değildir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
+
+## #95 TÜFE grafiğini soru ekranına bağlama — 21 Ekim 2026
+
+- Dal `feat/inflation-question-chart`; başlangıç güncel `origin/main` `98cbb9c`
+  (PR #94 merge). Hesaplar ve `build_inflation_chart()` yeniden yazılmadı.
+- `InflationQuestionAnalysis` yanıtına aynı evidence'dan üretilen mevcut üç
+  panelli `chart` eklendi; bu yol hem normalize satırlı hem doğrulanmış dosya
+  API'sinde ortak. Konut grafiği/alanları ve iki yıl karşılaştırması değişmedi.
+- Soru ekranı TÜFE özetinde grafiği tablodan önce gösteriyor; yerel Plotly
+  kullanılıyor. Analiz değişimi, netleştirme ve hatada tüm `.chart` düğümleri
+  `Plotly.purge` ile temizleniyor. Grafik için ek model/veri çağrısı yok.
+- Odaklı API/dosya/grafik testleri **109 passed**, UI **5 passed**. Tek
+  `python -m scripts.verify_project`: **986 passed, 2 skipped**; Housing **9/9**,
+  Economic **37/37**, canlı çağrı **0**, `git diff --check` temiz.
+  Günlük: `out/verification/20261021T173151Z-25272-f1d27e4f/`.
+- Gerçek paket `out/housing-acceptance-20261018/inputs` ile offline preview:
+  Konut **60 ay/22 eşleşme**, TÜFE 2023 **12 satır + üç panel**, karşılaştırma
+  **12+12 satır**, fark **-20,3941 yüzde puan**. Masaüstü ve gerçek 390 px CDP
+  görünümünde panel/tablo eşleşmesi, hover/zoom/pan/reset, eski grafiğin
+  temizlenmesi ve yatay taşma kontrol edildi. Görseller/rapor
+  `out/issue-095-check/` altında, Git dışında.
+- PR [#96](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/96)
+  açık; kod head `e3a0167`. Merge bağımsız incelemeye bırakıldı. Canlı LLM/EVDS,
+  yeni veri indirme, merge/release/tag değişimi yok. Kullanım notları README ve
+  `docs/economic-question.md` içinde.
 
 ## #81 TÜFE HTML raporu ikinci aşama — 21 Ekim 2026
 
