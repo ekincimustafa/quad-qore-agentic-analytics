@@ -35,6 +35,14 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   yeni veri indirme, merge/release/tag değişimi yok. Kullanım notları README ve
   `docs/economic-question.md` içinde.
 
+- Bağımsız inceleme düzeltmesi: grafik üreten yanıt dönüşümü iki endpoint'te de
+  try bloğuna alındı; InflationChartError artık normalize istekte güvenli 422,
+  dosya isteğinde güvenli 503 verir. İki HTTP regresyonu önce hatayı yeniden
+  üretti; düzeltme sonrasında tek planlama denemesi ve ham ayrıntı gizliliği
+  kontrol edilir. Yukarıdaki 986/2 sonucu ilk teslimindir; son head'in CI'si
+  düzeltme sonrası ayrıca kontrol edilmelidir.
+
+
 ## #81 TÜFE HTML raporu ikinci aşama — 21 Ekim 2026
 
 - Dal `feat/inflation-html-report`; başlangıç güncel `origin/main` `efa22a7`

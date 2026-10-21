@@ -249,6 +249,7 @@ def analyze_economic_question(
     )
     try:
         result = run_economic_question(request.question, housing=housing, inflation=inflation, model_call=model_call)
+        return _question_response(result)
     except EconomicPlanningError:
         _error("question_planning_failed", "Modelden analiz planı alınamadı.")
     except EconomicPlanValidationError:
@@ -259,7 +260,6 @@ def analyze_economic_question(
     ):
         raise _invalid_input() from None
 
-    return _question_response(result)
 
 
 @router.post(
@@ -275,6 +275,7 @@ def analyze_verified_economic_question(
 ) -> EconomicQuestionResponse:
     try:
         result = run_verified_economic_question(request.question, paths, model_call=model_call)
+        return _question_response(result)
     except EconomicPlanningError:
         _error("question_planning_failed", "Modelden analiz planı alınamadı.")
     except EconomicPlanValidationError:
@@ -288,7 +289,6 @@ def analyze_verified_economic_question(
             detail={"code": "economic_data_unavailable",
                     "message": "Sunucu veri paketi eksik, okunamıyor veya bütünlük doğrulamasını geçemedi."},
         ) from None
-    return _question_response(result)
 
 
 def _question_response(result: EconomicQuestionRun) -> EconomicQuestionResponse:

@@ -368,3 +368,25 @@ def test_server_environment_selects_root_without_request_paths(package, monkeypa
     with TestClient(app) as client:
         response = client.post(ENDPOINT, json={"question": QUESTION})
     assert response.status_code == 200 and response.json()["status"] == "ok"
+
+
+def test_cpi_chart_failure_is_safe_503_without_retry(package, monkeypatch):
+    from app.tools.inflation_chart import InflationChartError
+
+    prompts = []
+
+    def model(prompt):
+        prompts.append(prompt)
+        return json.dumps(ready(core.INFLATION_ID))
+
+    def broken_chart(evidence):
+        raise InflationChartError("private-chart-detail")
+
+    monkeypatch.setattr(api, "build_inflation_chart", broken_chart)
+    with client_with_model(package, model) as client:
+        response = client.post(ENDPOINT, json={"question": "2021 Ocak-Şubat TÜFE değişimlerini göster."})
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "economic_data_unavailable"
+    assert "private-chart-detail" not in response.text
+    assert len(prompts) == 1
+

@@ -374,3 +374,27 @@ def test_malformed_or_non_object_json_is_safe_422(content):
         response = client.post(ENDPOINT, content=content, headers={"Content-Type": "application/json"})
     assert response.status_code == 422
     assert response.json()["detail"]["code"] == "invalid_economic_input"
+
+
+def test_cpi_chart_failure_is_safe_422_without_retry(monkeypatch, payload):
+    from app.api import economic_question as api
+    from app.tools.inflation_chart import InflationChartError
+
+    payload["question"] = "2021 Ocak-Mart TÜFE değişimlerini göster."
+    prompts = []
+
+    def model(prompt):
+        prompts.append(prompt)
+        return json.dumps(ready(service.INFLATION_ID))
+
+    def broken_chart(evidence):
+        raise InflationChartError("private-chart-detail")
+
+    monkeypatch.setattr(api, "build_inflation_chart", broken_chart)
+    with client_with_model(model) as client:
+        response = client.post(ENDPOINT, json=payload)
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "invalid_economic_input"
+    assert "private-chart-detail" not in response.text
+    assert len(prompts) == 1
+
