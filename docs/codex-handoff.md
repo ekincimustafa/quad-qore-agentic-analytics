@@ -1,13 +1,33 @@
-# Codex devir notu — 20 Ekim 2026
+# Codex devir notu — 21 Ekim 2026
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli `7ee7225` (PR #66 sonrası main).
+için bir sürüm garantisi değildir. Kod temeli `4a1a327` (PR #78 sonrası main).
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
 güncel durumu belirtir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
+
+## #80 iki yıl TÜFE karşılaştırması — 21 Ekim 2026
+
+- `feat/inflation-two-year-comparison` dalı güncel `origin/main` (`4a1a327`)
+  üzerinden açıldı. Başlangıçta çalışma ağacı temizdi ve #80 için önceki yerel
+  uygulama yoktu.
+- `app/services/inflation_comparison.py` eklendi: iki tam takvim yılı mevcut
+  `build_inflation_evidence` ile hesaplanıyor; yıl sırası korunuyor, önceki
+  Aralık hesap geçmişi kesilmiyor. Aralık yıllık oran farkı yüzde puan olarak
+  dönüyor; aynı/geçersiz yıl reddediliyor, eksik önceki Aralıkta oran ve fark
+  `null` kalıyor.
+- `tests/test_inflation_comparison.py` bağımsız beklenen değerlerle eklendi;
+  `docs/inflation-analysis.md` kısa kullanımı belgeliyor. API, planlayıcı ve
+  ekran değişmedi.
+- Doğrulama (kod/test bu haliyle): odaklı **56 passed**; tam paket
+  `out/clean312` ile **915 passed, 2 skipped in 95.17s**; offline Housing
+  **9/9**; `git diff --check` temiz. Canlı LLM/EVDS çağrısı yapılmadı. Yalnızca
+  belge değişikliğinden sonra tam paket yeniden çalıştırılmadı.
+- Durum: yerel uygulama tamamlandı; commit/push/PR teslimi bu oturumda
+  yürütülecek. Merge ve release yapılmayacak.
 
 ## #77 ekonomik soru değerlendirmesi — 20 Ekim 2026
 
