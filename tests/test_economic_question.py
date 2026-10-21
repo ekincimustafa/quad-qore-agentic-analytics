@@ -207,6 +207,9 @@ def test_comparison_plan_runs_existing_core_once_and_matches_direct_result(
     ("2023 TÜFE değişimlerini göster.", comparison_ready(2023, 2024), ("clarification_required", "period_required")),
     ("2023 ve 2024 ortalama TÜFE enflasyonunu karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
     ("2023 Ocak-Haziran ile 2024 Ocak-Haziran TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
+    ("2023 Ocak ile 2024 Ocak TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
+    ("2023-01 ile 2024-01 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
+    ("2023 ve 2024 konut kredisi faizlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
     ("2023 ve 2024 TÜFE değişimlerini karşılaştır.", ready(service.INFLATION_ID, "2023-01", "2024-12"), ("clarification_required", "period_required")),
     ("2023-2024 TÜFE değişimlerini özetle.", comparison_ready(2023, 2024), ("clarification_required", "period_required")),
 ])

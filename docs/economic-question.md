@@ -75,14 +75,18 @@ modelin tüm ekonomik niyeti doğru seçtiğini garanti etmez.
 TÜFE enflasyonunu karşılaştır.” iki tam yıl için çalışır; yıl sırası korunur.
 Yanıt iki yılın 12'şer aylık evidence tablosunu, ayrı Ocak–Aralık endeks
 değişimlerini, Aralık yıllık oranlarını ve `ikinci yıl - birinci yıl` farkını
-yüzde puan olarak taşır. Hesaplama mevcut `compare_inflation_years()` içinde bir
+yüzde puan olarak taşır. Ekran iki `first_to_last_index_change_pct` değerini
+kendi yıl başlığı altında yüzde birimiyle, Aralık yıllık oranı ve yüzde puan
+farkından ayrı gösterir. Hesaplama mevcut `compare_inflation_years()` içinde bir
 kez yapılır; formüller yönlendirme/API/ekran katmanında tekrarlanmaz.
 
 Python planı analizden önce soruyla karşılaştırır. İki yıl açık değilse, yıllar
 eksik/uyuşmuyor veya ters verilmişse, model tek dönem özeti seçmişse ya da soru
 aynı yılı iki kez/tek yıl belirtiyorsa `period_required` döner. Ortalama, kısmi
-dönem, tahmin ve nedensellik istekleri `unsupported`; tam yıl veri kapsamı
-dışındaysa `outside_coverage` olur. Bu durumlarda analiz 0 kez çalışır. Eksik
+dönem (tek ay veya ISO ay dahil), açık TÜFE dışı metrik, tahmin ve nedensellik
+istekleri `unsupported`; tam yıl veri kapsamı dışındaysa `outside_coverage`
+olur. Yalnız açık `yıllık` ifadesiyle istenen Aralık karşılaştırmaları bu
+kontrolden geçer. Bu durumlarda analiz 0 kez çalışır. Eksik
 önceki Aralık nedeniyle yıllık oran veya fark `null` kalabilir; sıfır/tahmin
 üretilmez. “2023-2024 TÜFE değişimlerini özetle.” aralık özeti karşılaştırma
 sayılmaz. Yeni bir HTTP endpoint'i, genel tarih ayrıştırıcısı, grafik katmanı

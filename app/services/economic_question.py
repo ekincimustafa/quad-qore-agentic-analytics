@@ -149,11 +149,26 @@ _MIXED_METRICS = re.compile(r"\b(?:reel|nominal)\s+(?:ve|veya|ya\s+da|ile|mi)\s+
 _NEGATED_METRIC = re.compile(r"(?:\s+\w+){0,2}\s+(?:değil\w*|olmayan|hariç|yerine|dışında\w*)\b")
 _COMPARISON_INTENT = re.compile(r"\b(?:karşılaştır\w*|kıyasla\w*)\b")
 _COMPARISON_OUT_OF_SCOPE = re.compile(r"\b(?:ortalama\w*|tahmin\w*|öngör\w*|neden\w*|nedensellik\w*)\b")
+_EXPLICIT_NON_CPI_METRIC = re.compile(
+    rf"\b(?:(?:konut\s+)?kredi\w*|stok\w*|bakiy\w*|tutar\w*|faiz\w*)\b"
+)
+_ANNUAL_INFLATION = re.compile(r"\b(?:yıllık|yıllıklandırılmış|12\s+aylık)\b")
 
 
 def _question_text(question: str) -> str:
     """Lowercase Turkish text without changing the user's original prompt."""
     return question.translate(str.maketrans("IİŞĞÜÖÇ", "ıişğüöç")).casefold()
+
+
+def _month_points(text: str) -> list[tuple[int, str]]:
+    """Collect supported month expressions with their positions in the text."""
+    points = []
+    for index, pattern in enumerate(_MONTH_POINTS):
+        for match in pattern.finditer(text):
+            year, month = (match[2], match[1]) if index in {1, 3} else (match[1], match[2])
+            points.append((match.start(), f"{year}-{_MONTHS.get(month, month.zfill(2))}"))
+    points.sort()
+    return points
 
 
 def _explicit_period(question: str) -> tuple[str, str] | None:
@@ -191,12 +206,7 @@ def _explicit_period(question: str) -> tuple[str, str] | None:
     if quarters:
         return supported(f"{quarters[0][1]}-01", f"{quarters[0][1]}-03") if len(quarters) == 1 else None
 
-    points = []
-    for index, pattern in enumerate(_MONTH_POINTS):
-        for match in pattern.finditer(text):
-            year, month = (match[2], match[1]) if index in {1, 3} else (match[1], match[2])
-            points.append((match.start(), f"{year}-{_MONTHS.get(month, month.zfill(2))}"))
-    points.sort()
+    points = _month_points(text)
     if len(points) == 1:
         if _OPEN_ENDED_PERIOD.search(text):
             return None
@@ -218,13 +228,23 @@ def _comparison_years(question: str) -> tuple[int, int] | None:
 
 
 def _comparison_out_of_scope(question: str) -> bool:
-    """Average, forecast/causality and partial-period comparisons are not this feature."""
+    """Average, forecast/causality, non-CPI and partial-period comparisons are not this feature."""
     text = _question_text(question)
-    if _COMPARISON_OUT_OF_SCOPE.search(text):
+    if _COMPARISON_OUT_OF_SCOPE.search(text) or _EXPLICIT_NON_CPI_METRIC.search(text):
         return True
-    return any(
+    if any(
         pattern.search(text)
         for pattern in (_DAY_MONTH_YEAR, _NAMED_SPAN, _NAMED_SPAN_YEAR_LAST, _FIRST_QUARTER)
+    ):
+        return True
+    points = _month_points(text)
+    if not points:
+        return False
+    # Only named/ISO December points with an explicit annual-inflation request
+    # remain valid; every other single-month or partial-period comparison is blocked.
+    return not (
+        all(period.endswith("-12") for _, period in points)
+        and _ANNUAL_INFLATION.search(text)
     )
 
 

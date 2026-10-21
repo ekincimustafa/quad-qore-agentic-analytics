@@ -163,6 +163,12 @@ def test_comparison_endpoint_matches_existing_core_and_exposes_typed_evidence(mo
      {"status": "clarification_required", "reason": "period_required"}),
     ("2023 ve 2024 ortalama TÜFE enflasyonunu karşılaştır.", comparison_ready(2023, 2024),
      {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 Ocak ile 2024 Ocak TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023-01 ile 2024-01 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 konut kredisi faizlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
     ("2021 ve 2024 TÜFE değişimlerini karşılaştır.", comparison_ready(2021, 2024),
      {"status": "clarification_required", "reason": "outside_coverage"}),
 ])

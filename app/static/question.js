@@ -77,7 +77,7 @@
     result.append(element("p", housing
       ? "Kredi stoku: Milyon TL · Reel stok: 2025 fiyatları · Faiz: % · Faiz değişimi: yüzde puan · TÜFE: 2025=100 · KFE: 2023=100"
       : comparison
-        ? "Genel TÜFE: TP.TUKFIY2025.GENEL · Endeks: 2025=100 · Aralık yıllık oran: % · Fark: ikinci yıl − birinci yıl, yüzde puan"
+        ? "Genel TÜFE: TP.TUKFIY2025.GENEL · Endeks: 2025=100 · Aralık yıllık oran: % · Ocak–Aralık endeks değişimi: % · Fark: ikinci yıl − birinci yıl, yüzde puan"
         : "Genel TÜFE: TP.TUKFIY2025.GENEL · Endeks: 2025=100 · Aylık/yıllık değişimler: %", "meta"));
     result.hidden = false;
     if (housing) {
@@ -94,10 +94,11 @@
     } else if (comparison) {
       e.years.forEach((item, index) => {
         result.append(element("h3", `${item.year} · Ocak–Aralık (${index === 0 ? "birinci" : "ikinci"} yıl)`));
+        result.append(element("p", `${item.year} Ocak–Aralık endeks değişimi: ${pct(item.evidence.first_to_last_index_change_pct)}. Bu, Aralık yıllık TÜFE oranı veya yüzde puan farkı değildir.`, "meta comparison-index-change"));
         table(["Ay", "TÜFE (2025=100)", "Aylık değişim (%)", "Yıllık değişim (%)"],
           item.evidence.observations.map(row => [row.period, ...[row.cpi_index, row.monthly_inflation_pct, row.annual_inflation_pct].map(number)]));
       });
-      result.append(element("p", "—: Gerekli önceki Aralık verisi yoksa Aralık yıllık oran ve iki yıl farkı null kalır; sıfır veya tahmin üretilmez. Ocak–Aralık endeks değişimi ayrı bir alandır.", "meta"));
+      result.append(element("p", "—: Gerekli önceki Aralık verisi yoksa Aralık yıllık oran ve iki yıl farkı null kalır; sıfır veya tahmin üretilmez.", "meta"));
     } else {
       result.append(element("h3", "Aylık ve yıllık TÜFE"));
       table(["Ay", "TÜFE (2025=100)", "Aylık değişim (%)", "Yıllık değişim (%)"], e.observations.map(row => [row.period, ...[row.cpi_index, row.monthly_inflation_pct, row.annual_inflation_pct].map(number)]));

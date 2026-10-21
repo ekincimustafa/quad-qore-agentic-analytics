@@ -23,12 +23,19 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   aktarıyor. Mevcut Konut/TÜFE davranışları ve 28/9 offline vaka beklentileri
   değişmedi. Ekran iki yıllık tabloları, Aralık oranlarını ve yüzde puan farkını
   göstermeye hazır; yeni CDN/grafik/model çağrısı yok.
-- Doğrulama: odaklı karşılaştırma/API/dosya/UI paketi **180 passed**; evaluator
-  ve TÜFE paketi **93 passed**. Tek komut
-  `out/verification/20261021T095437Z-22588-a8c80593`: **942 passed, 2 skipped**;
+- Bağımsız inceleme P1/P2 düzeltmeleri: `_comparison_out_of_scope` tek ay/ISO ay
+  ve açık TÜFE dışı metrikleri (kredi/stok/bakiye/tutar/faiz) analizden önce
+  `unsupported` ile durduruyor; yalnız açık `yıllık` ifadeli Aralık
+  karşılaştırmaları geçiyor. Ekran her yılın `first_to_last_index_change_pct`
+  değerini kendi başlığı altında yüzde olarak Aralık yıllık oranı ve yüzde puan
+  farkından ayrı gösteriyor. Servis/API regresyonları yanlış ready planlarda
+  analizin 0 kez çalıştığını doğruluyor; eval beklentileri değişmedi.
+- Doğrulama: odaklı servis/API/dosya **166 passed**, UI **2 passed**. Tek komut
+  `out/verification/20261021T110727Z-11200-007b8c5e`: **948 passed, 2 skipped**;
   Economic **28/28**, Housing **9/9**, canlı çağrı 0; `git diff --check` temiz.
-- Durum: commit/push/PR sonrası bağımsız incelemeye bırakılacak; merge, canlı
-  LLM/EVDS çağrısı, veri indirme ve release yok.
+- Durum: düzeltmeler aynı `feat/inflation-comparison-question` dalında commit/
+  push edilip PR #86 güncellenecek; merge, canlı LLM/EVDS çağrısı, veri indirme
+  ve release yok.
 
 ## #83 tek komutla offline doğrulama — 21 Ekim 2026
 
