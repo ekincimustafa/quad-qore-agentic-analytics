@@ -10,6 +10,30 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## #91 üç analizli offline ekran demosu — 21 Ekim 2026
+
+- Dal `feat/three-analysis-offline-demo`; başlangıç güncel `origin/main` `244c44c`.
+  `question.html` üçüncü örnek düğmesini (`TÜFE karşılaştırması · 2023 / 2024`) ve
+  tam soruyu içeriyor; düğmeler yalnız alanı dolduruyor, istek/model çağrısı yok.
+- `scripts/preview_question_ui.py::fixed_plan` bu tam soruya
+  `cpi_two_year_comparison / first_year=2023 / second_year=2024` veriyor. Diğer
+  sorular güvenli netleştirmede kalıyor. Offline etiket yalnız üç sabit örneğin
+  desteklendiğini, serbest soruların normal yapılandırılmış model modu gerektirdiğini
+  ve doğal dil anlama başarısı iddia etmediğini söylüyor. Renderer/hesap çekirdeği
+  ve normal sunucu dependency override'ı değişmedi.
+- Odaklı `tests/test_question_ui.py` **5 passed** (üç plan, üç düğme/otomatik
+  gönderim yok, normal/offline metni, tarayıcı akışı). Tek
+  `python -m scripts.verify_project`: **961 passed, 2 skipped**; Economic stub
+  **37/37**, Housing stub **9/9**, canlı çağrı **0**, `git diff --check` temiz.
+  Günlük: `out/verification/20261021T144946Z-10136-536a0231/`.
+- Gerçek paket `out/housing-acceptance-20261018/inputs` ile Chrome'da üç örnek
+  birer kez denendi: Konut 60 ay/22 eşleşme, TÜFE 2023 12 satır, karşılaştırma
+  2023→2024 sırası ve 12+12 satır, fark **-20,3941 yüzde puan**. Ekran görüntüleri
+  `out/three-analysis-check/example-{1,2,3}.png`, DOM/JSON log aynı dizinde.
+  Bu çıktılar Git dışındadır; canlı LLM/EVDS çağrısı yapılmadı.
+- Sonraki adım: PR'ın bağımsız incelenmesi ve birleştirme kararı. Bu oturum
+  merge/release yapmadı.
+
 ## #89 iki yıl TÜFE karşılaştırmasını offline değerlendirmeye ekleme — 21 Ekim 2026
 
 - Dal `feat/inflation-comparison-evals`; başlangıç `origin/main` `31b1711`. Evaluator

@@ -14,6 +14,8 @@ def fixed_plan(prompt: str) -> str:
         plan = {"status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up", "start_period": "2021-01", "end_period": "2025-12"}
     elif question == "2023 Ocak-Aralık TÜFE aylık ve yıllık değişimlerini özetle.":
         plan = {"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2023-01", "end_period": "2023-12"}
+    elif question == "2023 ve 2024 TÜFE değişimlerini karşılaştır.":
+        plan = {"status": "ready", "analysis_id": "cpi_two_year_comparison", "first_year": 2023, "second_year": 2024}
     else:
         plan = {"status": "clarification_required", "reason": "question_ambiguous"}
     return json.dumps(plan)

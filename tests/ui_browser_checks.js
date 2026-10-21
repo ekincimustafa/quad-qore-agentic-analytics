@@ -22,8 +22,15 @@
   }
   try {
     assert(notice.dataset.state === "idle" && result.hidden, "initial page has no request or result");
-    document.querySelector("[data-example]").click();
-    assert(field.value.includes("2021-2025") && requests.length === 0, "example fills without submitting");
+    const examples = [...document.querySelectorAll("[data-example]")];
+    assert(examples.length === 3, "all three fixed examples are shown");
+    examples.forEach(example => {
+      example.click();
+      assert(field.value === example.dataset.example, "example fills only the question field");
+      assert(requests.length === 0, "example never submits a request");
+    });
+    assert(field.value === "2023 ve 2024 TÜFE değişimlerini karşılaştır.", "comparison example fills its exact question");
+    assert(document.body.textContent.includes("TÜFE karşılaştırması · 2023 / 2024"), "comparison example is labelled");
     await send("2021 Ocak-Şubat faiz düşerken reel konut kredisi stokunun artmadığı ayları göster.");
     assert(notice.dataset.state === "ok" && !result.hidden, "physical package housing succeeds");
     assert(result.querySelector(".js-plotly-plot")?.data.length === 6, "existing six-trace Plotly chart rendered");
