@@ -10,6 +10,25 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## #99 bağımsız ekonomik kullanıcı kabul seti — 22 Ekim 2026
+
+- Sorumlu: Afra (@afratopcu).
+- Dal: `test/economic-user-acceptance-99`; başlangıç main commit'i:
+  `f3a15a8051fae6784b44ef15c62a9c382ccd3647`.
+- `evals/economic_user_acceptance_cases.json` ve
+  `docs/economic-user-acceptance.md` hazırlandı.
+- Toplam 48 bağımsız vaka: 8 konut, 8 TÜFE, 8 iki tam yıl
+  karşılaştırması, 8 netleştirme, 8 kapsam dışı,
+  4 parametreli konut filtresi ve 4 çok turlu devam sorusu.
+- Yerel kontrol: 48/48 vaka, benzersiz kimlikler, kategori dağılımı,
+  analysis_id, dönem ve yıl sırası doğrulandı; `git diff --check` temiz.
+- Mevcut 37 Economic ve 9 Housing vakası, evaluator, runtime,
+  API, UI ve CI değiştirilmedi. Canlı LLM/EVDS çağrısı yapılmadı.
+- Yeni set model üzerinde çalıştırılmadı; planned vakalar mevcut
+  uygulama tarafından destekleniyor olarak gösterilmiyor.
+- Sonraki adım: odaklı içerik kontrolleri, commit/push ve
+  bağımsız inceleme için PR. Uygulayan oturum merge yapmayacak.
+
 ## Portföy README düzenlemesi — 21 Ekim 2026
 
 - Dal `docs/portfolio-readme`; başlangıç güncel `main` `56ffc46` (PR #96 merge).
