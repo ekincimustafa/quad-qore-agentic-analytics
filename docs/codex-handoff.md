@@ -33,7 +33,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   (`out/verification/20261022T195542Z-28320-25ceb497`). Bunlar
   `harness_behavior_only` stub sonuçlarıdır; model anlama/kabul metriği değildir.
 - Canlı koşu komutu yalnız PR açıklamasında öneri olarak hazırlanır; çalıştırma
-  yoktur. Bir sonraki adım bağımsız PR incelemesidir; bu oturum merge yapmaz.
+  yoktur. PR [#109](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/109)
+  bağımsız incelemeye açıldı; bu oturum merge yapmaz.
 
 ## #105 parametreli konut filtresini soru/API/ekran akışına bağlama — 22 Ekim 2026
 
