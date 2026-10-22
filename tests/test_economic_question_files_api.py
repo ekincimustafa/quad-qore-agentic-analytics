@@ -62,6 +62,83 @@ def client_with_model(package, model):
     return TestClient(app)
 
 
+def test_filter_endpoint_matches_verified_core_result(package, monkeypatch):
+    conditions = [
+        {"metric": "interest_rate_change_pp", "operator": "lt", "threshold": 0.0},
+        {"metric": "nominal_housing_loan_change_pct", "operator": "lte", "threshold": 0.0},
+    ]
+    plan = ready(core.HOUSING_FILTER_ID, conditions=conditions)
+    captured = []
+    original = core.run_housing_filter
+
+    def filter_call(*args, **kwargs):
+        result = original(*args, **kwargs)
+        captured.append(result)
+        return result
+
+    monkeypatch.setattr(core, "run_housing_filter", filter_call)
+    with client_with_model(package, lambda _: json.dumps(plan)) as client:
+        response = client.post(
+            ENDPOINT,
+            json={"question": "2021 Ocak-Şubat faiz düşerken nominal konut kredisi stoku artmayan aylar"},
+        )
+    assert response.status_code == 200 and len(captured) == 1
+    body = response.json()
+    assert body["status"] == "ok" and body["decision"] == plan
+    expected = files_service._with_verified_filter_notes(captured[0])
+    assert body["analysis"]["evidence"] == expected.model_dump(mode="json")
+    assert any("doğrulanmış" in item for item in body["analysis"]["evidence"]["limitations"])
+    assert any("weekly_coverage: unverified" in item for item in body["analysis"]["evidence"]["data_quality_notes"])
+
+
+@pytest.mark.parametrize("question,plan", [
+    (
+        "2021 Ocak-Şubat faiz artarken reel konut kredisi stoku artan aylar",
+        ready(core.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Şubat faiz düşerken reel konut kredisi aylık artışı %2'yi aşan aylar",
+        ready(core.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Şubat faiz düşerken reel konut kredisi stokunu göster",
+        ready(core.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Şubat faiz düşerken reel konut kredisi bakiyesini incele",
+        ready(core.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Şubat faiz oranı %20'nin altında olmayan aylar",
+        ready(core.HOUSING_FILTER_ID, conditions=[
+            {"metric": "housing_loan_interest_rate_pct", "operator": "lt", "threshold": 20.0},
+        ]),
+    ),
+    (
+        "2021 Ocak-Şubat faiz oranı %10'un üzerinde ve %20'nin altında olan aylar",
+        ready(core.HOUSING_FILTER_ID, conditions=[
+            {"metric": "housing_loan_interest_rate_pct", "operator": "gt", "threshold": 10.0},
+        ]),
+    ),
+    (
+        "2021 Ocak-Şubat nominal konut kredisi stokunun aylık azalışı %2'yi aşan aylar",
+        ready(core.HOUSING_FILTER_ID, conditions=[
+            {"metric": "nominal_housing_loan_change_pct", "operator": "gt", "threshold": 2.0},
+        ]),
+    ),
+])
+def test_observed_wrong_question_plan_never_runs_analysis(package, monkeypatch, question, plan):
+    monkeypatch.setattr(core, "run_housing_filter", forbidden)
+    monkeypatch.setattr(core, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(core, "build_inflation_evidence", forbidden)
+    with client_with_model(package, lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json={"question": question})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "clarification_required"
+    assert body["analysis"] is None
+
+
 @pytest.mark.parametrize("question,plan,reason", [
     ("Ocak-Şubat TÜFE aylık ve yıllık oranlarını göster.",
      ready(core.INFLATION_ID), "period_required"),
@@ -71,6 +148,12 @@ def client_with_model(package, model):
      ready(core.INFLATION_ID, end_period="2021-01"), "period_required"),
     ("2021 Ocak'tan sonraki TÜFE değişimlerini göster.",
      ready(core.INFLATION_ID, end_period="2021-01"), "period_required"),
+    ("2021 yılının ikinci çeyreğinde TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID), "period_required"),
+    ("2021 yılının son altı ayında TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID), "period_required"),
+    ("2021 Ocak ile Mart arasında TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID), "period_required"),
 ])
 def test_observed_ready_mistakes_are_blocked_after_file_verification(
     package, monkeypatch, question, plan, reason,
@@ -89,6 +172,101 @@ def test_observed_ready_mistakes_are_blocked_after_file_verification(
     body = response.json()
     assert body["status"] == "clarification_required"
     assert body["decision"] == {"status": "clarification_required", "reason": reason}
+    assert body["analysis"] is None
+
+
+@pytest.mark.parametrize("question", [
+    "2021 Ocak ile Şubat arasında TÜFE değişimlerini göster.",
+    "2021 yılında Ocak-Şubat TÜFE değişimlerini göster.",
+    "2021 Ocak ve Şubat arasında TÜFE değişimlerini göster.",
+    "2021 Ocak\tve\tŞubat arasında TÜFE değişimlerini göster.",
+    "Ocak 2021 ve Şubat 2021 arasında TÜFE değişimlerini göster.",
+])
+def test_natural_closed_month_range_runs_existing_calculation_once(package, monkeypatch, question):
+    prompts, calls, direct = [], [], []
+    original = core.build_inflation_evidence
+
+    def evidence(*args, **kwargs):
+        result = original(*args, **kwargs)
+        calls.append(kwargs)
+        direct.append(result)
+        return result
+
+    monkeypatch.setattr(core, "build_inflation_evidence", evidence)
+
+    def model(prompt):
+        prompts.append(prompt)
+        return json.dumps(ready(core.INFLATION_ID))
+
+    with client_with_model(package, model) as client:
+        response = client.post(ENDPOINT, json={"question": question})
+    assert response.status_code == 200 and len(prompts) == 1 and len(calls) == 1
+    body = response.json()
+    assert body["status"] == "ok" and body["decision"] == ready(core.INFLATION_ID)
+    assert body["analysis"]["evidence"] == files_service._with_verified_cpi_notes(
+        direct[0]
+    ).model_dump(mode="json")
+    assert [row["period"] for row in body["analysis"]["evidence"]["observations"]] == [
+        "2021-01", "2021-02",
+    ]
+
+
+@pytest.mark.parametrize("question,plan,expected", [
+    ("2023 yılı boyunca 2023-02-15 ile 2023-03-15 arasındaki TÜFE değişimini göster.",
+     ready(core.INFLATION_ID, start_period="2023-01", end_period="2023-12"),
+     {"status": "clarification_required", "reason": "period_required"}),
+    ("2023 Ocak ve Mart TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID, start_period="2023-01", end_period="2023-03"),
+     {"status": "clarification_required", "reason": "period_required"}),
+    ("2023 Ocak\tve\tMart TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID, start_period="2023-01", end_period="2023-03"),
+     {"status": "clarification_required", "reason": "period_required"}),
+    ("2023 Ocak ve 2023 Mart TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID, start_period="2023-01", end_period="2023-03"),
+     {"status": "clarification_required", "reason": "period_required"}),
+    ("Ocak 2023 ve Mart 2023 TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID, start_period="2023-01", end_period="2023-03"),
+     {"status": "clarification_required", "reason": "period_required"}),
+    ("2023 yılının tamamında ve 2023 Ocak-Mart TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID, start_period="2023-01", end_period="2023-03"),
+     {"status": "clarification_required", "reason": "period_required"}),
+    ("2023-02-15 ile 2024-03-15 TÜFE değişimlerini karşılaştır.",
+     {"status": "ready", "analysis_id": core.COMPARISON_ID, "first_year": 2023, "second_year": 2024},
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("15.02.2023 ile 15.03.2024 TÜFE değişimlerini karşılaştır.",
+     {"status": "ready", "analysis_id": core.COMPARISON_ID, "first_year": 2023, "second_year": 2024},
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 için ikinci çeyrek TÜFE değişimlerini karşılaştır.",
+     {"status": "ready", "analysis_id": core.COMPARISON_ID, "first_year": 2023, "second_year": 2024},
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ile 2024 TÜFE değişimlerini ilk altı ay için karşılaştır.",
+     {"status": "ready", "analysis_id": core.COMPARISON_ID, "first_year": 2023, "second_year": 2024},
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 için Ocak ayı TÜFE değişimlerini karşılaştır.",
+     {"status": "ready", "analysis_id": core.COMPARISON_ID, "first_year": 2023, "second_year": 2024},
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+])
+def test_unbounded_or_partial_period_plan_never_runs_analysis(package, monkeypatch, question, plan, expected):
+    periods = pd.period_range("2023-01", "2023-12", freq="M").astype(str).tolist()
+    inputs = VerifiedQuestionInputs(
+        bddk_monthly=pd.DataFrame({"period": periods}),
+        evds_monthly=pd.DataFrame({
+            "period": periods,
+            "cpi_index": [100 + index for index in range(len(periods))],
+        }),
+        housing_coverage=HousingDataCoverage(start_period="2023-01", end_period="2023-12"),
+        evds_source_refs="synthetic://evds",
+        cpi_source_ref="verified://cpi-receipt",
+    )
+    monkeypatch.setattr(files_service, "load_verified_question_inputs", lambda _: inputs)
+    monkeypatch.setattr(core, "build_inflation_evidence", forbidden)
+    monkeypatch.setattr(core, "compare_inflation_years", forbidden)
+    with client_with_model(package, lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json={"question": question})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == expected["status"]
+    assert body["decision"] == expected
     assert body["analysis"] is None
 
 
@@ -229,7 +407,7 @@ def test_non_ready_and_invalid_plans_never_analyze(package, monkeypatch, plan, e
     prompts = []
     question = QUESTION
     if isinstance(plan, dict) and plan.get("start_period") == "2020-12":
-        question = "2020 Aralık-2021 Şubat faiz düşerken reel konut kredisi stokunu göster."
+        question = "2020 Aralık-2021 Şubat faiz düşerken reel konut kredisi stoku artmayan aylar."
     elif isinstance(plan, dict) and plan.get("end_period") == "2021-03":
         question = "2021 Ocak-Mart TÜFE değişimlerini göster."
 

@@ -1,4 +1,4 @@
-"""Two bounded analyses using the existing physical package verifier and core."""
+"""Bounded analyses using the existing physical package verifier and cores."""
 
 from dataclasses import replace
 
@@ -9,8 +9,10 @@ from app.services.economic_question import (
     ModelCall,
     run_economic_question,
 )
+from app.services.evds_manifest import WEEKLY_COVERAGE_NOTE
 from app.services.housing_analysis import HousingAnalysisRun
 from app.services.housing_demo import DEFAULT_BDDK_SOURCE_REF
+from app.services.housing_filter import HousingConditionFilterEvidence
 from app.services.housing_question_files import (
     VerifiedHousingQuestionDataError,
     VerifiedHousingQuestionPaths,
@@ -26,10 +28,33 @@ from app.services.inflation_comparison import (
 _VERIFIED_CPI_LIMITATION = (
     "TÜFE, sunucunun fiziksel manifest/raw/makbuz/hash zinciri doğrulanmış EVDS dosyasından gelir."
 )
+_VERIFIED_HOUSING_LIMITATION = (
+    "BDDK/EVDS girdileri sunucunun fiziksel manifest/raw/makbuz/hash zinciri "
+    "doğrulanmış dosyalarından gelir."
+)
 
 
 class VerifiedEconomicQuestionDataError(RuntimeError):
     """The server package failed verification; no paths or source bodies escape."""
+
+
+def _with_verified_filter_notes(
+    evidence: HousingConditionFilterEvidence,
+) -> HousingConditionFilterEvidence:
+    limitations = (
+        _VERIFIED_HOUSING_LIMITATION,
+        *(
+            item
+            for item in evidence.limitations
+            if "physical files and hashes are not verified" not in item
+        ),
+    )
+    return evidence.model_copy(update={
+        "limitations": limitations,
+        "data_quality_notes": tuple(dict.fromkeys((
+            *evidence.data_quality_notes, WEEKLY_COVERAGE_NOTE,
+        ))),
+    })
 
 
 def _with_verified_cpi_notes(evidence: InflationEvidence) -> InflationEvidence:
@@ -67,6 +92,8 @@ def run_verified_economic_question(
     analysis = result.analysis
     if isinstance(analysis, HousingAnalysisRun):
         analysis = with_verified_housing_notes(analysis)
+    elif isinstance(analysis, HousingConditionFilterEvidence):
+        analysis = _with_verified_filter_notes(analysis)
     elif isinstance(analysis, InflationEvidence):
         analysis = _with_verified_cpi_notes(analysis)
     elif isinstance(analysis, InflationComparison):

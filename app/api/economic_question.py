@@ -25,6 +25,7 @@ from app.services.economic_question import (
     EconomicComparisonReadyPlan,
     EconomicCoverage,
     EconomicDataUnavailable,
+    EconomicHousingFilterReadyPlan,
     EconomicInputError,
     EconomicPlanningError,
     EconomicPlanValidationError,
@@ -42,6 +43,10 @@ from app.services.economic_question_files import (
 )
 from app.services.housing_question_files import VerifiedHousingQuestionPaths
 from app.services.housing_analysis import HousingAnalysisRun
+from app.services.housing_filter import (
+    HousingConditionFilterEvidence,
+    HousingFilterValidationError,
+)
 from app.services.inflation_analysis import InflationAnalysisError, InflationEvidence
 from app.services.inflation_comparison import InflationComparison
 from app.tools.housing_chart import HousingChartError
@@ -135,6 +140,11 @@ class HousingQuestionAnalysis(_StrictModel):
     chart: dict[str, Any]
 
 
+class HousingFilterQuestionAnalysis(_StrictModel):
+    analysis_id: Literal["housing_condition_filter"] = "housing_condition_filter"
+    evidence: HousingConditionFilterEvidence
+
+
 class InflationQuestionAnalysis(_StrictModel):
     analysis_id: Literal["cpi_inflation_summary"] = "cpi_inflation_summary"
     evidence: InflationEvidence
@@ -148,7 +158,10 @@ class InflationComparisonQuestionAnalysis(_StrictModel):
 
 EconomicAnalysis = Annotated[
     Union[
-        HousingQuestionAnalysis, InflationQuestionAnalysis, InflationComparisonQuestionAnalysis,
+        HousingQuestionAnalysis,
+        HousingFilterQuestionAnalysis,
+        InflationQuestionAnalysis,
+        InflationComparisonQuestionAnalysis,
     ],
     Field(discriminator="analysis_id"),
 ]
@@ -256,7 +269,7 @@ def analyze_economic_question(
         _error("invalid_question_plan", "Modelin analiz planı doğrulanamadı.")
     except (
         EconomicInputError, GoldAnalysisError, InflationAnalysisError, EvidenceBuildError,
-        HousingChartError, InflationChartError,
+        HousingChartError, InflationChartError, HousingFilterValidationError,
     ):
         raise _invalid_input() from None
 
@@ -283,6 +296,7 @@ def analyze_verified_economic_question(
     except (
         VerifiedEconomicQuestionDataError, EconomicInputError, GoldAnalysisError,
         InflationAnalysisError, EvidenceBuildError, HousingChartError, InflationChartError,
+        HousingFilterValidationError,
     ):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -315,6 +329,10 @@ def _question_response(result: EconomicQuestionRun) -> EconomicQuestionResponse:
         if not isinstance(result.analysis, InflationComparison):
             raise RuntimeError("A comparison decision must contain the comparison result.")
         analysis = InflationComparisonQuestionAnalysis(evidence=result.analysis)
+    elif isinstance(result.decision, EconomicHousingFilterReadyPlan):
+        if not isinstance(result.analysis, HousingConditionFilterEvidence):
+            raise RuntimeError("A filter decision must contain the filter result.")
+        analysis = HousingFilterQuestionAnalysis(evidence=result.analysis)
     elif result.decision.analysis_id == HOUSING_ID and isinstance(result.analysis, HousingAnalysisRun):
         analysis = HousingQuestionAnalysis(evidence=result.analysis.evidence, chart=result.analysis.chart)
     elif result.decision.analysis_id == INFLATION_ID and isinstance(result.analysis, InflationEvidence):

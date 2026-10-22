@@ -49,6 +49,94 @@ def client_with_model(model):
     return TestClient(app)
 
 
+def test_filter_endpoint_matches_direct_core_and_exposes_typed_evidence(monkeypatch, payload):
+    payload["question"] = "2021 Ocak-Mart faiz düşerken nominal konut kredisi stoku artmayan aylar"
+    conditions = [
+        {"metric": "interest_rate_change_pp", "operator": "lt", "threshold": 0.0},
+        {"metric": "nominal_housing_loan_change_pct", "operator": "lte", "threshold": 0.0},
+    ]
+    plan = ready(service.HOUSING_FILTER_ID, conditions=conditions)
+    calls = []
+    original = service.run_housing_filter
+
+    def filter_call(*args, **kwargs):
+        calls.append(kwargs)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(service, "run_housing_filter", filter_call)
+    with client_with_model(lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json=payload)
+    assert response.status_code == 200 and len(calls) == 1
+    body = response.json()
+    assert body["status"] == "ok" and body["decision"] == plan
+    assert body["analysis"]["analysis_id"] == service.HOUSING_FILTER_ID
+    assert "chart" not in body["analysis"]
+    direct = original(
+        pd.DataFrame(payload["housing"]["bddk_monthly"]),
+        pd.DataFrame(payload["housing"]["evds_monthly"]),
+        start_period="2021-01", end_period="2021-03",
+        conditions=[service.HousingFilterCondition(**item) for item in conditions],
+        bddk_source_ref=payload["housing"]["bddk_source_ref"],
+        evds_source_refs=payload["housing"]["evds_source_refs"],
+    )
+    assert body["analysis"]["evidence"] == direct.model_dump(mode="json")
+    assert body["analysis"]["evidence"]["matched_periods"] == ["2021-02"]
+
+
+@pytest.mark.parametrize("question,plan", [
+    (
+        "2021 Ocak-Mart faiz artarken reel konut kredisi stoku artan aylar",
+        ready(service.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Mart faiz düşerken reel konut kredisi aylık artışı %2'yi aşan aylar",
+        ready(service.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Mart faiz düşerken reel konut kredisi stokunu göster",
+        ready(service.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Mart faiz düşerken reel konut kredisi bakiyesini incele",
+        ready(service.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Mart faiz oranı %20'nin altında olmayan aylar",
+        ready(service.HOUSING_FILTER_ID, conditions=[
+            {"metric": "housing_loan_interest_rate_pct", "operator": "lt", "threshold": 20.0},
+        ]),
+    ),
+    (
+        "2021 Ocak-Mart faiz oranı %10'un üzerinde ve %20'nin altında olan aylar",
+        ready(service.HOUSING_FILTER_ID, conditions=[
+            {"metric": "housing_loan_interest_rate_pct", "operator": "gt", "threshold": 10.0},
+        ]),
+    ),
+    (
+        "2021 Ocak-Mart nominal konut kredisi stokunun aylık azalışı %2'yi aşan aylar",
+        ready(service.HOUSING_FILTER_ID, conditions=[
+            {"metric": "nominal_housing_loan_change_pct", "operator": "gt", "threshold": 2.0},
+        ]),
+    ),
+])
+def test_observed_wrong_question_plan_never_runs_analysis(
+    monkeypatch, payload, question, plan,
+):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A wrong question plan must not run an analysis")
+
+    monkeypatch.setattr(service, "run_housing_filter", forbidden)
+    monkeypatch.setattr(service, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(service, "build_inflation_evidence", forbidden)
+    payload["question"] = question
+    with client_with_model(lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "clarification_required"
+    assert body["analysis"] is None
+
+
 @pytest.mark.parametrize("analysis_id", [service.HOUSING_ID, service.INFLATION_ID])
 def test_documented_requests_call_one_service_and_equal_direct_api(monkeypatch, payload, analysis_id):
     if analysis_id == service.INFLATION_ID:
@@ -105,6 +193,76 @@ def test_documented_requests_call_one_service_and_equal_direct_api(monkeypatch, 
         for trace, field in zip(chart["data"], ("cpi_index", "monthly_inflation_pct", "annual_inflation_pct")):
             assert trace["y"] == [getattr(row, field) for row in evidence.observations]
         assert chart["data"][0]["x"] == [f"{row.period}-01" for row in evidence.observations]
+
+
+@pytest.mark.parametrize("question,start,end", [
+    ("2023 yılında genel TÜFE değişimlerini göster.", "2023-01", "2023-12"),
+    ("2023 yılının tamamında genel TÜFE değişimlerini göster.", "2023-01", "2023-12"),
+    ("2023'ün ikinci çeyreğinde genel TÜFE değişimlerini göster.", "2023-04", "2023-06"),
+    ("2023 yılının 2. çeyreğinde genel TÜFE değişimlerini göster.", "2023-04", "2023-06"),
+    ("2023'ün son altı ayında genel TÜFE değişimlerini göster.", "2023-07", "2023-12"),
+    ("2023 Ocak ile Mart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 Ocak'tan Mart'a kadar genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 yılında Ocak-Mart genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 Ocak ve Mart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 Ocak\tve\tMart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("Ocak 2023 ve Mart 2023 arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+])
+def test_natural_closed_period_matches_direct_cpi_api(question, start, end):
+    payload = comparison_payload(question)
+    plan = ready(service.INFLATION_ID, start_period=start, end_period=end)
+    with client_with_model(lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json=payload)
+        direct = client.post(
+            "/analysis/inflation",
+            json={**payload["inflation"], "start_period": start, "end_period": end},
+        )
+    assert response.status_code == direct.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok" and body["decision"] == plan
+    assert body["analysis"]["analysis_id"] == service.INFLATION_ID
+    assert body["analysis"]["evidence"] == direct.json()["evidence"]
+
+
+@pytest.mark.parametrize("question,plan", [
+    ("2023 yılında genel TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-11")),
+    ("2023'ün ikinci çeyreğinde genel TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023'ün son altı ayında genel TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-06")),
+    ("2023 Ocak ile Mart arasında genel TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-02")),
+    ("Ocak-Mart TÜFE aylık ve yıllık oranlarını göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023 Ocak'tan itibaren TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-01")),
+    ("2023 Ocak ve Mart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023 Ocak\tve\tMart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023 Ocak ve 2023 Mart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("Ocak 2023 ve Mart 2023 TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023 yılının tamamında ve 2023 Ocak-Mart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023 yılı boyunca 2023-02-15 ile 2023-03-15 arasındaki TÜFE değişimini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-12")),
+])
+def test_wrong_natural_period_ready_plan_never_runs_analysis(monkeypatch, question, plan):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A wrong natural-period plan must not run an analysis")
+
+    monkeypatch.setattr(service, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(service, "build_inflation_evidence", forbidden)
+    with client_with_model(lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json=comparison_payload(question))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "clarification_required"
+    assert body["decision"] == {"status": "clarification_required", "reason": "period_required"}
+    assert body["analysis"] is None
 
 
 COMPARISON_PERIODS = pd.period_range("2022-12", "2024-12", freq="M").astype(str).tolist()
@@ -178,6 +336,16 @@ def test_comparison_endpoint_matches_existing_core_and_exposes_typed_evidence(mo
     ("2023 Ocak ile 2024 Ocak TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
      {"status": "unsupported", "reason": "unsupported_analysis"}),
     ("2023-01 ile 2024-01 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023-02-15 ile 2024-03-15 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("15.02.2023 ile 15.03.2024 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 için ikinci çeyrek TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ile 2024 TÜFE değişimlerini ilk altı ay için karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 için Ocak ayı TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
      {"status": "unsupported", "reason": "unsupported_analysis"}),
     ("2023 ve 2024 konut kredisi faizlerini karşılaştır.", comparison_ready(2023, 2024),
      {"status": "unsupported", "reason": "unsupported_analysis"}),

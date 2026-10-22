@@ -20,6 +20,7 @@ from app.api.economic_question import EconomicQuestionRequest, get_economic_ques
 from app.api.main import create_app
 from app.connectors import llm_client
 from app.services import economic_question as service
+from app.services.housing_filter import run_housing_filter
 from app.services.inflation_comparison import compare_inflation_years as reference_comparison
 
 
@@ -63,13 +64,18 @@ class EconomicCase(BaseModel):
     def expectations(self) -> EconomicCase:
         if not self.question.strip():
             raise ValueError("Case question must not be blank.")
-        ready = isinstance(self.expected_decision, service.EconomicReadyPlan)
+        ready = isinstance(
+            self.expected_decision,
+            (service.EconomicReadyPlan, service.EconomicHousingFilterReadyPlan),
+        )
         comparison = isinstance(self.expected_decision, service.EconomicComparisonReadyPlan)
         if ready != (self.expected_observed_month_count is not None):
             raise ValueError("Only single-analysis ready cases need an observation count.")
         if comparison != (self.expected_comparison is not None):
             raise ValueError("Only comparison ready cases need comparison expectations.")
-        housing = ready and self.expected_decision.analysis_id == service.HOUSING_ID
+        housing = ready and self.expected_decision.analysis_id in {
+            service.HOUSING_ID, service.HOUSING_FILTER_ID,
+        }
         if housing != (self.expected_matched_periods is not None):
             raise ValueError("Only Housing ready cases need matching periods.")
         if self.fixture != "none" and isinstance(self.expected_decision, service.EconomicDataUnavailable):
@@ -141,6 +147,19 @@ def _comparison_reference(payload: dict, plan: service.EconomicComparisonReadyPl
     ).model_dump(mode="json")
 
 
+def _filter_reference(payload: dict, plan: service.EconomicHousingFilterReadyPlan) -> dict:
+    housing = payload["housing"]
+    return run_housing_filter(
+        pd.DataFrame(housing["bddk_monthly"]),
+        pd.DataFrame(housing["evds_monthly"]),
+        start_period=plan.start_period,
+        end_period=plan.end_period,
+        conditions=plan.conditions,
+        bddk_source_ref=housing["bddk_source_ref"],
+        evds_source_refs=housing["evds_source_refs"],
+    ).model_dump(mode="json")
+
+
 def _close(actual: float | None, expected: float | None) -> bool:
     if expected is None or actual is None:
         return actual is expected
@@ -168,6 +187,14 @@ def _prepare(client: TestClient, cases: list[EconomicCase], fixtures: dict[str, 
             if evidence["observed_month_count"] != case.expected_observed_month_count or (
                 plan.analysis_id == service.HOUSING_ID
                 and evidence["matched_periods"] != case.expected_matched_periods
+            ):
+                raise ValueError("Human evidence expectations disagree with the synthetic fixture.")
+            references[case.id] = reference
+        elif isinstance(plan, service.EconomicHousingFilterReadyPlan):
+            reference = _filter_reference(payload, plan)
+            if (
+                reference["observed_month_count"] != case.expected_observed_month_count
+                or list(reference["matched_periods"]) != case.expected_matched_periods
             ):
                 raise ValueError("Human evidence expectations disagree with the synthetic fixture.")
             references[case.id] = reference
@@ -203,6 +230,16 @@ def _check_analysis(reference: dict | None, body: dict, case: EconomicCase) -> s
         if analysis is None or analysis["analysis_id"] != plan.analysis_id:
             return "reference_or_analysis_mismatch"
         return None if analysis["evidence"] == reference else "evidence_mismatch"
+    if isinstance(plan, service.EconomicHousingFilterReadyPlan):
+        if analysis is None or analysis["analysis_id"] != plan.analysis_id:
+            return "reference_or_analysis_mismatch"
+        if analysis["evidence"] != reference:
+            return "evidence_mismatch"
+        if analysis["evidence"]["observed_month_count"] != case.expected_observed_month_count:
+            return "observation_count_mismatch"
+        if list(analysis["evidence"]["matched_periods"]) != case.expected_matched_periods:
+            return "housing_result_mismatch"
+        return None
     if not isinstance(plan, service.EconomicReadyPlan):
         return None if analysis is None else "unexpected_analysis"
     housing = plan.analysis_id == service.HOUSING_ID
@@ -239,6 +276,7 @@ def evaluate_cases(
     with (
         TestClient(app) as client,
         patch.object(service, "run_housing_analysis", wraps=service.run_housing_analysis) as housing,
+        patch.object(service, "run_housing_filter", wraps=service.run_housing_filter) as housing_filter,
         patch.object(service, "build_inflation_evidence", wraps=service.build_inflation_evidence) as inflation,
         patch.object(service, "compare_inflation_years", wraps=service.compare_inflation_years) as comparison,
     ):
@@ -254,13 +292,14 @@ def evaluate_cases(
                 "python_blocked_ready_plan": False,
                 "outcome": "skipped", "reason": stopped,
                 "model_call_attempts": 0, "stub_calls": 0, "housing_calls": 0,
-                "inflation_calls": 0, "comparison_calls": 0,
+                "filter_calls": 0, "inflation_calls": 0, "comparison_calls": 0,
             }
             if live and (stopped or live_calls >= max_model_calls):
                 row["reason"] = stopped or "budget_exhausted"
                 rows.append(row)
                 continue
             housing.reset_mock()
+            housing_filter.reset_mock()
             inflation.reset_mock()
             comparison.reset_mock()
             model_calls = []
@@ -290,19 +329,25 @@ def evaluate_cases(
                 body = response.json()
                 row["http_status"] = response.status_code
                 expected = case.expected_decision
+                expected_json = expected.model_dump(mode="json")
                 expected_status = "ok" if isinstance(
-                    expected, (service.EconomicReadyPlan, service.EconomicComparisonReadyPlan),
+                    expected,
+                    (
+                        service.EconomicReadyPlan,
+                        service.EconomicComparisonReadyPlan,
+                        service.EconomicHousingFilterReadyPlan,
+                    ),
                 ) else expected.status
                 if response.status_code == 200:
                     row["application_decision_matches_expectation"] = (
                         body.get("status") == expected_status
-                        and body.get("decision") == expected.model_dump()
+                        and body.get("decision") == expected_json
                     )
                 if response.status_code == 502:
                     reason = "invalid_plan" if body["detail"]["code"] == "invalid_question_plan" else "model_call_failed"
                 elif response.status_code != 200 or body.get("status") != expected_status:
                     reason = "status_mismatch"
-                elif body["decision"] != expected.model_dump():
+                elif body["decision"] != expected_json:
                     reason = "decision_mismatch"
                 else:
                     reason = _check_analysis(references.get(case.id), body, case)
@@ -321,13 +366,15 @@ def evaluate_cases(
                 expected_housing = int(
                     isinstance(expected, service.EconomicReadyPlan) and expected.analysis_id == service.HOUSING_ID
                 )
+                expected_filter = int(isinstance(expected, service.EconomicHousingFilterReadyPlan))
                 expected_inflation = int(
                     isinstance(expected, service.EconomicReadyPlan) and expected.analysis_id == service.INFLATION_ID
                 )
                 expected_comparison = int(isinstance(expected, service.EconomicComparisonReadyPlan))
                 if (
-                    housing.call_count, inflation.call_count, comparison.call_count,
-                ) != (expected_housing, expected_inflation, expected_comparison):
+                    housing.call_count, housing_filter.call_count, inflation.call_count,
+                    comparison.call_count,
+                ) != (expected_housing, expected_filter, expected_inflation, expected_comparison):
                     reason = reason or "analysis_call_count_mismatch"
                 if len(model_calls) != (0 if case.fixture == "none" else 1):
                     reason = reason or "planning_call_count_mismatch"
@@ -340,6 +387,7 @@ def evaluate_cases(
                 "model_call_attempts": live_calls - attempts_before,
                 "stub_calls": 0 if live else len(model_calls),
                 "housing_calls": housing.call_count, "inflation_calls": inflation.call_count,
+                "filter_calls": housing_filter.call_count,
                 "comparison_calls": comparison.call_count,
             })
             rows.append(row)

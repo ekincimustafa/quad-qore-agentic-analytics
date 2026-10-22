@@ -10,7 +10,10 @@ analizini desteklemeye devam eder.
 İzinli `analysis_id` değerleri:
 
 - `housing_rate_down_real_credit_not_up`: faiz düşerken reel konut kredisi
-  stokunun artmadığı aylar; mevcut `run_housing_analysis()` servisi.
+  stokunun artmadığı aylar; mevcut `run_housing_analysis()` servisi. Bu kimlik
+  yalnız sabit kuralın aynen istendiği sorular içindir.
+- `housing_condition_filter`: dönemdeki ayları 1–3 tipli metrik/operatör/eşik
+  koşuluyla (AND) filtreler; mevcut `run_housing_filter()` çekirdeği.
 - `cpi_inflation_summary`: genel TÜFE endeksinin aylık, aynı ayın önceki yılına
   göre yıllık ve seçilen ilk-son ay değişimleri; mevcut
   `build_inflation_evidence()` servisi ve üç panelli `build_inflation_chart()`
@@ -20,6 +23,47 @@ analizini desteklemeye devam eder.
   `compare_inflation_years()` çekirdeği. Plan yalnız `first_year` ve
   `second_year` taşır; yıl sırası kullanıcının söylediği sıradır.
 
+### Parametreli konut koşulu filtreleme çekirdeği
+
+`app/services/housing_filter.py` içindeki `run_housing_filter()`, normalize
+BDDK/EVDS satırlarında 1–3 tipli koşulu AND ile uygular. İzinli metrikler
+`interest_rate_change_pp` (yüzde puan), `real_housing_loan_change_pct`,
+`nominal_housing_loan_change_pct` ve `housing_loan_interest_rate_pct`
+(yüzde); operatörler `lt`, `lte`, `gt`, `gte`. Eşik sonlu bir sayı olmalıdır;
+bool/metin/NaN/Infinity, bilinmeyen metrik veya operatör ve fazladan alan
+reddedilir. Koşullar Gold hesaplayıcısı çalışmadan önce doğrulanır.
+
+Servis `build_housing_gold_table()` çağrısını bir kez yapar ve hesapları
+tekrar etmez; eski `rate_down_real_credit_not_up` bayrağını ön filtre olarak
+kullanmaz. Null bir koşul değeri olan ay değerlendirilemez ve eşleşmez; ilk ay
+değişim koşullarında dışarıda kalır, yalnız faiz seviyesi koşuluyla
+eşleşebilir. Boş eşleşme başarılı boş sonuçtur. Evidence açık dönemi,
+koşulları ve birimlerini, `observed_month_count`, `evaluable_month_count`,
+`matched_month_count`, kronolojik `matched_periods`, eşleşen ayların Gold
+değerleri/kaynakları/kalite notlarını taşır. Girdiler değiştirilmez; JSON'da
+NaN/Infinity bulunmaz. Servis fiziksel dosya veya hash doğrulaması yapmaz.
+
+Eski kuralın parametre karşılığı
+`interest_rate_change_pp lt 0` + `real_housing_loan_change_pct lte 0`
+mevcut `find_rate_down_real_credit_not_up()` ile aynı ayları verir. Soru/HTTP
+katmanında bu analiz `{"status":"ready","analysis_id":"housing_condition_filter",
+"start_period":"...","end_period":"...","conditions":[...]}` planıyla seçilir.
+Python, sorudaki açık metrik/yön/eşik/birim ifadelerini
+`app/services/housing_filter_question.py` ile sınırlı biçimde çıkarır. Her
+karşılaştırma kendi sayısına eşlenir; açık negasyon tersine çevrilir,
+azalış/düşüş eşikleri işaretli değişime dönüştürülür ve aynı metrikteki iki
+sınır birlikte korunur. Eski `housing_rate_down_real_credit_not_up` planı yalnız
+`interest_rate_change_pp lt 0` + `real_housing_loan_change_pct lte 0` koşulları
+soruda açıkça istendiğinde kabul edilir; kredi değişim yönü belirtilmemişse plan
+reddedilir ve netleştirme istenir. Plan koşullarıyla birebir karşılaştırılır. Eksik/fazla/uydurulmuş koşul, açıkça
+belirtilmemiş nominal/reel kredi, yüzde ile yüzde puan karışıklığı, OR, sıralama/top-N,
+ortalama/yıllık/toplam, tahmin/nedensellik ve kapsam dışı analizlerde analiz **0** kez
+çalışır; uygun `metric_ambiguous`, `question_ambiguous` veya `unsupported` kararı döner.
+Yalnız faiz sorusunda nominal/reel netleştirmesi istenmez; nominal ve reel
+kredi koşulları birlikte açıkça istenirse iki koşul da korunur. Doğal dil guard'ı
+genel bir Türkçe ayrıştırıcısı değildir ve modelin niyeti doğru anladığını
+kanıtlamaz.
+
 Çağıran, normalize edilmiş `HousingQuestionData` ve/veya
 `InflationQuestionData` sağlar. Servis konut kapsamını ortak, kesintisiz
 BDDK/EVDS aylarından; TÜFE kapsamını sayısal değerleri ve tüm geçmişi
@@ -28,9 +72,9 @@ gönderilmez. Bu satırlar henüz fiziksel dosya/manifest ile doğrulanmış ver
 sayılmaz.
 
 Konut/TÜFE planı yalnızca `status`, izinli `analysis_id`, `start_period`,
-`end_period`; karşılaştırma planı yalnızca `status`, `analysis_id`,
-`first_year`, `second_year` alanlarını taşıyabilir. `ready` için dönem veya iki
-yıl açık olmalıdır. Belirsiz dönem/metrik
+`end_period`; filtre planı ayrıca 1–3 `conditions`; karşılaştırma planı yalnızca
+`status`, `analysis_id`, `first_year`, `second_year` alanlarını taşıyabilir.
+`ready` için dönem veya iki yıl açık olmalıdır. Belirsiz dönem/metrik
 veya analiz `clarification_required`; tahmin, nedensellik, başka analiz ve iki
 analizi birlikte isteme `unsupported` kararıdır. İstenen dönem veriye sığmazsa
 kırpılmaz, `outside_coverage` açıklaması döner. Seçilen veri yoksa
@@ -49,17 +93,44 @@ yanlış bir `ready` planı engellemesi model başarısı değildir.
 
 ### `ready` planı için analiz öncesi kontrol
 
-Sorudaki döneme yalnız şu açık biçimlerde karşılık aranır: `2021 Ocak-Mart` veya
-`Ocak-Mart 2021`, `2020 Aralık-2021 Mart`, `2021-02`, `01/2021 ile 03/2021`,
-`1 Ocak 2021–31 Mart 2021` (tam ay sınırları), `2021'in ilk çeyreği/ilk üç ayı`
-ve tam yıl aralığı `2021-2025`. `2021 Ocak TÜFE...` gibi gerçekten tek ay isteyen
-ifade de kabul edilir. Tek ayın ardından `itibaren`, `sonra/sonraki`, `sonrası`
-veya `başlayarak` gelirse bitiş eksik sayılır; tanınan ay kapalı tek aya çevrilmez.
-Planın iki ucu sorudaki kapalı ifadeyle aynı olmalıdır; eksik yıl veya bitiş,
-başka/çelişkili yıl, kısmi günlük sınır veya tanınmayan biçim `period_required`
-döndürür. Veri
-kapsamından veya bugünden yıl/bitiş tamamlanmaz. Bu sınırlı kontrol genel bir
-Türkçe tarih ayrıştırıcısı değildir.
+Sorudaki döneme yalnız şu açık biçimlerde karşılık aranır:
+
+- tam yıl: `2023 yılında`, `2023 yılı boyunca`, `2023 yılının tamamında`
+  (2023-01–2023-12). `2023 yılında` tek başına tam yıl isteğidir; aynı cümlede
+  daha dar bir aynı yıl aralığı varsa yalnız bağlam sayılır. `yılının tamamı`,
+  `yılı boyunca`, `yılı içinde` ve `yılı genelinde` açık tam yıl isteğidir;
+- çeyrek: `2023'ün ikinci çeyreği`, `2023 yılının 2. çeyreği`,
+  `2023'ün ilk üç ayı`; `ilk/ikinci/üçüncü/dördüncü` ve `1./2./3./4.` eşdeğerdir;
+- yarıyıl: `2023'ün ilk/son altı ayı`, `2023 yılının ilk/son yarısı` (sayı `6` da
+  kabul edilir);
+- kapalı ay aralığı: `2023 Ocak-Mart`, `Ocak-Mart 2023`,
+  `2020 Aralık-2021 Mart`, `2023 Ocak ile Mart arasında`,
+  `2023 Ocak ve Mart arasında`, `2023 Ocak'tan Mart'a kadar`;
+- noktalar: `2021-02`, `01/2021 ile 03/2021`, `2021 Ocak` gibi tek ay, tam gün
+  sınırlı `1 Ocak 2021–31 Mart 2021` ve tam yıl aralığı `2021-2025`.
+
+`2023 yılında Ocak-Mart` ifadesindeki yıl, daha belirli ay aralığının bağlamıdır;
+ayrı bir tam yıl isteği sayılmaz ve sonuç 2023-01-2023-03 olur. Farklı yıllar
+(`2023 yılında ve 2024 Ocak-Mart`) veya açık tam yıl ile dar dönem
+(`2023 yılının tamamında ve 2023 Ocak-Mart`) çelişki sayılır. Kesintili ay
+listesi `2023 Ocak ve Mart`, `2023 Ocak ve 2023 Mart`, `Ocak 2023 ve Mart 2023`
+ve bunların tab/çoklu boşluk varyantları aralık değildir; Şubat'ı kapsamadığı
+için `period_required` döndürür. Aralık bildiren `Ocak ve Mart arasında` kabul
+edilir. ISO veya sayısal gün sınırları (`2023-02-15`, `15.02.2023`) desteklenmez
+ve karşılaştırma yolunda da tam yıla dönüşmez; tam gün aralığı yalnız
+`1 Ocak 2023-31 Mart 2023` gibi adlandırılmış aylarla kabul edilir. Ters yıl
+aralığı (`2025-2023`) reddedilir.
+
+Tek ayın ardından `itibaren`, `sonra/sonraki`, `sonrası` veya `başlayarak`
+gelirse bitiş eksik sayılır; tanınan ay kapalı tek aya çevrilmez. Planın iki ucu
+sorudaki kapalı ifadeyle aynı olmalıdır; eksik yıl veya bitiş, başka/çelişkili
+tarih, kısmi günlük sınır veya tanınmayan biçim `period_required` döndürür.
+`Ocak-Mart` (yıl yok), `2023 Ocak'tan itibaren` (bitiş yok), `son altı ay` veya
+`geçen yıl` (referans politikası yok) gibi ifadelerde yıl/bitiş bugünden veya veri
+kapsamından tamamlanmaz. Dönem parçaları `app/services/question_periods.py`
+içinde birleştirilip çelişki denetlenir; birden çok farklı tarihten ilki
+seçilmez. Yeni bir dönem biçimi yeni bir analiz türü eklemez. Bu sınırlı kontrol
+genel bir Türkçe tarih ayrıştırıcısı değildir.
 
 Konut `ready` kararı için kredi metriği açıkça `reel`, `enflasyondan
 arındırılmış` veya eşdeğer TÜFE ile arındırılmış kredi/stok/bakiye/tutar olmalıdır.
@@ -84,10 +155,13 @@ kez yapılır; formüller yönlendirme/API/ekran katmanında tekrarlanmaz.
 Python planı analizden önce soruyla karşılaştırır. İki yıl açık değilse, yıllar
 eksik/uyuşmuyor veya ters verilmişse, model tek dönem özeti seçmişse ya da soru
 aynı yılı iki kez/tek yıl belirtiyorsa `period_required` döner. Ortalama, kısmi
-dönem (tek ay veya ISO ay dahil), açık TÜFE dışı metrik, tahmin ve nedensellik
-istekleri `unsupported`; tam yıl veri kapsamı dışındaysa `outside_coverage`
-olur. Yalnız açık `yıllık` ifadesiyle istenen Aralık karşılaştırmaları bu
-kontrolden geçer. Bu durumlarda analiz 0 kez çalışır. Eksik
+dönem, açık TÜFE dışı metrik, tahmin ve nedensellik istekleri `unsupported`;
+tam yıl veri kapsamı dışındaysa `outside_coverage` olur. Kısmi dönem niyeti
+cümledeki konumdan bağımsız denetlenir: `2023 ve 2024 için ikinci çeyrek`,
+`2023 ile 2024 ... ilk altı ay`, `2023 ve 2024 için Ocak ayı` ve ISO/sayısal gün
+sınırları (`2023-02-15 ile 2024-03-15`, `15.02.2023 ile 15.03.2024`) gibi
+ifadeler de `unsupported` döndürür. Yalnız açık `yıllık`/`12 aylık` ifadesiyle
+istenen Aralık karşılaştırmaları bu kontrolden geçer. Bu durumlarda analiz 0 kez çalışır. Eksik
 önceki Aralık nedeniyle yıllık oran veya fark `null` kalabilir; sıfır/tahmin
 üretilmez. “2023-2024 TÜFE değişimlerini özetle.” aralık özeti karşılaştırma
 sayılmaz. Yeni bir HTTP endpoint'i, genel tarih ayrıştırıcısı, grafik katmanı
@@ -135,12 +209,16 @@ Kaynak etiketleri fiziksel dosya doğrulaması yerine geçmez; bu HTTP yüzeyi
 
 `available_periods` içinde `housing` ve `inflation` dönemleri veya `null` vardır.
 `analysis.analysis_id`, `analysis.evidence` tipini belirler. Konut sonucunda
-ayrıca mevcut altı trace'li `analysis.chart` bulunur. Tek dönem TÜFE özetinde
-aynı evidence'dan üretilen mevcut üç panelli `analysis.chart` yer alır; grafik
-için ek model, veri veya hesap çağrısı yapılmaz. İki yıl karşılaştırması yalnız
-evidence taşır. Karşılaştırmada iki nested evidence'ın kaynak referansı ve
-`input_origin` bilgisi korunur. Endpoint anlatım çağrısı yapmaz ve sohbet
-geçmişi tutmaz.
+ayrıca mevcut altı trace'li `analysis.chart` bulunur. `housing_condition_filter`
+sonucu yalnız tipli evidence taşır: koşullar/birimler, gözlem/değerlendirilebilir/
+eşleşen ay sayıları, kronolojik eşleşen aylar ve kaynak/kalite/sınırlama
+notları. Yeni grafik üretilmez ve eski sabit konut grafiği yeni sonuç gibi
+kullanılmaz; ekran önceki grafiği temizler ve koşul özeti ile eşleşen ay
+tablosunu gösterir. Tek dönem TÜFE özetinde aynı evidence'dan üretilen mevcut
+üç panelli `analysis.chart` yer alır; grafik için ek model, veri veya hesap
+çağrısı yapılmaz. İki yıl karşılaştırması yalnız evidence taşır. Karşılaştırmada
+iki nested evidence'ın kaynak referansı ve `input_origin` bilgisi korunur.
+Endpoint anlatım çağrısı yapmaz ve sohbet geçmişi tutmaz.
 
 ### Sentetik istek örnekleri
 
@@ -179,13 +257,16 @@ gerekir; bir dosya bozuksa diğer analize sessiz geçiş veya eski veri cache'i 
 BDDK Bronze→Silver eşitliği, EVDS fiziksel hash/kaynak/metadata ve sürekli kapsam
 kontrolleri gevşetilmedi. Doğrulanmış bellek kopyası plan sonrasında tekrar okunmaz.
 
-`run_verified_economic_question()` iki mevcut hesabı aynı `run_economic_question()`
-çekirdeğine verir. Konut kapsamı ortak aylardır; TÜFE tüm doğrulanmış EVDS geçmişini
-kullanır, konut kapsamına kırpılmaz. Soru başına en fazla bir plan ve bir hesap
-çağrısı vardır; netleştirme/unsupported/kapsam dışı planda hesap çalışmaz.
-Yanıt aynı `status/decision/available_periods/analysis` yapısındadır. Konutta mevcut
-evidence/grafik ve weekly coverage notu korunur. TÜFE özetinde hesaplar aynı kalır;
-üç panelli grafik doğrulanmış evidence'dan ek çağrı yapılmadan üretilir ve
+`run_verified_economic_question()` iki mevcut hesabı ve parametreli filtre
+çekirdeğini aynı `run_economic_question()` çekirdeğine verir. Konut kapsamı ortak
+aylardır; TÜFE tüm doğrulanmış EVDS geçmişini kullanır, konut kapsamına kırpılmaz.
+Soru başına en fazla bir plan ve bir hesap çağrısı vardır; netleştirme/unsupported/
+kapsam dışı planda hesap çalışmaz. Yanıt aynı `status/decision/available_periods/
+analysis` yapısındadır. Konutta mevcut evidence/grafik ve weekly coverage notu
+korunur. `housing_condition_filter` evidence'ında hesaplar aynı kalır; fiziksel
+doğrulama sınırlaması doğrulanmış dosya ifadesiyle değiştirilir ve weekly coverage
+notu kalite notlarına eklenir. TÜFE özetinde hesaplar aynı kalır; üç panelli grafik
+doğrulanmış evidence'dan ek çağrı yapılmadan üretilir ve
 `input_origin=verified_files`, yalnız TÜFE makbuz referansları ve fiziksel doğrulama
 notu döner; eski satır API'sinde `caller_supplied` varsayılanı değişmez.
 
@@ -209,20 +290,25 @@ Offline stub sonuçları modelin Türkçe anlama başarısı değildir.
 
 `evals/economic_question_cases.json` içindeki 37 vaka gerçek HTTP doğrulaması ve
 Python analizleriyle, sabit model yanıtları kullanılarak çalışır. Housing/TÜFE
-sonuçları aynı girdili doğrudan hesap endpoint'leriyle, karşılaştırma sonucu ise
-mevcut `compare_inflation_years` çekirdeğiyle karşılaştırılır;
-soru başına plan/analiz çağrıları sayılır. Referans hesap istekleri soru
-yürütme sayacına dahil değildir. Rapor `out/economic-question-eval-offline.json`
-altındadır; `--output` yalnızca `out/` içinde başka bir rapor seçebilir.
+sonuçları aynı girdili doğrudan hesap endpoint'leriyle, filtre sonucu doğrudan
+`run_housing_filter()` çekirdeğiyle, karşılaştırma sonucu ise mevcut
+`compare_inflation_years` çekirdeğiyle karşılaştırılır; soru başına plan/analiz
+çağrıları sayılır. Referans hesap istekleri soru yürütme sayacına dahil değildir.
+Rapor `out/economic-question-eval-offline.json` altındadır; `--output` yalnızca
+`out/` içinde başka bir rapor seçebilir.
 
 İlk 28 vakanın soru/beklenti/stub yanıtları korunmuştur. Son 9 vaka iki tam yıl
 karşılaştırmasını, ters yıl sırasını, önceki Aralık eksikliğinde null davranışını,
 aynı yıl, kapsam dışı yıl, belirsiz dönem ve desteklenmeyen ay/ortalama/
 yıllıklandırma isteklerini kapsar. Aralık yıllık oranları ve farkı elle hesaplanan
 sentetik sabitlerle ayrıca sınanır. Beklentiler model çıktısı görülmeden yazıldı;
-`rationale` alanı gerekçeyi açıklar. Anlamlı fakat desteklenmeyen ekonomik sorular
-anlamsız olarak etiketlenmez. Dağılım: 12 ready, 13 netleştirme, 10 unsupported,
-2 veri yokluğu. Tahmin/nedensellik/şema değiştirme talepleri eski sette de vardır.
+`rationale` alanı gerekçeyi açıklar. Yeni filtre yeteneği yalnız gerçekten
+desteklenen EQ-025'i değiştirdi: faiz değişimi `gt 0` ve reel kredi değişimi
+`gt 0` koşulları korunuyor; sentetik dönemde eşleşen ay yok. Diğer eski
+`unsupported`/netleştirme beklentileri (kapsam dışı, tahmin/nedensellik, OR,
+ortalama, açıkça belirtilmemiş nominal/reel kredi) değişmedi. Dağılım: 13 ready,
+13 netleştirme, 9 unsupported, 2 veri yokluğu. Tahmin/nedensellik/şema
+değiştirme talepleri eski sette de vardır.
 
 Rapor **`offline_stub / harness_behavior_only`** olarak etiketlenir; 37/37 gibi
 bir stub sonucu modelin Türkçe anlama başarısı veya injection dayanıklılığı değildir.
