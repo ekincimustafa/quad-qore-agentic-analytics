@@ -260,6 +260,8 @@ repairs files.
 | `ok` | All | Check passed |
 | `python_version_mismatch` | `python` | Active interpreter is not Python 3.12 (`exit 1`); recreate `.venv` with Python 3.12 |
 | `missing_dependencies` | `dependencies` | One or more runtime packages from `requirements.txt` are missing (`exit 1`); run `pip install -r requirements.txt` |
+| `incompatible_dependencies` | `dependencies` | Installed package version conflicts with `requirements.txt` pin or major version (`exit 1`); run `pip install -r requirements.txt` |
+| `not_run` | `data_root`, `data_package`, `llm_config` | Check skipped (`status: skipped`) because Python or runtime package checks failed (`exit 1`) |
 | `data_root_missing` | `data_package` | Selected data root does not exist or is not a directory (`exit 1`); point `--data-root` or `ANALYTICS_DATA_ROOT` to the directory containing `data/` |
 | `data_files_missing` | `data_package` | Required Silver, EVDS manifest, or Bronze/receipt files are missing under the selected root (`exit 1`); extract the verified delivery package and select its `inputs` folder |
 | `data_integrity_failed` | `data_package` | Hash, provenance, schema, or Bronze-to-Silver verification failed (`exit 1`); re-extract from the unmodified verified archive |

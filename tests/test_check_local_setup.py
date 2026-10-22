@@ -8,6 +8,9 @@ import os
 from pathlib import Path
 import shutil
 import socket
+import subprocess
+import sys
+import venv
 
 import httpx
 import pandas as pd
@@ -260,21 +263,32 @@ def test_missing_or_corrupted_data_package_fails_safely_without_leaking_secrets(
         assert "inputs" in payload["checks"]["data_package"]["message"]
 
 
-def test_python_version_and_dependency_checks(tmp_path, monkeypatch, capsys):
+def test_python_version_and_dependency_checks_skip_data_and_llm_when_env_unready(
+    tmp_path, monkeypatch, capsys,
+):
     repo_dir = tmp_path / "repo"
     repo_dir.mkdir()
     pkg_dir = _build_synthetic_package(tmp_path / "pkg")
 
-    # 1. Incompatible Python version (e.g. 3.11.9)
+    # 1. Incompatible Python version (e.g. 3.11.9) -> skips data and llm checks
     monkeypatch.setattr(diag.sys, "version_info", (3, 11, 9, "final", 0))
     assert diag.main(["--data-root", str(pkg_dir), "--json"], repo_root=repo_dir) == 1
     py_err = json.loads(capsys.readouterr().out)
     assert py_err["preview_ready"] is False
+    assert py_err["normal_mode_configured"] is False
+    assert py_err["normal_mode_ready"] is False
+    assert py_err["error_codes"] == ["python_version_mismatch"]
     assert py_err["checks"]["python"]["code"] == "python_version_mismatch"
     assert "3.11.9" in py_err["checks"]["python"]["message"]
     assert py_err["checks"]["python"]["recommendation"]
+    assert py_err["checks"]["data_root"]["status"] == "skipped"
+    assert py_err["checks"]["data_root"]["code"] == "not_run"
+    assert py_err["checks"]["data_package"]["status"] == "skipped"
+    assert py_err["checks"]["data_package"]["code"] == "not_run"
+    assert py_err["checks"]["llm_config"]["status"] == "skipped"
+    assert py_err["checks"]["llm_config"]["code"] == "not_run"
 
-    # Restore Python 3.12 and simulate missing runtime package
+    # Restore Python 3.12 and simulate missing runtime package -> skips data and llm checks
     monkeypatch.setattr(diag.sys, "version_info", (3, 12, 4, "final", 0))
     original_version = metadata.version
 
@@ -287,9 +301,221 @@ def test_python_version_and_dependency_checks(tmp_path, monkeypatch, capsys):
     assert diag.main(["--data-root", str(pkg_dir), "--json"], repo_root=repo_dir) == 1
     dep_err = json.loads(capsys.readouterr().out)
     assert dep_err["preview_ready"] is False
+    assert dep_err["error_codes"] == ["missing_dependencies"]
     assert dep_err["checks"]["dependencies"]["code"] == "missing_dependencies"
     assert dep_err["checks"]["dependencies"]["missing_packages"] == ["pyarrow", "plotly"]
+    assert dep_err["checks"]["dependencies"]["incompatible_packages"] == []
     assert "requirements.txt" in dep_err["checks"]["dependencies"]["recommendation"]
+    assert dep_err["checks"]["data_package"]["status"] == "skipped"
+    assert dep_err["checks"]["data_package"]["code"] == "not_run"
+    assert dep_err["checks"]["llm_config"]["status"] == "skipped"
+    assert dep_err["checks"]["llm_config"]["code"] == "not_run"
+
+
+def test_dependency_version_policy_detects_major_and_pin_mismatches(
+    tmp_path, monkeypatch, capsys,
+):
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+    pkg_dir = _build_synthetic_package(tmp_path / "pkg")
+
+    # 1. Exact reproduction: Pydantic v1 major version mismatch
+    pydantic_v1 = diag._check_dependencies(
+        packages=("pydantic",),
+        version_lookup=lambda _: "1.10.0",
+    )
+    assert pydantic_v1["status"] == "error"
+    assert pydantic_v1["code"] == "incompatible_dependencies"
+    assert pydantic_v1["missing_packages"] == []
+    assert pydantic_v1["incompatible_packages"] == [
+        {
+            "package": "pydantic",
+            "installed": "1.10.0",
+            "expected": "2.13.5",
+            "reason": "major_version_mismatch",
+        }
+    ]
+    assert "1.10.0" in pydantic_v1["message"]
+    assert "2.13.5" in pydantic_v1["message"]
+    assert "requirements.txt" in pydantic_v1["recommendation"]
+
+    # 2. Same major version, pin mismatch against requirements.txt
+    pydantic_pin = diag._check_dependencies(
+        packages=("pydantic",),
+        version_lookup=lambda _: "2.12.0",
+    )
+    assert pydantic_pin["status"] == "error"
+    assert pydantic_pin["code"] == "incompatible_dependencies"
+    assert pydantic_pin["incompatible_packages"] == [
+        {
+            "package": "pydantic",
+            "installed": "2.12.0",
+            "expected": "2.13.5",
+            "reason": "pin_mismatch",
+        }
+    ]
+    assert "2.12.0" in pydantic_pin["message"]
+    assert "2.13.5" in pydantic_pin["message"]
+
+    # 3. Full CLI run with incompatible package version -> exit 1, preview_ready=False, skipped data/llm
+    original_version = metadata.version
+
+    def fake_incompatible_version(name: str) -> str:
+        if name == "pydantic":
+            return "1.10.0"
+        return original_version(name)
+
+    monkeypatch.setattr(diag.metadata, "version", fake_incompatible_version)
+
+    exit_json = diag.main(["--data-root", str(pkg_dir), "--json"], repo_root=repo_dir)
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_json == 1
+    assert payload["preview_ready"] is False
+    assert payload["normal_mode_ready"] is False
+    assert payload["error_codes"] == ["incompatible_dependencies"]
+    assert payload["checks"]["dependencies"]["code"] == "incompatible_dependencies"
+    assert payload["checks"]["dependencies"]["incompatible_packages"][0]["package"] == "pydantic"
+    assert payload["checks"]["data_package"]["status"] == "skipped"
+    assert payload["checks"]["data_package"]["code"] == "not_run"
+    assert payload["checks"]["llm_config"]["status"] == "skipped"
+    assert payload["checks"]["llm_config"]["code"] == "not_run"
+
+    exit_text = diag.main(["--data-root", str(pkg_dir)], repo_root=repo_dir)
+    text_out = capsys.readouterr().out
+    assert exit_text == 1
+    assert "[incompatible_dependencies]" in text_out
+    assert "pydantic" in text_out
+    assert "skipped/not_run" in text_out
+
+
+def test_subprocess_without_third_party_packages_produces_clean_json_and_text_without_traceback(
+    tmp_path,
+):
+    repo_root = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+
+    # 1. Exact reproduction: `python -S -m scripts.check_local_setup --json` and normal text
+    for extra_args in (["--json"], []):
+        proc_no_site = subprocess.run(
+            [sys.executable, "-S", "-m", "scripts.check_local_setup", *extra_args],
+            cwd=str(repo_root),
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=30,
+            check=False,
+        )
+        assert proc_no_site.returncode == 1
+        assert proc_no_site.stderr == ""
+        assert "Traceback" not in proc_no_site.stdout
+        assert "ModuleNotFoundError" not in proc_no_site.stdout
+        if "--json" in extra_args:
+            data = json.loads(proc_no_site.stdout)
+            assert data["status"] == "error"
+            assert data["exit_code"] == 1
+            assert data["preview_ready"] is False
+            assert data["normal_mode_configured"] is False
+            assert data["normal_mode_ready"] is False
+            assert data["error_codes"] == ["missing_dependencies"]
+            assert data["checks"]["dependencies"]["code"] == "missing_dependencies"
+            assert "python-dotenv" in data["checks"]["dependencies"]["missing_packages"]
+            assert data["checks"]["data_root"]["status"] == "skipped"
+            assert data["checks"]["data_root"]["code"] == "not_run"
+            assert data["checks"]["data_package"]["status"] == "skipped"
+            assert data["checks"]["data_package"]["code"] == "not_run"
+            assert data["checks"]["llm_config"]["status"] == "skipped"
+            assert data["checks"]["llm_config"]["code"] == "not_run"
+        else:
+            assert "[missing_dependencies]" in proc_no_site.stdout
+            assert "skipped/not_run" in proc_no_site.stdout
+            assert "Offline preview hazır (preview_ready): Hayır" in proc_no_site.stdout
+
+    # 2. Fresh empty venv (--without-pip) subprocess test for both --json and normal text
+    empty_venv_dir = tmp_path / "empty_venv"
+    venv.EnvBuilder(with_pip=False).create(empty_venv_dir)
+    venv_python = (
+        empty_venv_dir / "Scripts" / "python.exe"
+        if os.name == "nt"
+        else empty_venv_dir / "bin" / "python"
+    )
+    assert venv_python.is_file()
+
+    for extra_args in (["--json"], []):
+        proc_venv = subprocess.run(
+            [str(venv_python), "-m", "scripts.check_local_setup", *extra_args],
+            cwd=str(repo_root),
+            env=env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=30,
+            check=False,
+        )
+        assert proc_venv.returncode == 1
+        assert proc_venv.stderr == ""
+        assert "Traceback" not in proc_venv.stdout
+        assert "ModuleNotFoundError" not in proc_venv.stdout
+        if "--json" in extra_args:
+            venv_data = json.loads(proc_venv.stdout)
+            assert venv_data["exit_code"] == 1
+            assert venv_data["preview_ready"] is False
+            assert venv_data["checks"]["dependencies"]["code"] == "missing_dependencies"
+            assert len(venv_data["checks"]["dependencies"]["missing_packages"]) == 13
+            assert venv_data["checks"]["data_package"]["status"] == "skipped"
+            assert venv_data["checks"]["data_package"]["code"] == "not_run"
+            assert venv_data["checks"]["llm_config"]["status"] == "skipped"
+            assert venv_data["checks"]["llm_config"]["code"] == "not_run"
+        else:
+            assert "[missing_dependencies]" in proc_venv.stdout
+            assert "skipped/not_run" in proc_venv.stdout
+
+
+def test_import_time_loads_only_stdlib_and_handles_lazy_import_failure_safely(
+    tmp_path, monkeypatch, capsys,
+):
+    repo_root = Path(__file__).resolve().parents[1]
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+
+    # Importing scripts.check_local_setup under -S must not import dotenv, pydantic, pandas, openai, or app.*
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-S",
+            "-c",
+            (
+                "import json, sys; "
+                "import scripts.check_local_setup; "
+                "forbidden = [m for m in ('dotenv', 'pydantic', 'pandas', 'pyarrow', 'openai', 'app') "
+                "if m in sys.modules or any(k.startswith(m + '.') for k in sys.modules)]; "
+                "print(json.dumps(forbidden))"
+            ),
+        ],
+        cwd=str(repo_root),
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        timeout=30,
+        check=False,
+    )
+    assert proc.returncode == 0
+    assert json.loads(proc.stdout.strip()) == []
+
+    # Simulate lazy import failure after _check_dependencies passed -> no traceback, exit 1
+    def broken_resolve(*args, **kwargs):
+        raise ModuleNotFoundError("No module named 'pandas'", name="pandas")
+
+    monkeypatch.setattr(diag, "resolve_data_root", broken_resolve)
+    exit_code = diag.main(["--json"], repo_root=tmp_path)
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["preview_ready"] is False
+    assert payload["checks"]["dependencies"]["status"] == "error"
+    assert payload["checks"]["data_package"]["status"] == "skipped"
+    assert payload["checks"]["llm_config"]["status"] == "skipped"
 
 
 @pytest.mark.parametrize(
