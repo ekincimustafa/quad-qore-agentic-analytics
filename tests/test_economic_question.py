@@ -77,11 +77,14 @@ def ready(analysis_id, start="2021-01", end="2021-03", **extra):
     ("2021 Ocak ile Mart arasında TÜFE değişimlerini göster.",
      ready(service.INFLATION_ID, start="2021-01", end="2021-02"),
      ("clarification_required", "period_required")),
-    ("2021 yılında Ocak-Mart TÜFE değişimlerini göster.",
-     ready(service.INFLATION_ID, start="2021-01", end="2021-03"),
-     ("clarification_required", "period_required")),
     ("2021 Ocak, Şubat ve Mart TÜFE değişimlerini göster.",
      ready(service.INFLATION_ID, start="2021-01", end="2021-03"),
+     ("clarification_required", "period_required")),
+    ("2021 Ocak ve Mart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start="2021-01", end="2021-03"),
+     ("clarification_required", "period_required")),
+    ("2021 yılı boyunca 2021-01-15 ile 2021-02-15 arasındaki TÜFE değişimini göster.",
+     ready(service.INFLATION_ID, start="2021-01", end="2021-12"),
      ("clarification_required", "period_required")),
     ("15 Ocak 2021–15 Mart 2021 TÜFE değişimlerini göster.",
      ready(service.INFLATION_ID), ("clarification_required", "period_required")),
@@ -157,6 +160,8 @@ def test_explicit_period_and_real_metric_reach_existing_analysis(data, question,
     ("2023 Ocak ile Mart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
     ("2023 Ocak ile 2023 Mart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
     ("2023 Ocak'tan Mart'a kadar genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 yılında Ocak-Mart genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 Ocak ve Mart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
 ])
 def test_natural_closed_period_runs_existing_cpi_service_once(monkeypatch, question, start, end):
     periods = pd.period_range("2022-01", "2023-12", freq="M").astype(str)
@@ -190,6 +195,29 @@ def test_natural_closed_period_runs_existing_cpi_service_once(monkeypatch, quest
     assert run.analysis.model_dump() == direct.model_dump()
     assert run.analysis.observations[0].period == start
     assert run.analysis.observations[-1].period == end
+
+
+@pytest.mark.parametrize("question,plan", [
+    ("2023 yılı boyunca 2023-02-15 ile 2023-03-15 arasındaki TÜFE değişimini göster.",
+     ready(service.INFLATION_ID, start="2023-01", end="2023-12")),
+    ("2023 Ocak ve Mart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start="2023-01", end="2023-03")),
+])
+def test_unbounded_day_or_month_list_ready_plan_never_runs_analysis(monkeypatch, question, plan):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("An unsupported period must not run an analysis")
+
+    monkeypatch.setattr(service, "build_inflation_evidence", forbidden)
+    periods = pd.period_range("2023-01", "2023-12", freq="M").astype(str)
+    inflation = service.InflationQuestionData(
+        cpi_monthly=pd.DataFrame({"period": periods, "cpi_index": range(100, 112)}),
+        source_ref="synthetic://natural-period",
+    )
+    run = service.run_economic_question(
+        question, inflation=inflation, model_call=lambda _: json.dumps(plan),
+    )
+    assert run.analysis is None
+    assert (run.decision.status, run.decision.reason) == ("clarification_required", "period_required")
 
 
 def test_explicit_full_year_range_stays_executable_with_complete_history():
@@ -277,6 +305,9 @@ def test_comparison_plan_runs_existing_core_once_and_matches_direct_result(
     ("2023 Ocak-Haziran ile 2024 Ocak-Haziran TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
     ("2023 Ocak ile 2024 Ocak TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
     ("2023-01 ile 2024-01 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
+    ("2023 ve 2024 için ikinci çeyrek TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
+    ("2023 ile 2024 TÜFE değişimlerini ilk altı ay için karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
+    ("2023 ve 2024 için Ocak ayı TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
     ("2023 ve 2024 konut kredisi faizlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
     ("2023 ve 2024 TÜFE değişimlerini karşılaştır.", ready(service.INFLATION_ID, "2023-01", "2024-12"), ("clarification_required", "period_required")),
     ("2023-2024 TÜFE değişimlerini özetle.", comparison_ready(2023, 2024), ("clarification_required", "period_required")),

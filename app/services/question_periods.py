@@ -27,6 +27,9 @@ _HALF_NOUN = r"(?:(?:altı|6)\s+ay\w*|yar[ıi]s\w*)"
 _YEAR_TOKEN = re.compile(rf"(?<!\d){_YEAR}(?!\d)")
 _MONTH_TOKEN = re.compile(rf"\b{_MONTH_NAME}\b")
 _DAY_MONTH_YEAR = re.compile(rf"(?<!\d)(\d{{1,2}})\s+({_MONTH_NAME})\s+({_YEAR})\b")
+_DAY_DATE = re.compile(
+    r"(?<!\d)(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{4})(?!\d)"
+)
 _YEAR_SPAN = re.compile(rf"(?<!\d)({_YEAR})\s*[-–—]\s*({_YEAR})(?!\d)")
 _YEAR_FIRST_SPAN = re.compile(
     rf"(?<!\d)(?P<year1>{_YEAR}){_POSSESSIVE}?\s+(?:yıl\w*\s+)?(?P<month1>{_MONTH_NAME})"
@@ -62,6 +65,7 @@ _MONTH_POINT_PATTERNS = (
 _OPEN_ENDED_PERIOD = re.compile(
     r"\b(?:itibaren|sonra(?:ki)?|sonrası(?:nda)?|başlayarak|bu\s+yana)\b"
 )
+_RANGE_SUFFIX = re.compile(r"^\s+(?:ay\w*\s+)?(?:arası\w*|aralığ\w*|kadar)\b")
 _QUARTER_START = {1: 1, 2: 4, 3: 7, 4: 10}
 
 
@@ -70,6 +74,7 @@ class _Candidate:
     start: str
     end: str
     spans: tuple[tuple[int, int], ...]
+    kind: str = "specific"
 
 
 @dataclass(frozen=True)
@@ -106,13 +111,17 @@ def month_points(text: str) -> list[tuple[int, str]]:
     return [(point.start, point.period) for point in _month_points(text)]
 
 
+def month_tokens(text: str) -> list[str]:
+    return [match.group() for match in _MONTH_TOKEN.finditer(text)]
+
+
 def contains_partial_period_expression(text: str) -> bool:
     """True for a day, month-range, quarter or half-year expression."""
     return bool(
         _DAY_MONTH_YEAR.search(text)
         or _ANY_NAMED_SPAN.search(text)
-        or _QUARTER.search(text)
-        or _HALF_YEAR.search(text)
+        or _QUARTER_PHRASE.search(text)
+        or _HALF_PHRASE.search(text)
     )
 
 
@@ -147,6 +156,12 @@ def _quarter_number(token: str) -> int:
     }[token.replace(" ", "")]
 
 
+def _span_is_closed(text: str, match: re.Match[str]) -> bool:
+    if " ve " not in text[match.start():match.end()]:
+        return True
+    return bool(_RANGE_SUFFIX.match(text[match.end():]))
+
+
 def _complete_candidates(text: str) -> list[_Candidate]:
     candidates: list[_Candidate] = []
     for match in _YEAR_SPAN.finditer(text):
@@ -156,13 +171,13 @@ def _complete_candidates(text: str) -> list[_Candidate]:
         ))
     for match in _YEAR_FIRST_SPAN.finditer(text):
         candidate = _period(match["year1"], match["month1"], match["year2"], match["month2"])
-        if candidate is not None:
+        if candidate is not None and _span_is_closed(text, match):
             candidates.append(_Candidate(
                 candidate.start, candidate.end, ((match.start(), match.end()),),
             ))
     for match in _YEAR_LAST_SPAN.finditer(text):
         candidate = _period(match["year"], match["month1"], match["year"], match["month2"])
-        if candidate is not None:
+        if candidate is not None and _span_is_closed(text, match):
             candidates.append(_Candidate(
                 candidate.start, candidate.end, ((match.start(), match.end()),),
             ))
@@ -183,7 +198,7 @@ def _complete_candidates(text: str) -> list[_Candidate]:
     for match in _WHOLE_YEAR.finditer(text):
         candidates.append(_Candidate(
             start=f"{match['year']}-01", end=f"{match['year']}-12",
-            spans=((match.start(), match.end()),),
+            spans=((match.start(), match.end()),), kind="whole_year",
         ))
     return candidates
 
@@ -217,6 +232,8 @@ def explicit_period(question: str) -> tuple[str, str] | None:
     text = normalize_question_text(question)
     if not _YEAR_TOKEN.search(text) or _OPEN_ENDED_PERIOD.search(text):
         return None
+    if _DAY_DATE.search(text):
+        return None
 
     days = list(_DAY_MONTH_YEAR.finditer(text))
     candidates: list[_Candidate] = []
@@ -229,17 +246,30 @@ def explicit_period(question: str) -> tuple[str, str] | None:
 
     if candidates:
         periods = {(candidate.start, candidate.end) for candidate in candidates}
+        selected = candidates
         if len(periods) != 1:
-            return None
+            specific = [candidate for candidate in candidates if candidate.kind == "specific"]
+            specific_periods = {(candidate.start, candidate.end) for candidate in specific}
+            whole_year = [candidate for candidate in candidates if candidate.kind == "whole_year"]
+            if len(specific_periods) != 1:
+                return None
+            start, end = next(iter(specific_periods))
+            if not all(
+                candidate.start[:4] == start[:4] and candidate.end[:4] == end[:4]
+                for candidate in whole_year
+            ):
+                return None
+            selected = specific
+            periods = {(start, end)}
         start, end = periods.pop()
         spans = tuple(
-            span for candidate in candidates
+            span for candidate in selected
             if (candidate.start, candidate.end) == (start, end)
             for span in candidate.spans
         )
         if not _candidate_tokens_consistent(text, start, end, spans):
             return None
-        return start, end
+        return (start, end) if start <= end else None
 
     points = _month_points(text)
     if len(points) not in {1, 2}:
@@ -265,4 +295,4 @@ def explicit_period(question: str) -> tuple[str, str] | None:
         return None
     if any(not _inside(match.start(), spans) for match in _HALF_PHRASE.finditer(text)):
         return None
-    return start, end
+    return (start, end) if start <= end else None

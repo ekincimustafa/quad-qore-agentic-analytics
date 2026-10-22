@@ -77,8 +77,6 @@ def client_with_model(package, model):
      ready(core.INFLATION_ID), "period_required"),
     ("2021 Ocak ile Mart arasında TÜFE değişimlerini göster.",
      ready(core.INFLATION_ID), "period_required"),
-    ("2021 yılında Ocak-Mart TÜFE değişimlerini göster.",
-     ready(core.INFLATION_ID), "period_required"),
 ])
 def test_observed_ready_mistakes_are_blocked_after_file_verification(
     package, monkeypatch, question, plan, reason,
@@ -100,13 +98,20 @@ def test_observed_ready_mistakes_are_blocked_after_file_verification(
     assert body["analysis"] is None
 
 
-def test_natural_closed_month_range_runs_existing_calculation_once(package, monkeypatch):
-    prompts, calls = [], []
+@pytest.mark.parametrize("question", [
+    "2021 Ocak ile Şubat arasında TÜFE değişimlerini göster.",
+    "2021 yılında Ocak-Şubat TÜFE değişimlerini göster.",
+    "2021 Ocak ve Şubat arasında TÜFE değişimlerini göster.",
+])
+def test_natural_closed_month_range_runs_existing_calculation_once(package, monkeypatch, question):
+    prompts, calls, direct = [], [], []
     original = core.build_inflation_evidence
 
     def evidence(*args, **kwargs):
+        result = original(*args, **kwargs)
         calls.append(kwargs)
-        return original(*args, **kwargs)
+        direct.append(result)
+        return result
 
     monkeypatch.setattr(core, "build_inflation_evidence", evidence)
 
@@ -114,15 +119,58 @@ def test_natural_closed_month_range_runs_existing_calculation_once(package, monk
         prompts.append(prompt)
         return json.dumps(ready(core.INFLATION_ID))
 
-    question = "2021 Ocak ile Şubat arasında TÜFE değişimlerini göster."
     with client_with_model(package, model) as client:
         response = client.post(ENDPOINT, json={"question": question})
     assert response.status_code == 200 and len(prompts) == 1 and len(calls) == 1
     body = response.json()
     assert body["status"] == "ok" and body["decision"] == ready(core.INFLATION_ID)
+    assert body["analysis"]["evidence"] == files_service._with_verified_cpi_notes(
+        direct[0]
+    ).model_dump(mode="json")
     assert [row["period"] for row in body["analysis"]["evidence"]["observations"]] == [
         "2021-01", "2021-02",
     ]
+
+
+@pytest.mark.parametrize("question,plan,expected", [
+    ("2023 yılı boyunca 2023-02-15 ile 2023-03-15 arasındaki TÜFE değişimini göster.",
+     ready(core.INFLATION_ID, start_period="2023-01", end_period="2023-12"),
+     {"status": "clarification_required", "reason": "period_required"}),
+    ("2023 Ocak ve Mart TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID, start_period="2023-01", end_period="2023-03"),
+     {"status": "clarification_required", "reason": "period_required"}),
+    ("2023 ve 2024 için ikinci çeyrek TÜFE değişimlerini karşılaştır.",
+     {"status": "ready", "analysis_id": core.COMPARISON_ID, "first_year": 2023, "second_year": 2024},
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ile 2024 TÜFE değişimlerini ilk altı ay için karşılaştır.",
+     {"status": "ready", "analysis_id": core.COMPARISON_ID, "first_year": 2023, "second_year": 2024},
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 için Ocak ayı TÜFE değişimlerini karşılaştır.",
+     {"status": "ready", "analysis_id": core.COMPARISON_ID, "first_year": 2023, "second_year": 2024},
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+])
+def test_unbounded_or_partial_period_plan_never_runs_analysis(package, monkeypatch, question, plan, expected):
+    periods = pd.period_range("2023-01", "2023-12", freq="M").astype(str).tolist()
+    inputs = VerifiedQuestionInputs(
+        bddk_monthly=pd.DataFrame({"period": periods}),
+        evds_monthly=pd.DataFrame({
+            "period": periods,
+            "cpi_index": [100 + index for index in range(len(periods))],
+        }),
+        housing_coverage=HousingDataCoverage(start_period="2023-01", end_period="2023-12"),
+        evds_source_refs="synthetic://evds",
+        cpi_source_ref="verified://cpi-receipt",
+    )
+    monkeypatch.setattr(files_service, "load_verified_question_inputs", lambda _: inputs)
+    monkeypatch.setattr(core, "build_inflation_evidence", forbidden)
+    monkeypatch.setattr(core, "compare_inflation_years", forbidden)
+    with client_with_model(package, lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json={"question": question})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == expected["status"]
+    assert body["decision"] == expected
+    assert body["analysis"] is None
 
 
 @pytest.mark.parametrize("analysis_id", [core.HOUSING_ID, core.INFLATION_ID])

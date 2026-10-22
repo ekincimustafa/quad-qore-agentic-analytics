@@ -27,6 +27,7 @@ from app.services.question_periods import (
     contains_partial_period_expression as _contains_partial_period_expression,
     explicit_period as _explicit_period,
     month_points as _month_points,
+    month_tokens as _month_tokens,
     normalize_question_text as _question_text,
     year_tokens as _year_tokens,
 )
@@ -158,12 +159,14 @@ def _comparison_out_of_scope(question: str) -> bool:
     if _contains_partial_period_expression(text):
         return True
     points = _month_points(text)
-    if not points:
+    months = _month_tokens(text)
+    if not points and not months:
         return False
     # Only named/ISO December points with an explicit annual-inflation request
     # remain valid; every other single-month or partial-period comparison is blocked.
     return not (
         all(period.endswith("-12") for _, period in points)
+        and all(month == "aralık" for month in months)
         and _ANNUAL_INFLATION.search(text)
     )
 

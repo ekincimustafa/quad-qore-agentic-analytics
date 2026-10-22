@@ -29,6 +29,8 @@ from app.services.question_periods import explicit_period
     ("2023 yılının ilk çeyreğinde TÜFE değişimlerini göster.", ("2023-01", "2023-03")),
     ("2023'ün ilk üç ayında TÜFE değişimlerini göster.", ("2023-01", "2023-03")),
     ("2023 yılında ilk altı ay TÜFE değişimlerini göster.", ("2023-01", "2023-06")),
+    ("2023 yılında Ocak-Mart TÜFE değişimlerini göster.", ("2023-01", "2023-03")),
+    ("2023 Ocak ve Mart arasında TÜFE değişimlerini göster.", ("2023-01", "2023-03")),
     ("2023-01 ile 2023-03 TÜFE değişimlerini göster.", ("2023-01", "2023-03")),
     ("01/2023 ile 03/2023 TÜFE değişimlerini göster.", ("2023-01", "2023-03")),
     ("1 Ocak 2023-31 Mart 2023 TÜFE değişimlerini göster.", ("2023-01", "2023-03")),
@@ -49,8 +51,12 @@ def test_supported_explicit_periods_resolve_to_closed_months(question, expected)
     "2023 Ocak-Mart ve 2023 Nisan-Haziran TÜFE değişimlerini göster.",
     "2023'ün ikinci çeyreği ile üçüncü çeyreğinde TÜFE değişimlerini göster.",
     "1 Ocak 2023-15 Mart 2023 TÜFE değişimlerini göster.",
-    "2023 yılında Ocak-Mart TÜFE değişimlerini göster.",
+    "2023 yılında ve 2024 Ocak-Mart TÜFE değişimlerini göster.",
     "2023 Ocak, Şubat ve Mart TÜFE değişimlerini göster.",
+    "2023 Ocak ve Mart TÜFE değişimlerini göster.",
+    "2023 yılı boyunca 2023-02-15 ile 2023-03-15 arasındaki TÜFE değişimini göster.",
+    "15.02.2023 ile 15.03.2023 arasındaki TÜFE değişimini göster.",
+    "2025-2023 TÜFE değişimlerini göster.",
 ])
 def test_ambiguous_or_incomplete_dates_do_not_invent_a_period(question):
     assert explicit_period(question) is None

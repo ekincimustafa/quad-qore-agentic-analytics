@@ -59,9 +59,18 @@ Sorudaki döneme yalnız şu açık biçimlerde karşılık aranır:
   kabul edilir);
 - kapalı ay aralığı: `2023 Ocak-Mart`, `Ocak-Mart 2023`,
   `2020 Aralık-2021 Mart`, `2023 Ocak ile Mart arasında`,
-  `2023 Ocak'tan Mart'a kadar`;
+  `2023 Ocak ve Mart arasında`, `2023 Ocak'tan Mart'a kadar`;
 - noktalar: `2021-02`, `01/2021 ile 03/2021`, `2021 Ocak` gibi tek ay, tam gün
   sınırlı `1 Ocak 2021–31 Mart 2021` ve tam yıl aralığı `2021-2025`.
+
+`2023 yılında Ocak-Mart` ifadesindeki yıl, daha belirli ay aralığının bağlamıdır;
+ayrı bir tam yıl isteği sayılmaz ve sonuç 2023-01–2023-03 olur. Yalnız gerçekten
+farklı dönemler (`2023 yılında ve 2024 Ocak-Mart`) çelişki sayılır. Kesintili ay
+listesi `2023 Ocak ve Mart` aralık değildir; Şubat'ı kapsamadığı için
+`period_required` döndürür. Aralık bildiren `Ocak ve Mart arasında` kabul edilir.
+ISO veya sayısal gün sınırları (`2023-02-15`, `15.02.2023`) desteklenmez; tam gün
+aralığı yalnız `1 Ocak 2023–31 Mart 2023` gibi adlandırılmış aylarla kabul edilir.
+Ters yıl aralığı (`2025-2023`) reddedilir.
 
 Tek ayın ardından `itibaren`, `sonra/sonraki`, `sonrası` veya `başlayarak`
 gelirse bitiş eksik sayılır; tanınan ay kapalı tek aya çevrilmez. Planın iki ucu
@@ -97,10 +106,12 @@ kez yapılır; formüller yönlendirme/API/ekran katmanında tekrarlanmaz.
 Python planı analizden önce soruyla karşılaştırır. İki yıl açık değilse, yıllar
 eksik/uyuşmuyor veya ters verilmişse, model tek dönem özeti seçmişse ya da soru
 aynı yılı iki kez/tek yıl belirtiyorsa `period_required` döner. Ortalama, kısmi
-dönem (tek ay veya ISO ay dahil), açık TÜFE dışı metrik, tahmin ve nedensellik
-istekleri `unsupported`; tam yıl veri kapsamı dışındaysa `outside_coverage`
-olur. Yalnız açık `yıllık` ifadesiyle istenen Aralık karşılaştırmaları bu
-kontrolden geçer. Bu durumlarda analiz 0 kez çalışır. Eksik
+dönem, açık TÜFE dışı metrik, tahmin ve nedensellik istekleri `unsupported`;
+tam yıl veri kapsamı dışındaysa `outside_coverage` olur. Kısmi dönem niyeti
+cümledeki konumdan bağımsız denetlenir: `2023 ve 2024 için ikinci çeyrek`,
+`2023 ile 2024 ... ilk altı ay` ve `2023 ve 2024 için Ocak ayı` gibi ifadeler de
+`unsupported` döndürür. Yalnız açık `yıllık`/`12 aylık` ifadesiyle istenen Aralık
+karşılaştırmaları bu kontrolden geçer. Bu durumlarda analiz 0 kez çalışır. Eksik
 önceki Aralık nedeniyle yıllık oran veya fark `null` kalabilir; sıfır/tahmin
 üretilmez. “2023-2024 TÜFE değişimlerini özetle.” aralık özeti karşılaştırma
 sayılmaz. Yeni bir HTTP endpoint'i, genel tarih ayrıştırıcısı, grafik katmanı

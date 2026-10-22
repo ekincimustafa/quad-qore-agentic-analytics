@@ -115,6 +115,8 @@ def test_documented_requests_call_one_service_and_equal_direct_api(monkeypatch, 
     ("2023'ün son altı ayında genel TÜFE değişimlerini göster.", "2023-07", "2023-12"),
     ("2023 Ocak ile Mart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
     ("2023 Ocak'tan Mart'a kadar genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 yılında Ocak-Mart genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 Ocak ve Mart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
 ])
 def test_natural_closed_period_matches_direct_cpi_api(question, start, end):
     payload = comparison_payload(question)
@@ -145,8 +147,10 @@ def test_natural_closed_period_matches_direct_cpi_api(question, start, end):
      ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
     ("2023 Ocak'tan itibaren TÜFE değişimlerini göster.",
      ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-01")),
-    ("2023 yılında Ocak-Mart TÜFE değişimlerini göster.",
+    ("2023 Ocak ve Mart TÜFE değişimlerini göster.",
      ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023 yılı boyunca 2023-02-15 ile 2023-03-15 arasındaki TÜFE değişimini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-12")),
 ])
 def test_wrong_natural_period_ready_plan_never_runs_analysis(monkeypatch, question, plan):
     def forbidden(*args, **kwargs):
@@ -234,6 +238,12 @@ def test_comparison_endpoint_matches_existing_core_and_exposes_typed_evidence(mo
     ("2023 Ocak ile 2024 Ocak TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
      {"status": "unsupported", "reason": "unsupported_analysis"}),
     ("2023-01 ile 2024-01 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 için ikinci çeyrek TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ile 2024 TÜFE değişimlerini ilk altı ay için karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 için Ocak ayı TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
      {"status": "unsupported", "reason": "unsupported_analysis"}),
     ("2023 ve 2024 konut kredisi faizlerini karşılaştır.", comparison_ready(2023, 2024),
      {"status": "unsupported", "reason": "unsupported_analysis"}),

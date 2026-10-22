@@ -21,11 +21,17 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 - Ayrıştırıcı, servis, normal API ve doğrulanmış dosya API regresyon testleri
   eklendi; kabul edilen biçimler `docs/economic-question.md` içinde belgelendi.
   Mevcut değerlendirme vakaları değiştirilmedi.
-- Odaklı çalışma: 283 test geçti. Tam çevrimdışı doğrulama başarılı:
-  1064 geçti, 2 atlandı; Economic 37/37 ve Housing 9/9 stub değerlendirme;
-  `git diff --check` temiz (`out/verification/20261022T114253Z-19360-c7c7e704`).
+- Bağımsız inceleme bulguları düzeltildi: kısmi karşılaştırma niyeti cümle
+  konumundan bağımsız `unsupported`; ISO/sayısal gün sınırları ve ters yıl
+  aralığı reddediliyor; `2023 yılında Ocak-Mart` yıl bağlamıyla 2023-01–03
+  çözülüyor; çıplak `Ocak ve Mart` listesi aralığa dönüşmüyor, `Ocak ve Mart
+  arasında` aralık kalıyor. Yanlış planlarda servis ve iki HTTP yolunda analiz
+  0 kez çalışıyor.
+- Odaklı çalışma: 309 test geçti. Tam çevrimdışı doğrulama başarılı:
+  1090 geçti, 2 atlandı; Economic 37/37 ve Housing 9/9 stub değerlendirme;
+  `git diff --check` temiz (`out/verification/20261022T130731Z-15508-847b821d`).
   PR: https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/101.
-  Bağımsız inceleme sonraki adım; bu dal burada birleştirilmedi ve canlı
+  Yeni head bağımsız incelemeye bırakıldı; bu dal burada birleştirilmedi ve canlı
   EVDS/model çağrısı yapılmadı.
 
 ## Portföy README düzenlemesi — 21 Ekim 2026
