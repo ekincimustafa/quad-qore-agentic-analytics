@@ -20,6 +20,32 @@ analizini desteklemeye devam eder.
   `compare_inflation_years()` çekirdeği. Plan yalnız `first_year` ve
   `second_year` taşır; yıl sırası kullanıcının söylediği sıradır.
 
+### Parametreli konut koşulu filtreleme çekirdeği
+
+`app/services/housing_filter.py` içindeki `run_housing_filter()`, normalize
+BDDK/EVDS satırlarında 1–3 tipli koşulu AND ile uygular. İzinli metrikler
+`interest_rate_change_pp` (yüzde puan), `real_housing_loan_change_pct`,
+`nominal_housing_loan_change_pct` ve `housing_loan_interest_rate_pct`
+(yüzde); operatörler `lt`, `lte`, `gt`, `gte`. Eşik sonlu bir sayı olmalıdır;
+bool/metin/NaN/Infinity, bilinmeyen metrik veya operatör ve fazladan alan
+reddedilir. Koşullar Gold hesaplayıcısı çalışmadan önce doğrulanır.
+
+Servis `build_housing_gold_table()` çağrısını bir kez yapar ve hesapları
+tekrar etmez; eski `rate_down_real_credit_not_up` bayrağını ön filtre olarak
+kullanmaz. Null bir koşul değeri olan ay değerlendirilemez ve eşleşmez; ilk ay
+değişim koşullarında dışarıda kalır, yalnız faiz seviyesi koşuluyla
+eşleşebilir. Boş eşleşme başarılı boş sonuçtur. Evidence açık dönemi,
+koşulları ve birimlerini, `observed_month_count`, `evaluable_month_count`,
+`matched_month_count`, kronolojik `matched_periods`, eşleşen ayların Gold
+değerleri/kaynakları/kalite notlarını taşır. Girdiler değiştirilmez; JSON'da
+NaN/Infinity bulunmaz. Servis fiziksel dosya veya hash doğrulaması yapmaz.
+
+Eski kuralın parametre karşılığı
+`interest_rate_change_pp lt 0` + `real_housing_loan_change_pct lte 0`
+mevcut `find_rate_down_real_credit_not_up()` ile aynı ayları verir. Bu PR
+yalnız çekirdek ve testleridir; LLM planlama, `analysis_id` dispatch'i,
+HTTP/ekran entegrasyonu ve OR/sıralama/top-N yoktur.
+
 Çağıran, normalize edilmiş `HousingQuestionData` ve/veya
 `InflationQuestionData` sağlar. Servis konut kapsamını ortak, kesintisiz
 BDDK/EVDS aylarından; TÜFE kapsamını sayısal değerleri ve tüm geçmişi

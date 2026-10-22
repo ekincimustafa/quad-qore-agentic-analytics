@@ -10,6 +10,38 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## #103 parametreli konut koşulu filtreleme çekirdeği — 22 Ekim 2026
+
+- Dal `feat/housing-condition-filter`; güncel `origin/main` `4aecee0`
+  (PR #101 merge) üzerinden açıldı. Afra #99 ve Osman #100 kapsamına dokunulmadı.
+- `app/services/housing_filter.py` eklendi. `run_housing_filter()` normalize
+  BDDK/EVDS satırlarını mevcut `build_housing_gold_table()` ile tam bir kez
+  işler; reel kredi, değişim ve birleştirme formülleri tekrarlanmaz. Yalnız
+  dört metrik ve `lt/lte/gt/gte` operatörleri, 1–3 AND koşulu izinlidir.
+  Koşullar strict/frozen Pydantic ile Gold hesaplayıcısından önce doğrulanır;
+  bool/metin/NaN/Infinity, bilinmeyen metrik/operatör ve fazladan alan reddedilir.
+- Filtre tüm Gold aylarını kendi koşullarıyla değerlendirir; eski
+  `rate_down_real_credit_not_up` bayrağı ön filtre değildir. Null değerli ay
+  değerlendirilemez/eşleşmez, ilk ay yalnız faiz seviyesi koşuluyla eşleşebilir.
+  Sonuç açık dönemi, koşul/birimleri, gözlem/değerlendirilebilir/eşleşme
+  sayılarını, kronolojik dönemleri, eşleşen Gold değerleri/kaynak/kalite
+  notlarını taşır; NaN/Infinity yoktur. Boş eşleşme başarılı sonuçtur.
+- `tests/test_housing_filter.py`: **28 passed**. Dört operatör, eşik eşitliği,
+  pozitif/negatif/kesirli eşik, 1–3 AND, tek ay, sıfır eşleşme, null/ilk ay,
+  eski fonksiyon eşdeğerliği, geçersiz koşulda builder'ın 0 kez çalışması,
+  geçerli koşulda tam 1 kez çalışması, girdi/kaynak değişmezliği, kronoloji ve
+  JSON güvenliği sınanır.
+- Odaklı komşu paket **69 passed**. Tek `scripts.verify_project`:
+  **1152 passed, 2 skipped**; Housing **9/9**, Economic **37/37**, canlı çağrı
+  **0**, `git diff --check` temiz
+  (`out/verification/20261022T143352Z-2952-ff70a813`). Mevcut analiz/API
+  beklentileri değişmedi.
+- Kapsam yalnız deterministik çekirdektir: LLM planlama/`analysis_id` dispatch,
+  HTTP/ekran/grafik, OR/sıralama/top-N ve yeni bağımlılık yok. PR
+  [#104](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/104)
+  bağımsız incelemeye bırakıldı; merge/release ve canlı LLM/EVDS çağrısı
+  yapılmadı.
+
 ## Issue #98 doğal dönem çözümleme — 22 Ekim 2026 (PR #101)
 
 - Etkin dal `feat/natural-question-periods`; `main` `f3a15a8` üzerinden açıldı.
