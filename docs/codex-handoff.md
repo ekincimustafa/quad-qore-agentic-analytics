@@ -10,6 +10,39 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## #100 çevrimdışı yerel kurulum ve veri paketi teşhis komutu — 22 Ekim 2026
+
+- Dal `feat/check-local-setup`; güncel `origin/main` `dcd5814` üzerinden açıldı.
+- `scripts/check_local_setup.py` eklendi (`python -m scripts.check_local_setup [--data-root <yol>] [--json]`):
+  - Python 3.12 ve `requirements.txt` çalışma zamanı paketlerini `importlib.metadata`
+    ile çevrimdışı denetler; kurulum veya ortam değişikliği yapmaz.
+  - Veri kökü seçiminde `--data-root > süreç ANALYTICS_DATA_ROOT > yerel .env > repo kökü`
+    önceliğini uygular; süreç ortamını `.env` ile ezmez ve boşluklu Windows yollarını
+    destekler.
+  - Gerçek dosya doğrulamasını yeniden yazmadan `VerifiedHousingQuestionPaths`,
+    `load_verified_question_inputs` ve `derive_economic_coverage` ile tam
+    Bronze/makbuz/hash/Silver zincirini denetler; BDDK, TÜFE ve konut kapsamı için
+    satır/dönem sayılarını doğrulanmış snapshot'tan dinamik üretir.
+  - LLM ayarını yalnız yerel `read_llm_settings()` ile denetler; sağlayıcıya ağ
+    isteği göndermez, `Ayar mevcut; sağlayıcı erişimi denenmedi` ile canlı erişim
+    arasındaki farkı korur (`live_model_access_verified: false`), anahtar veya ham
+    `.env`/hata gövdesi sızdırmaz.
+  - Veri ve çalışma zamanı uygunsa LLM anahtarı olmasa da `preview_ready: true` ve
+    çıkış kodu `0` döner (`llm_not_configured` / `llm_config_invalid` yalnız uyarıdır);
+    eksik/bozuk veri veya zorunlu ortam hatasında çıkış kodu `1` döner.
+- `tests/test_check_local_setup.py`: **23 passed** (geçerli sentetik paket, boşluklu
+  yol, dinamik dönem/satır üretimi, 4 kademeli veri kökü önceliği, 14 eksik/bozuk
+  veri ve Bronze hash senaryosu, Python/paket hataları, LLM ayar varyasyonları,
+  gizli değer sızdırmama ve sıfır ağ/model/analiz çağrısı).
+- Yerelde mevcut gerçek teslim paketi (`out/issue-076 setup/delivery/inputs`,
+  boşluklu yol) üzerinde tek çevrimdışı teşhis koşusu doğrulandı: `exit 0`,
+  `preview_ready: true`, BDDK/TÜFE/konut kapsamı 66 ay (`2021-01`–`2026-06`).
+- `README.md` kullanım ve bilinen teşhis kodları tablosuyla güncellendi. Uygulama
+  HTTP sözleşmesi, UI, ekonomik planlama/hesaplar ve bağımlılıklar değişmedi.
+- Tam çevrimdışı doğrulama (`scripts.verify_project`): **1177 passed**; Housing
+  **9/9**, Economic **37/37** stub değerlendirme, canlı çağrı **0**,
+  `git diff --check` temiz (`out/verification/20261022T193541Z-36076-62743d7b`).
+
 ## #103 parametreli konut koşulu filtreleme çekirdeği — 22 Ekim 2026
 
 - Dal `feat/housing-condition-filter`; güncel `origin/main` `4aecee0`
