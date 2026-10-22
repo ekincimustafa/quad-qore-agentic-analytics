@@ -35,6 +35,7 @@ def test_offline_command_runs_curated_cases_and_counts_only_question_executions(
     assert report["passed_cases"] == report["selected_cases"] == 37
     assert sum(row["stub_calls"] for row in report["results"]) == 36
     assert sum(row["housing_calls"] for row in report["results"]) == 4
+    assert sum(row["filter_calls"] for row in report["results"]) == 1
     assert sum(row["inflation_calls"] for row in report["results"]) == 5
     assert sum(row["comparison_calls"] for row in report["results"]) == 3
     assert report["case_set_sha256"] and len(report["fixture_sha256"]) == 4
@@ -58,6 +59,23 @@ def test_valid_but_wrong_stub_plan_makes_command_fail(tmp_path, monkeypatch):
     assert report["results"][0]["housing_calls"] == 0
     assert report["results"][0]["python_blocked_ready_plan"] is True
     assert report["results"][0]["model_decision_matches_expectation"] is False
+
+
+def test_wrong_filter_threshold_is_blocked_without_a_filter_call(tmp_path, monkeypatch):
+    suite = json.loads(evaluator.CASES_PATH.read_text(encoding="utf-8"))
+    case = next(item for item in suite["cases"] if item["id"] == "EQ-025")
+    case["offline_response"]["conditions"][1]["threshold"] = 1.0
+    case_path = tmp_path / "cases.json"
+    case_path.write_text(json.dumps({"schema_version": "1.0", "cases": [case]}), encoding="utf-8")
+    monkeypatch.setattr(evaluator, "ROOT", tmp_path)
+    monkeypatch.setattr(evaluator, "CASES_PATH", case_path)
+    report_path = tmp_path / "out/report.json"
+    assert evaluator.main(["--output", str(report_path)]) == 1
+    row = json.loads(report_path.read_text(encoding="utf-8"))["results"][0]
+    assert row["reason"] == "status_mismatch"
+    assert row["filter_calls"] == 0
+    assert row["python_blocked_ready_plan"] is True
+    assert row["model_decision_matches_expectation"] is False
 
 
 def test_report_cannot_overwrite_case_inputs():

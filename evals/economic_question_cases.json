@@ -190,9 +190,11 @@
     {
       "id": "EQ-025",
       "question": "2021 Ocak-Mart faiz yükselirken reel konut kredisi stokunun arttığı aylar hangileri?",
-      "rationale": "Anlamlı yakın ekonomik koşul fakat izinli analiz faiz düşüşü ve reel stokun artmamasıdır; koşul tersine çevrilmez.",
-      "offline_response": {"status": "unsupported", "reason": "unsupported_analysis"},
-      "expected_decision": {"status": "unsupported", "reason": "unsupported_analysis"}
+      "rationale": "Parametreli koşul filtresi artık faiz değişimi ve reel kredi değişimi eşiklerini birlikte değerlendirir; bu sentetik dönemde iki koşulu birlikte sağlayan ay yoktur.",
+      "offline_response": {"status": "ready", "analysis_id": "housing_condition_filter", "start_period": "2021-01", "end_period": "2021-03", "conditions": [{"metric": "interest_rate_change_pp", "operator": "gt", "threshold": 0.0}, {"metric": "real_housing_loan_change_pct", "operator": "gt", "threshold": 0.0}]},
+      "expected_decision": {"status": "ready", "analysis_id": "housing_condition_filter", "start_period": "2021-01", "end_period": "2021-03", "conditions": [{"metric": "interest_rate_change_pp", "operator": "gt", "threshold": 0.0}, {"metric": "real_housing_loan_change_pct", "operator": "gt", "threshold": 0.0}]},
+      "expected_observed_month_count": 3,
+      "expected_matched_periods": []
     },
     {
       "id": "EQ-026",
