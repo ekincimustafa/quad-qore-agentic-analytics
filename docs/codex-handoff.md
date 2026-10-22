@@ -46,8 +46,23 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   (`out/verification/20261022T163736Z-18468-172992c8`). Bu sonuçlar
   `harness_behavior_only` stub kapsamıdır; canlı model/EVDS kabulü değildir.
 - PR [#106](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/106)
-  açıldı; kod commit'i `127d488`. Bağımsız incelemede duruldu. Merge, release ve
+  açıldı; ilk kod commit'i `127d488`. Bağımsız incelemede duruldu. Merge, release ve
   canlı LLM/EVDS çağrısı yapılmadı.
+- Bağımsız incelemedeki dört P1 bulgu aynı dalda düzeltildi (kod commit'i
+  `e839935`): legacy ready yolu artık yalnız tam
+  `interest_rate_change_pp lt 0` + `real_housing_loan_change_pct lte 0`
+  koşullarını kabul ediyor; `altında olmayan` gibi negasyonlar ters operatöre
+  çevriliyor; aynı metrikteki iki sınır birlikte korunuyor; `azalışı %2'yi aşan`
+  gibi ifadeler `lt -2` işaretli değişime dönüşüyor. Önce başarısız regresyonlar
+  yazıldı; servis, normal HTTP ve verified `/files` yollarında yanlış planlarda
+  analiz 0 kez çalışıyor. Geçerli eski iki koşullu sorular ve iki sınırlı sorular
+  korunuyor; güvenilir yorumlanamayan ifade netleştirme istiyor.
+- İnceleme düzeltmeleri odaklı paketi **521 passed, 1 skipped**. Tek
+  `scripts.verify_project`: **1211 passed, 2 skipped**; Housing **9/9**,
+  Economic **37/37**, canlı çağrı **0**, `git diff --check` temiz
+  (`out/verification/20261022T172113Z-3196-c8f3f507`). Bunlar
+  `harness_behavior_only` stub kapsamıdır; canlı model/EVDS kabulü değildir.
+  Review thread'leri yanıtsız/bağımsız incelemeye bırakılır; merge/release yok.
 
 ## #103 parametreli konut koşulu filtreleme çekirdeği — 22 Ekim 2026
 
