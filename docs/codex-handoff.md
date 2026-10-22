@@ -45,8 +45,9 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   **0**, `git diff --check` temiz
   (`out/verification/20261022T163736Z-18468-172992c8`). Bu sonuçlar
   `harness_behavior_only` stub kapsamıdır; canlı model/EVDS kabulü değildir.
-- Sıradaki adım: commit/push ve `Closes #105` içeren PR'ı açıp bağımsız
-  incelemeye bırakmak. Merge, release ve canlı LLM/EVDS çağrısı yapılmadı.
+- PR [#106](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/106)
+  açıldı; kod commit'i `127d488`. Bağımsız incelemede duruldu. Merge, release ve
+  canlı LLM/EVDS çağrısı yapılmadı.
 
 ## #103 parametreli konut koşulu filtreleme çekirdeği — 22 Ekim 2026
 
