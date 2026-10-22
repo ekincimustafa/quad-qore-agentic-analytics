@@ -24,10 +24,20 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   analysis_id, dönem ve yıl sırası doğrulandı; `git diff --check` temiz.
 - Mevcut 37 Economic ve 9 Housing vakası, evaluator, runtime,
   API, UI ve CI değiştirilmedi. Canlı LLM/EVDS çağrısı yapılmadı.
-- Yeni set model üzerinde çalıştırılmadı; planned vakalar mevcut
-  uygulama tarafından destekleniyor olarak gösterilmiyor.
-- Sonraki adım: odaklı içerik kontrolleri, commit/push ve
-  bağımsız inceleme için PR. Uygulayan oturum merge yapmayacak.
+- Kabul setinin `planned` etiketleri başlangıç commit'i `f3a15a8`
+  için geçerlidir; güncel `main` özellik envanteri değildir.
+  #104/#106 sonrasında konut filtreleme uygulamaya eklendi.
+  EUA-041–044 için canlı model başarısı iddia edilmez; çok turlu
+  devam soruları hâlâ geleceğe yönelik kabul beklentisidir.
+- PR #102 ilk teslim commit'i `6f3ce9c` ile açıldı; ilk head'in
+  zorunlu Python 3.12 CI kontrolü başarılıydı.
+- Bağımsız incelemede istenen güncel `main` birleştirmesi
+  `d87103e` merge commit'iyle tamamlandı. #99 ve #105
+  handoff kayıtları birlikte korundu.
+- Sonraki adım: belge düzeltmelerini doğrulayıp aynı PR #102'ye
+  commit/push etmek ve yeni head'in CI sonucunu kontrol etmek.
+  Canlı LLM/EVDS çağrısı, release veya uygulayan tarafından
+  PR merge işlemi yapılmayacak.
 
 ## #105 parametreli konut filtresini soru/API/ekran akışına bağlama — 22 Ekim 2026
 

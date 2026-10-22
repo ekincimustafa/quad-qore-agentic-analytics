@@ -8,6 +8,21 @@ Bu set, gerçek kullanıcıların üç örnek düğmesinden farklı ifadelerle s
 
 Mevcut 37 Economic + 9 Housing vakası, evaluator/prompt/runtime/API/UI/CI ve gerçek veri dosyaları değiştirilmez. Yeni vaka setindeki sayılar sadece tarih ve filtre eşiği gibi *talep parametreleridir*; TÜFE ya da kredi hesaplama sonucu üretilmez.
 
+## Aşama etiketlerinin kapsamı
+
+`capability_stage` ve `expected_decision.status="planned"` etiketleri,
+kabul setinin hazırlandığı `f3a15a8` başlangıç commit'ine aittir.
+Bunlar güncel `main` branch'inin otomatik özellik envanteri değildir.
+
+#104 ve #106 sonrasında parametreli konut filtreleme çekirdeğe ve
+soru/API akışına bağlandı. Bu nedenle EUA-041–044 vakalarının hedeflediği
+filtreleme yeteneği artık uygulamada bulunmaktadır. Ancak bu dört doğal
+sorunun canlı model tarafından doğru anlaşıldığı doğrulanmış değildir.
+
+Çok turlu devam soruları hâlâ geleceğe yönelik kabul beklentisidir.
+48 vakanın bağımsız ekonomik beklentileri ve kategori dağılımı
+bu gelişmeler nedeniyle değiştirilmez.
+
 ## Kategori dağılımı
 
 | `category` | Adet | `capability_stage` | Kullanım amacı |
@@ -29,7 +44,7 @@ Her `cases[]` kaydı şu alanları içerir:
 | --- | --- |
 | `id` | Kararlı, benzersiz `EUA-001`–`EUA-048` kimliği |
 | `category` | Yukarıdaki kapsam sınıfı |
-| `capability_stage` | `existing_analysis`: mevcut ürün karar/sözleşme kapsamı; `planned`: henüz uygulanmamış iş hedefi |
+| `capability_stage` | `existing_analysis`: mevcut ürün karar/sözleşme kapsamı; `planned`: başlangıç sürümünde hedeflenen yetenek |
 | `user_messages` | Sırayla bir veya birden fazla kullanıcı iletisi; çok turlu vakada iki ileti |
 | `expected_business_meaning` | Kullanıcının ekonomik veya işlevsel olarak ne istediğinin bağımsız açıklaması |
 | `expected_parameters` | Soruya göre `metric`, açık `start_period`/`end_period`, ya da sıralı `first_year`/`second_year`; planlanan filtrelerde `filters`, çok turluda `inherited_from_turn` |
@@ -51,7 +66,7 @@ Mevcut üç gerçek `analysis_id`: `housing_rate_down_real_credit_not_up`, `cpi_
 
 ## Doğrulama ve kullanım
 
-Bu set **manuel inceleme/oracle** niteliğindedir. `expected_decision` alanını bugünkü API'ye körlemesine göndererek “48 geçti” sonucu üretmeyin; özellikle `planned` vakalar destekli değildir, bazı açık tarih ifadeleri de mevcut parser tarafından henüz kabul edilmeyebilir.
+Bu set **manuel inceleme/oracle** niteliğindedir. `expected_decision` alanını bugünkü API'ye körlemesine göndererek “48 geçti” sonucu üretmeyin; özellikle `planned` etiketleri başlangıç sürümüne aittir, bazı açık tarih ifadeleri de mevcut parser tarafından henüz kabul edilmeyebilir.
 
 Depo kökünde mevcut Python 3.12 ortamıyla aşağıdaki **sadece-okuma** kontrolü kullanılabilir:
 
