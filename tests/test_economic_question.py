@@ -162,6 +162,8 @@ def test_explicit_period_and_real_metric_reach_existing_analysis(data, question,
     ("2023 Ocak'tan Mart'a kadar genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
     ("2023 yılında Ocak-Mart genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
     ("2023 Ocak ve Mart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 Ocak\tve\tMart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("Ocak 2023 ve Mart 2023 arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
 ])
 def test_natural_closed_period_runs_existing_cpi_service_once(monkeypatch, question, start, end):
     periods = pd.period_range("2022-01", "2023-12", freq="M").astype(str)
@@ -201,6 +203,14 @@ def test_natural_closed_period_runs_existing_cpi_service_once(monkeypatch, quest
     ("2023 yılı boyunca 2023-02-15 ile 2023-03-15 arasındaki TÜFE değişimini göster.",
      ready(service.INFLATION_ID, start="2023-01", end="2023-12")),
     ("2023 Ocak ve Mart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start="2023-01", end="2023-03")),
+    ("2023 Ocak\tve\tMart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start="2023-01", end="2023-03")),
+    ("2023 Ocak ve 2023 Mart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start="2023-01", end="2023-03")),
+    ("Ocak 2023 ve Mart 2023 TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start="2023-01", end="2023-03")),
+    ("2023 yılının tamamında ve 2023 Ocak-Mart TÜFE değişimlerini göster.",
      ready(service.INFLATION_ID, start="2023-01", end="2023-03")),
 ])
 def test_unbounded_day_or_month_list_ready_plan_never_runs_analysis(monkeypatch, question, plan):
@@ -305,6 +315,8 @@ def test_comparison_plan_runs_existing_core_once_and_matches_direct_result(
     ("2023 Ocak-Haziran ile 2024 Ocak-Haziran TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
     ("2023 Ocak ile 2024 Ocak TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
     ("2023-01 ile 2024-01 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
+    ("2023-02-15 ile 2024-03-15 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
+    ("15.02.2023 ile 15.03.2024 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
     ("2023 ve 2024 için ikinci çeyrek TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
     ("2023 ile 2024 TÜFE değişimlerini ilk altı ay için karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),
     ("2023 ve 2024 için Ocak ayı TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024), ("unsupported", "unsupported_analysis")),

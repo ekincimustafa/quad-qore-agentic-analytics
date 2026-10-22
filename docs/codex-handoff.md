@@ -27,12 +27,17 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   çözülüyor; çıplak `Ocak ve Mart` listesi aralığa dönüşmüyor, `Ocak ve Mart
   arasında` aralık kalıyor. Yanlış planlarda servis ve iki HTTP yolunda analiz
   0 kez çalışıyor.
-- Odaklı çalışma: 309 test geçti. Tam çevrimdışı doğrulama başarılı:
-  1090 geçti, 2 atlandı; Economic 37/37 ve Housing 9/9 stub değerlendirme;
-  `git diff --check` temiz (`out/verification/20261022T130731Z-15508-847b821d`).
+- Son inceleme düzeltmeleri: gün sınırı denetimi karşılaştırma yoluna da
+  uygulanıyor; ay listesi/aralık ayrımı iki month-point fallback dahil tekrar
+  eden yıllar ve tab/çoklu boşluklarda korunuyor; `2023 yılında` bağlamı açık
+  `yılının tamamı`/`yılı boyunca` isteğinden ayrılıyor. Açık tam yıl ile dar
+  dönem aynı yıl olsa bile `period_required`; analiz 0 kez çalışıyor.
+- Odaklı çalışma: 308 test geçti. Tam çevrimdışı doğrulama başarılı:
+  1124 geçti, 2 atlandı; Economic 37/37 ve Housing 9/9 stub değerlendirme;
+  `git diff --check` temiz (`out/verification/20261022T133059Z-832-e660d4e0`).
   PR: https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/101.
-  Yeni head bağımsız incelemeye bırakıldı; bu dal burada birleştirilmedi ve canlı
-  EVDS/model çağrısı yapılmadı.
+  Aynı dala commit/push yapıldı; yeni head bağımsız incelemeye bırakıldı, bu dal
+  birleştirilmedi ve canlı EVDS/model çağrısı yapılmadı.
 
 ## Portföy README düzenlemesi — 21 Ekim 2026
 

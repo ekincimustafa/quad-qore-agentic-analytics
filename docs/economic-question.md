@@ -52,7 +52,9 @@ yanlış bir `ready` planı engellemesi model başarısı değildir.
 Sorudaki döneme yalnız şu açık biçimlerde karşılık aranır:
 
 - tam yıl: `2023 yılında`, `2023 yılı boyunca`, `2023 yılının tamamında`
-  (2023-01–2023-12);
+  (2023-01–2023-12). `2023 yılında` tek başına tam yıl isteğidir; aynı cümlede
+  daha dar bir aynı yıl aralığı varsa yalnız bağlam sayılır. `yılının tamamı`,
+  `yılı boyunca`, `yılı içinde` ve `yılı genelinde` açık tam yıl isteğidir;
 - çeyrek: `2023'ün ikinci çeyreği`, `2023 yılının 2. çeyreği`,
   `2023'ün ilk üç ayı`; `ilk/ikinci/üçüncü/dördüncü` ve `1./2./3./4.` eşdeğerdir;
 - yarıyıl: `2023'ün ilk/son altı ayı`, `2023 yılının ilk/son yarısı` (sayı `6` da
@@ -64,13 +66,16 @@ Sorudaki döneme yalnız şu açık biçimlerde karşılık aranır:
   sınırlı `1 Ocak 2021–31 Mart 2021` ve tam yıl aralığı `2021-2025`.
 
 `2023 yılında Ocak-Mart` ifadesindeki yıl, daha belirli ay aralığının bağlamıdır;
-ayrı bir tam yıl isteği sayılmaz ve sonuç 2023-01–2023-03 olur. Yalnız gerçekten
-farklı dönemler (`2023 yılında ve 2024 Ocak-Mart`) çelişki sayılır. Kesintili ay
-listesi `2023 Ocak ve Mart` aralık değildir; Şubat'ı kapsamadığı için
-`period_required` döndürür. Aralık bildiren `Ocak ve Mart arasında` kabul edilir.
-ISO veya sayısal gün sınırları (`2023-02-15`, `15.02.2023`) desteklenmez; tam gün
-aralığı yalnız `1 Ocak 2023–31 Mart 2023` gibi adlandırılmış aylarla kabul edilir.
-Ters yıl aralığı (`2025-2023`) reddedilir.
+ayrı bir tam yıl isteği sayılmaz ve sonuç 2023-01-2023-03 olur. Farklı yıllar
+(`2023 yılında ve 2024 Ocak-Mart`) veya açık tam yıl ile dar dönem
+(`2023 yılının tamamında ve 2023 Ocak-Mart`) çelişki sayılır. Kesintili ay
+listesi `2023 Ocak ve Mart`, `2023 Ocak ve 2023 Mart`, `Ocak 2023 ve Mart 2023`
+ve bunların tab/çoklu boşluk varyantları aralık değildir; Şubat'ı kapsamadığı
+için `period_required` döndürür. Aralık bildiren `Ocak ve Mart arasında` kabul
+edilir. ISO veya sayısal gün sınırları (`2023-02-15`, `15.02.2023`) desteklenmez
+ve karşılaştırma yolunda da tam yıla dönüşmez; tam gün aralığı yalnız
+`1 Ocak 2023-31 Mart 2023` gibi adlandırılmış aylarla kabul edilir. Ters yıl
+aralığı (`2025-2023`) reddedilir.
 
 Tek ayın ardından `itibaren`, `sonra/sonraki`, `sonrası` veya `başlayarak`
 gelirse bitiş eksik sayılır; tanınan ay kapalı tek aya çevrilmez. Planın iki ucu
@@ -109,9 +114,10 @@ aynı yılı iki kez/tek yıl belirtiyorsa `period_required` döner. Ortalama, k
 dönem, açık TÜFE dışı metrik, tahmin ve nedensellik istekleri `unsupported`;
 tam yıl veri kapsamı dışındaysa `outside_coverage` olur. Kısmi dönem niyeti
 cümledeki konumdan bağımsız denetlenir: `2023 ve 2024 için ikinci çeyrek`,
-`2023 ile 2024 ... ilk altı ay` ve `2023 ve 2024 için Ocak ayı` gibi ifadeler de
-`unsupported` döndürür. Yalnız açık `yıllık`/`12 aylık` ifadesiyle istenen Aralık
-karşılaştırmaları bu kontrolden geçer. Bu durumlarda analiz 0 kez çalışır. Eksik
+`2023 ile 2024 ... ilk altı ay`, `2023 ve 2024 için Ocak ayı` ve ISO/sayısal gün
+sınırları (`2023-02-15 ile 2024-03-15`, `15.02.2023 ile 15.03.2024`) gibi
+ifadeler de `unsupported` döndürür. Yalnız açık `yıllık`/`12 aylık` ifadesiyle
+istenen Aralık karşılaştırmaları bu kontrolden geçer. Bu durumlarda analiz 0 kez çalışır. Eksik
 önceki Aralık nedeniyle yıllık oran veya fark `null` kalabilir; sıfır/tahmin
 üretilmez. “2023-2024 TÜFE değişimlerini özetle.” aralık özeti karşılaştırma
 sayılmaz. Yeni bir HTTP endpoint'i, genel tarih ayrıştırıcısı, grafik katmanı

@@ -66,6 +66,8 @@ _OPEN_ENDED_PERIOD = re.compile(
     r"\b(?:itibaren|sonra(?:ki)?|sonrası(?:nda)?|başlayarak|bu\s+yana)\b"
 )
 _RANGE_SUFFIX = re.compile(r"^\s+(?:ay\w*\s+)?(?:arası\w*|aralığ\w*|kadar)\b")
+_LIST_SEPARATOR = re.compile(r"\bve\b")
+_RANGE_BETWEEN = re.compile(r"^\s*(?:[-–—]|ile)\s*$")
 _QUARTER_START = {1: 1, 2: 4, 3: 7, 4: 10}
 
 
@@ -119,6 +121,7 @@ def contains_partial_period_expression(text: str) -> bool:
     """True for a day, month-range, quarter or half-year expression."""
     return bool(
         _DAY_MONTH_YEAR.search(text)
+        or _DAY_DATE.search(text)
         or _ANY_NAMED_SPAN.search(text)
         or _QUARTER_PHRASE.search(text)
         or _HALF_PHRASE.search(text)
@@ -157,9 +160,25 @@ def _quarter_number(token: str) -> int:
 
 
 def _span_is_closed(text: str, match: re.Match[str]) -> bool:
-    if " ve " not in text[match.start():match.end()]:
+    if not _LIST_SEPARATOR.search(text[match.start():match.end()]):
         return True
     return bool(_RANGE_SUFFIX.match(text[match.end():]))
+
+
+def _whole_year_kind(phrase: str) -> str:
+    if phrase.endswith(("yılında", "yılındaki")):
+        return "whole_year_context"
+    return "whole_year_explicit"
+
+
+def _month_points_form_range(text: str, first: _MonthPoint, second: _MonthPoint) -> bool:
+    between = text[first.end:second.start]
+    if _RANGE_BETWEEN.match(between):
+        return True
+    return bool(
+        _LIST_SEPARATOR.search(between)
+        and _RANGE_SUFFIX.match(text[second.end:])
+    )
 
 
 def _complete_candidates(text: str) -> list[_Candidate]:
@@ -198,7 +217,8 @@ def _complete_candidates(text: str) -> list[_Candidate]:
     for match in _WHOLE_YEAR.finditer(text):
         candidates.append(_Candidate(
             start=f"{match['year']}-01", end=f"{match['year']}-12",
-            spans=((match.start(), match.end()),), kind="whole_year",
+            spans=((match.start(), match.end()),),
+            kind=_whole_year_kind(match.group()),
         ))
     return candidates
 
@@ -250,13 +270,18 @@ def explicit_period(question: str) -> tuple[str, str] | None:
         if len(periods) != 1:
             specific = [candidate for candidate in candidates if candidate.kind == "specific"]
             specific_periods = {(candidate.start, candidate.end) for candidate in specific}
-            whole_year = [candidate for candidate in candidates if candidate.kind == "whole_year"]
-            if len(specific_periods) != 1:
+            year_context = [
+                candidate for candidate in candidates if candidate.kind == "whole_year_context"
+            ]
+            explicit_whole_year = [
+                candidate for candidate in candidates if candidate.kind == "whole_year_explicit"
+            ]
+            if len(specific_periods) != 1 or explicit_whole_year:
                 return None
             start, end = next(iter(specific_periods))
             if not all(
                 candidate.start[:4] == start[:4] and candidate.end[:4] == end[:4]
-                for candidate in whole_year
+                for candidate in year_context
             ):
                 return None
             selected = specific
@@ -278,6 +303,8 @@ def explicit_period(question: str) -> tuple[str, str] | None:
         start = end = points[0].period
         spans = ((points[0].start, points[0].end),)
     else:
+        if not _month_points_form_range(text, points[0], points[1]):
+            return None
         start, end = points[0].period, points[1].period
         if start > end:
             return None
