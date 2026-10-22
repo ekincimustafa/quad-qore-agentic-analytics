@@ -49,8 +49,12 @@ mevcut `find_rate_down_real_credit_not_up()` ile aynı ayları verir. Soru/HTTP
 katmanında bu analiz `{"status":"ready","analysis_id":"housing_condition_filter",
 "start_period":"...","end_period":"...","conditions":[...]}` planıyla seçilir.
 Python, sorudaki açık metrik/yön/eşik/birim ifadelerini
-`app/services/housing_filter_question.py` ile sınırlı biçimde çıkarır ve plan
-koşullarıyla birebir karşılaştırır. Eksik/fazla/uydurulmuş koşul, açıkça
+`app/services/housing_filter_question.py` ile sınırlı biçimde çıkarır. Her
+karşılaştırma kendi sayısına eşlenir; açık negasyon tersine çevrilir,
+azalış/düşüş eşikleri işaretli değişime dönüştürülür ve aynı metrikteki iki
+sınır birlikte korunur. Eski `housing_rate_down_real_credit_not_up` planı yalnız
+`interest_rate_change_pp lt 0` + `real_housing_loan_change_pct lte 0` koşullarıyla
+kabul edilir. Plan koşullarıyla birebir karşılaştırılır. Eksik/fazla/uydurulmuş koşul, açıkça
 belirtilmemiş nominal/reel kredi, yüzde ile yüzde puan karışıklığı, OR, sıralama/top-N,
 ortalama/yıllık/toplam, tahmin/nedensellik ve kapsam dışı analizlerde analiz **0** kez
 çalışır; uygun `metric_ambiguous`, `question_ambiguous` veya `unsupported` kararı döner.

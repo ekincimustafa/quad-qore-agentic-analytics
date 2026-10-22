@@ -18,7 +18,10 @@ from app.services.housing_filter import (
     HousingFilterCondition,
     run_housing_filter,
 )
-from app.services.housing_filter_question import guard_housing_filter_question
+from app.services.housing_filter_question import (
+    guard_housing_filter_question,
+    guard_legacy_housing_question,
+)
 from app.services.housing_question import MAX_PLAN_CHARACTERS, MAX_QUESTION_CHARACTERS, ModelCall
 from app.services.inflation_analysis import (
     InflationAnalysisError,
@@ -152,14 +155,6 @@ ModelDecision = Annotated[
 EconomicDecision = ModelDecision | EconomicDataUnavailable
 _MODEL_DECISION = TypeAdapter(ModelDecision)
 
-_CREDIT_METRIC = r"(?:(?:konut\s+)?kredi\w*|stok\w*|bakiy\w*|tutar\w*)"
-_REAL_CREDIT = re.compile(
-    rf"\b(?:reel|enflasyondan\s+arındırılmış|tüfe\s+ile\s+arındırılmış|"
-    rf"enflasyona\s+göre\s+düzeltilmiş)\s+{_CREDIT_METRIC}\b"
-)
-_NOMINAL_CREDIT = re.compile(rf"\bnominal\s+{_CREDIT_METRIC}\b|\b{_CREDIT_METRIC}\s+nominal\b")
-_MIXED_METRICS = re.compile(r"\b(?:reel|nominal)\s+(?:ve|veya|ya\s+da|ile|mi)\s+(?:reel|nominal)\b")
-_NEGATED_METRIC = re.compile(r"(?:\s+\w+){0,2}\s+(?:değil\w*|olmayan|hariç|yerine|dışında\w*)\b")
 _COMPARISON_INTENT = re.compile(r"\b(?:karşılaştır\w*|kıyasla\w*)\b")
 _COMPARISON_OUT_OF_SCOPE = re.compile(r"\b(?:ortalama\w*|tahmin\w*|öngör\w*|yıllıklandır\w*|neden\w*|nedensellik\w*)\b")
 _EXPLICIT_NON_CPI_METRIC = re.compile(
@@ -229,18 +224,11 @@ def _ready_plan_guard(
         return None
     if plan.analysis_id != HOUSING_ID:
         return None
-    text = _question_text(question)
-    real = any(
-        not _NEGATED_METRIC.match(text[match.end():match.end() + 48])
-        for match in _REAL_CREDIT.finditer(text)
-    )
-    nominal = bool(_NOMINAL_CREDIT.search(text)) or "enflasyondan arındırılmamış" in text
-    if _MIXED_METRICS.search(text) or (real and nominal):
-        return EconomicClarification(status="clarification_required", reason="metric_ambiguous")
-    if nominal:
+    reason = guard_legacy_housing_question(question)
+    if reason == "unsupported":
         return EconomicUnsupported(status="unsupported", reason="unsupported_analysis")
-    if not real:
-        return EconomicClarification(status="clarification_required", reason="metric_ambiguous")
+    if reason is not None:
+        return EconomicClarification(status="clarification_required", reason=reason)
     return None
 
 

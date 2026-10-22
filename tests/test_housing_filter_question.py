@@ -88,6 +88,42 @@ def condition(metric, operator, threshold):
         "2021 ilk altı ay faiz oranı %20'nin altında olan aylar",
         (condition("housing_loan_interest_rate_pct", "lt", 20.0),),
     ),
+    (
+        "2021 Ocak-Mart faiz oranı %10'un üzerinde ve %20'nin altında olan aylar",
+        (
+            condition("housing_loan_interest_rate_pct", "gt", 10.0),
+            condition("housing_loan_interest_rate_pct", "lt", 20.0),
+        ),
+    ),
+    (
+        "2021 Ocak-Mart faiz oranı %20'nin altında olmayan aylar",
+        (condition("housing_loan_interest_rate_pct", "gte", 20.0),),
+    ),
+    (
+        "2021 Ocak-Mart faiz oranı %20'nin üstünde olmayan aylar",
+        (condition("housing_loan_interest_rate_pct", "lte", 20.0),),
+    ),
+    (
+        "2021 Ocak-Mart nominal konut kredisi stokunun aylık azalışı %2'yi aşan aylar",
+        (condition("nominal_housing_loan_change_pct", "lt", -2.0),),
+    ),
+    (
+        "2021 Ocak-Mart reel konut kredisi aylık düşüşü %2'yi geçen aylar",
+        (condition("real_housing_loan_change_pct", "lt", -2.0),),
+    ),
+    (
+        "2021 Ocak-Mart nominal konut kredisi stokunun aylık artışı %2'yi aşan aylar",
+        (condition("nominal_housing_loan_change_pct", "gt", 2.0),),
+    ),
+    (
+        "2021 Ocak-Mart faiz oranı %10'un üzerinde, reel konut kredisi artan ve "
+        "nominal konut kredisi artan aylar",
+        (
+            condition("housing_loan_interest_rate_pct", "gt", 10.0),
+            condition("real_housing_loan_change_pct", "gt", 0.0),
+            condition("nominal_housing_loan_change_pct", "gt", 0.0),
+        ),
+    ),
 ])
 def test_grounded_conditions_pass(question, conditions):
     assert guard_housing_filter_question(question, conditions) is None
@@ -148,6 +184,31 @@ def test_grounded_conditions_pass(question, conditions):
         "2021 Ocak-Mart reel konut kredisi değişmeyen aylar",
         (condition("real_housing_loan_change_pct", "lte", 0.0),),
         "question_ambiguous",
+    ),
+    (
+        "2021 Ocak-Mart faiz oranı %20'nin altında olmayan aylar",
+        (condition("housing_loan_interest_rate_pct", "lt", 20.0),),
+        "question_ambiguous",
+    ),
+    (
+        "2021 Ocak-Mart faiz oranı %10'un üzerinde ve %20'nin altında olan aylar",
+        (condition("housing_loan_interest_rate_pct", "gt", 10.0),),
+        "question_ambiguous",
+    ),
+    (
+        "2021 Ocak-Mart nominal konut kredisi stokunun aylık azalışı %2'yi aşan aylar",
+        (condition("nominal_housing_loan_change_pct", "gt", 2.0),),
+        "question_ambiguous",
+    ),
+    (
+        "2021 Ocak-Mart faiz oranı %10'un üzerinde, faiz oranı %20'nin altında, "
+        "reel konut kredisi artan ve nominal konut kredisi artan aylar",
+        (
+            condition("housing_loan_interest_rate_pct", "gt", 10.0),
+            condition("housing_loan_interest_rate_pct", "lt", 20.0),
+            condition("real_housing_loan_change_pct", "gt", 0.0),
+        ),
+        "unsupported",
     ),
 ])
 def test_ungrounded_conditions_are_rejected(question, conditions, reason):

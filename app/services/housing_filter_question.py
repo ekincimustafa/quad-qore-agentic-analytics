@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -12,15 +11,16 @@ from app.services.question_periods import normalize_question_text
 
 _AMOUNT_TAIL = r"(?:stok\w*|bakiy\w*|tutar\w*|hacm\w*|miktar\w*)"
 _CHANGE_TAIL = r"(?:değiş\w*|artış\w*|azalış\w*|büyüme\w*|gerileme\w*)"
-_CREDIT_BASE = r"(?:konut\s+)?kredi(?:si|leri|ler)?\b"
+_CREDIT_BASE = r"(?:konut\s+)?kredi\w*\b"
 _CREDIT_NOUN = rf"{_CREDIT_BASE}(?:\s+(?:{_AMOUNT_TAIL}|{_CHANGE_TAIL}))?"
+_CREDIT_SUBJECT = rf"(?:{_CREDIT_NOUN}|{_AMOUNT_TAIL})"
 _REAL_CREDIT = re.compile(
     r"\b(?:reel(?:\s+olarak)?|enflasyondan\s+arındırılmış|"
-    r"tüfe\s+ile\s+arındırılmış|enflasyona\s+göre\s+düzeltilmiş)\s+" + _CREDIT_NOUN
+    r"tüfe\s+ile\s+arındırılmış|enflasyona\s+göre\s+düzeltilmiş)\s+" + _CREDIT_SUBJECT
 )
-_NOMINAL_CREDIT = re.compile(r"\bnominal(?:\s+olarak)?\s+" + _CREDIT_NOUN)
+_NOMINAL_CREDIT = re.compile(r"\bnominal(?:\s+olarak)?\s+" + _CREDIT_SUBJECT)
 _COMBINED_CREDIT = re.compile(
-    r"\b(reel|nominal)\s+(?:ve|ile)\s+(reel|nominal)\s+" + _CREDIT_NOUN
+    r"\b(reel|nominal)\s+(?:ve|ile)\s+(reel|nominal)\s+" + _CREDIT_SUBJECT
 )
 _BARE_CREDIT = re.compile(
     rf"\b(?:{_CREDIT_BASE}(?:\s+{_AMOUNT_TAIL})?|{_AMOUNT_TAIL})"
@@ -41,13 +41,15 @@ _CHANGE_CUE = re.compile(
     r"büyü\w*|küçül\w*|sabit\s+kalan)\b"
 )
 _UP = re.compile(
-    r"\b(?:artan|artar|artıyor|arttı|artma\w*|artış\w*|yükselen|yükselir|"
-    r"yükseliyor|yükseldi|yükselme\w*|yükseliş\w*|büyüyen|büyür|büyüme\w*|pozitif)\w*"
+    r"\b(?:artan|artar|artıyor|arttı|artıp|artarak|artma\w*|artış\w*|yükselen|yükselir|"
+    r"yükseliyor|yükseldi|yükselip|yükselerek|yükselme\w*|yükseliş\w*|"
+    r"büyüyen|büyür|büyüyüp|büyüyerek|büyüme\w*|pozitif)\w*"
 )
 _DOWN = re.compile(
-    r"\b(?:azalan|azalır|azalıyor|azaldı|azalma\w*|azalış\w*|düşen|düşer|"
-    r"düşüyor|düştü|düşme\w*|düşüş\w*|gerileyen|geriler\w*|gerileme\w*|"
-    r"küçülen|küçülme\w*|negatif)\w*"
+    r"\b(?:azalan|azalır|azalıyor|azaldı|azalıp|azalarak|azalma\w*|azalış\w*|"
+    r"düşen|düşer|düşüyor|düştü|düşüp|düşerek|düşme\w*|düşüş\w*|"
+    r"gerileyen|geriler|gerileyip|gerileyerek|gerileme\w*|"
+    r"küçülen|küçülüp|küçülerek|küçülme\w*|negatif)\w*"
 )
 _NOT_UP = re.compile(
     r"\b(?:artmayan|artmadığı|artmadı|artmamış|artmayıp|artmıyor|"
@@ -61,6 +63,7 @@ _NOT_DOWN = re.compile(
     r"düşmeyen|düşmediği|düşmedi|düşmüyor|gerilemeyen)\w*"
 )
 _LEVEL_CUE = re.compile(r"\b(?:seviye\w*|oran\w*|düzey\w*)\b")
+_STABLE = re.compile(r"\bsabit\b")
 
 _RELATION = re.compile(
     r"(?P<gte>\ben\s+az(?:ından)?\b|\bve\s+(?:üzeri|üstü)\w*\b|"
@@ -97,8 +100,42 @@ _OTHER_METRIC = re.compile(
 )
 _OR = re.compile(r"\b(?:veya|ya\s+da|yahut)\b")
 _OR_OPERATOR = re.compile(
-    r"(?:eşit\s+)?veya\s+daha\s+(?:az|fazla)|eşit\s+veya\s+(?:küçük|büyük)"
+    r"(?:eşit\s+)?veya\s+daha\s+(?:az|fazla)|eşit\s+veya\s+(?:küçük|büyük)|"
+    r"\bsabit(?:\s+kalan)?\s+(?:veya|ya\s+da)\s+"
+    r"(?:artan|azalan|düşen|yükselen|gerileyen)\b|"
+    r"\b(?:artan|azalan|düşen|yükselen|gerileyen)\s+(?:veya|ya\s+da)\s+"
+    r"sabit(?:\s+kalan)?\b"
 )
+_NUMERIC_NEGATION = re.compile(
+    r"^\s*(?:olmayan|olmadığı\w*|olmayıp|değil\w*|yok)\b"
+)
+_PERIOD_UNIT = re.compile(
+    r"^\s*(?:ay|yıl|yil|gün|gun|hafta|çeyrek|ceyrek|dönem|donem)\w*\b"
+)
+_LEGACY_INTENT = re.compile(
+    r"\b(?:incele\w*|göster\w*|bul\w*|listele\w*|hangileri|aylar\w*)\b"
+)
+_LEGACY_CONDITIONS = (
+    HousingFilterCondition(
+        metric="interest_rate_change_pp", operator="lt", threshold=0.0
+    ),
+    HousingFilterCondition(
+        metric="real_housing_loan_change_pct", operator="lte", threshold=0.0
+    ),
+)
+_OPERATOR_INVERSION: dict[FilterOperator, FilterOperator] = {
+    "lt": "gte",
+    "lte": "gt",
+    "gt": "lte",
+    "gte": "lt",
+}
+_SIGNED_OPERATOR: dict[FilterOperator, FilterOperator] = {
+    "lt": "gt",
+    "lte": "gte",
+    "gt": "lt",
+    "gte": "lte",
+}
+_MAX_BOUND_DISTANCE = 32
 
 
 @dataclass(frozen=True)
@@ -113,6 +150,14 @@ class _Parsed:
     metric: FilterMetric
     operator: FilterOperator
     threshold: float
+
+
+@dataclass(frozen=True)
+class _Bound:
+    operator: FilterOperator
+    threshold: float
+    percent: bool
+    points: bool
 
 
 def _overlaps(span: _Span, other: _Span) -> bool:
@@ -154,7 +199,10 @@ def _metric_spans(text: str) -> list[_Span]:
         if not overlaps(candidate, {"real_credit", "nominal_credit", "interest"}):
             spans.append(candidate)
 
-    spans = [span for span in spans if not _negated(text, span)]
+    spans = [
+        span for span in spans
+        if span.kind == "interest" or not _negated(text, span)
+    ]
     spans.sort(key=lambda span: (span.start, span.end))
     return spans
 
@@ -218,6 +266,11 @@ def _direction(context: str) -> tuple[FilterOperator, float] | None:
         return "lte", 0.0
     if not_down:
         return "gte", 0.0
+    stable = bool(_STABLE.search(context))
+    up = bool(_UP.search(context))
+    down = bool(_DOWN.search(context))
+    if stable and up != down:
+        return ("gte" if up else "lte"), 0.0
     categories = [
         (operator, float(threshold))
         for operator, threshold, pattern in (
@@ -231,64 +284,133 @@ def _direction(context: str) -> tuple[FilterOperator, float] | None:
     return categories[0] if categories else None
 
 
-def _numeric_condition(
-    context: str,
-) -> tuple[FilterOperator, float] | None:
+def _period_count(context: str, match: re.Match[str]) -> bool:
+    return bool(_PERIOD_UNIT.match(context[match.end():match.end() + 16]))
+
+
+def _year_like(context: str, match: re.Match[str]) -> bool:
+    value = _number_value(match.group())
+    return (
+        1900 <= value <= 2099
+        and value.is_integer()
+        and not _percent_marker(context, match)
+        and not _point_marker(context, match)
+    )
+
+
+def _relation_negated(context: str, relation: re.Match[str]) -> bool:
+    return bool(_NUMERIC_NEGATION.match(context[relation.end():relation.end() + 24]))
+
+
+def _numeric_conditions(context: str) -> list[_Bound] | None:
+    """Map every comparison relation to its own nearby number, or ask for clarity."""
     relations = _relations(context)
     if not relations:
-        return None
-    candidates: list[tuple[float, int, FilterOperator, re.Match[str]]] = []
+        return []
+
+    numbers: list[tuple[int, re.Match[str]]] = []
     for match in _NUMBER.finditer(context):
-        value = _number_value(match.group())
-        if (
-            1900 <= value <= 2099
-            and float(value).is_integer()
-            and not _percent_marker(context, match)
-            and not _point_marker(context, match)
-        ):
+        if _year_like(context, match) or _period_count(context, match):
             continue
-        nearest = min(
-            relations,
-            key=lambda item: (
-                min(
-                    abs(match.start() - item[1].end()),
-                    abs(item[1].start() - match.end()),
-                ),
-                0 if _percent_marker(context, match) or _point_marker(context, match) else 1,
-            ),
+        numbers.append((match.start(), match))
+    if not numbers:
+        return []
+
+    selected: list[int] = []
+    bounds: list[_Bound] = []
+    for name, relation in relations:
+        choices: list[tuple[int, int]] = []
+        for index, (number_start, number_match) in enumerate(numbers):
+            distance = min(
+                abs(number_start - relation.end()),
+                abs(relation.start() - number_match.end()),
+            )
+            if distance <= _MAX_BOUND_DISTANCE:
+                choices.append((distance, index))
+        if not choices:
+            return None
+        _, number_index = min(choices)
+        if number_index in selected:
+            return None
+        selected.append(number_index)
+        _, number_match = numbers[number_index]
+        mapped: FilterOperator = {
+            "lt": "lt", "lte": "lte", "gt": "gt", "gte": "gte"
+        }[name]
+        if _relation_negated(context, relation):
+            mapped = _OPERATOR_INVERSION[mapped]
+        bounds.append(
+            _Bound(
+                operator=mapped,
+                threshold=_number_value(number_match.group()),
+                percent=_percent_marker(context, number_match),
+                points=_point_marker(context, number_match),
+            )
         )
-        distance = min(
-            abs(match.start() - nearest[1].end()),
-            abs(nearest[1].start() - match.end()),
-        )
-        candidates.append((distance, match.start(), nearest[0], match))
-    if not candidates:
+    return bounds
+
+
+def _change_sense(context: str) -> str:
+    not_up = bool(_NOT_UP.search(context))
+    not_down = bool(_NOT_DOWN.search(context))
+    if not_up and not_down:
+        return "ambiguous"
+    if not_up:
+        return "not_up"
+    if not_down:
+        return "not_down"
+    up = bool(_UP.search(context))
+    down = bool(_DOWN.search(context))
+    if up and down:
+        return "ambiguous"
+    if down:
+        return "down"
+    if up:
+        return "up"
+    return "neutral"
+
+
+def _signed_bound(
+    bound: _Bound, sense: str
+) -> tuple[FilterOperator, float] | None:
+    if sense == "ambiguous":
         return None
-    _, _, operator, match = min(candidates, key=lambda item: (item[0], item[1]))
-    if operator == "gte":
-        return "gte", _number_value(match.group())
-    if operator == "lte":
-        return "lte", _number_value(match.group())
-    if operator == "gt":
-        return "gt", _number_value(match.group())
-    return "lt", _number_value(match.group())
+    if sense in {"not_up", "not_down"}:
+        return None
+    if sense == "neutral":
+        return bound.operator, bound.threshold
+    if bound.threshold < 0:
+        return None
+    if sense == "down":
+        return _SIGNED_OPERATOR[bound.operator], -bound.threshold
+    return bound.operator, bound.threshold
 
 
 def _parse_span(
-    text: str, span: _Span, spans: list[_Span]
-) -> _Parsed | str | None:
+    text: str,
+    span: _Span,
+    spans: list[_Span],
+    *,
+    implicit_credit_not_up: bool = False,
+) -> list[_Parsed] | str | None:
     previous, following = _neighbours(text, span, spans)
     suffix = text[span.end:min(following, span.end + 220)]
     prefix = _prefix(text, span, previous)
     span_text = text[span.start:span.end]
     combined = f"{span_text} {suffix} {prefix}"
 
-    numeric = _numeric_condition(suffix) or _numeric_condition(prefix)
-    direction = _direction(combined)
+    numeric = _numeric_conditions(suffix)
+    if numeric is None:
+        return "question_ambiguous"
+    if not numeric:
+        numeric = _numeric_conditions(prefix)
+        if numeric is None:
+            return "question_ambiguous"
 
+    direction = _direction(combined)
     has_change = bool(
         _CHANGE_CUE.search(combined)
-        or _CHANGE_CUE.search(text[span.start:span.end])
+        or _CHANGE_CUE.search(span_text)
     )
 
     if span.kind == "interest":
@@ -298,6 +420,22 @@ def _parse_span(
         )
     else:
         if not has_change:
+            if (
+                implicit_credit_not_up
+                and not numeric
+                and _LEGACY_INTENT.search(text)
+            ):
+                return [
+                    _Parsed(
+                        metric=(
+                            "real_housing_loan_change_pct"
+                            if span.kind == "real_credit"
+                            else "nominal_housing_loan_change_pct"
+                        ),
+                        operator="lte",
+                        threshold=0.0,
+                    )
+                ]
             return "unsupported"
         metric = (
             "real_housing_loan_change_pct"
@@ -305,51 +443,59 @@ def _parse_span(
             else "nominal_housing_loan_change_pct"
         )
 
-    if numeric is not None:
-        operator, threshold = numeric
-        number_match = None
-        for match in _NUMBER.finditer(combined):
-            if math.isclose(_number_value(match.group()), threshold, abs_tol=1e-9):
-                number_match = match
-                break
-        if number_match is not None:
-            percent = _percent_marker(combined, number_match)
-            points = _point_marker(combined, number_match)
+    if numeric:
+        sense = (
+            "neutral"
+            if metric == "housing_loan_interest_rate_pct"
+            else _change_sense(combined)
+        )
+        parsed: list[_Parsed] = []
+        for bound in numeric:
             if metric == "interest_rate_change_pp":
-                if percent and not points:
+                if bound.percent and not bound.points:
                     return "metric_ambiguous"
-                if not points:
+                if not bound.points:
                     return "metric_ambiguous"
-            elif points:
+            elif bound.points:
                 return "metric_ambiguous"
-        return _Parsed(metric=metric, operator=operator, threshold=threshold)
+            signed = _signed_bound(bound, sense)
+            if signed is None:
+                return "question_ambiguous"
+            parsed.append(
+                _Parsed(metric=metric, operator=signed[0], threshold=signed[1])
+            )
+        return parsed
 
     if direction is not None:
-        return _Parsed(metric=metric, operator=direction[0], threshold=direction[1])
+        return [_Parsed(metric=metric, operator=direction[0], threshold=direction[1])]
 
     if metric == "housing_loan_interest_rate_pct" and _LEVEL_CUE.search(combined):
         return None
     return None
 
 
-def guard_housing_filter_question(
-    question: str, conditions: tuple[HousingFilterCondition, ...]
+def _grounding_reason(
+    text: str, spans: list[_Span], *, legacy: bool
 ) -> str | None:
-    """Return a safe clarification/unsupported reason, or None when grounded."""
-    text = normalize_question_text(question)
-    spans = _metric_spans(text)
-
     real = [span for span in spans if span.kind == "real_credit"]
     nominal = [span for span in spans if span.kind == "nominal_credit"]
     if _MIXED_CREDIT.search(text):
         return "metric_ambiguous"
-    if real and nominal and _MIXED_CHOICE.search(text):
-        return "metric_ambiguous"
+    if real and nominal:
+        if legacy or _MIXED_CHOICE.search(text):
+            return "metric_ambiguous"
     if any(span.kind == "bare_credit" for span in spans):
         return "metric_ambiguous"
-
-    if _REAL_INTEREST.search(text):
+    if legacy:
+        if nominal:
+            return "unsupported"
+        if _REAL_INTEREST.search(text):
+            return "metric_ambiguous"
+        if not real:
+            return "metric_ambiguous"
+    elif _REAL_INTEREST.search(text):
         return "unsupported"
+
     if _OUT_OF_SCOPE.search(text) or _TOPN.search(text):
         return "unsupported"
     without_operators = _OR_OPERATOR.sub(" ", text)
@@ -358,29 +504,62 @@ def guard_housing_filter_question(
     residual = _DEFLATOR.sub(" ", text)
     if _OTHER_METRIC.search(residual):
         return "unsupported"
+    return None
+
+
+def _parsed_conditions(
+    question: str, *, legacy: bool
+) -> list[_Parsed] | str:
+    text = normalize_question_text(question)
+    spans = _metric_spans(text)
+    reason = _grounding_reason(text, spans, legacy=legacy)
+    if reason is not None:
+        return reason
 
     parsed: list[_Parsed] = []
     for span in spans:
-        item = _parse_span(text, span, spans)
+        item = _parse_span(
+            text, span, spans, implicit_credit_not_up=legacy
+        )
         if isinstance(item, str):
             return item
         if item is not None:
-            parsed.append(item)
-    if not parsed:
-        return "question_ambiguous"
-    if len(parsed) > 3:
-        return "unsupported"
+            parsed.extend(item)
+    return parsed
 
-    requested = Counter(
-        (item.metric, item.operator, round(item.threshold, 9))
-        for item in parsed
-    )
-    planned = Counter(
+
+def _condition_counter(parsed: list[_Parsed] | tuple[HousingFilterCondition, ...]) -> Counter:
+    return Counter(
         (
             item.metric,
             item.operator,
             round(float(item.threshold), 9),
         )
-        for item in conditions
+        for item in parsed
     )
-    return None if requested == planned else "question_ambiguous"
+
+
+def guard_housing_filter_question(
+    question: str, conditions: tuple[HousingFilterCondition, ...]
+) -> str | None:
+    """Return a safe clarification/unsupported reason, or None when grounded."""
+    parsed = _parsed_conditions(question, legacy=False)
+    if isinstance(parsed, str):
+        return parsed
+    if not parsed:
+        return "question_ambiguous"
+    if len(parsed) > 3:
+        return "unsupported"
+    return None if _condition_counter(parsed) == _condition_counter(conditions) else "question_ambiguous"
+
+
+def guard_legacy_housing_question(question: str) -> str | None:
+    """Accept only the fixed rate-down, real-credit-not-up legacy request."""
+    parsed = _parsed_conditions(question, legacy=True)
+    if isinstance(parsed, str):
+        return parsed
+    return (
+        None
+        if _condition_counter(parsed) == _condition_counter(_LEGACY_CONDITIONS)
+        else "question_ambiguous"
+    )

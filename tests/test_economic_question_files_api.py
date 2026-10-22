@@ -91,6 +91,46 @@ def test_filter_endpoint_matches_verified_core_result(package, monkeypatch):
     assert any("weekly_coverage: unverified" in item for item in body["analysis"]["evidence"]["data_quality_notes"])
 
 
+@pytest.mark.parametrize("question,plan", [
+    (
+        "2021 Ocak-Şubat faiz artarken reel konut kredisi stoku artan aylar",
+        ready(core.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Şubat faiz düşerken reel konut kredisi aylık artışı %2'yi aşan aylar",
+        ready(core.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Şubat faiz oranı %20'nin altında olmayan aylar",
+        ready(core.HOUSING_FILTER_ID, conditions=[
+            {"metric": "housing_loan_interest_rate_pct", "operator": "lt", "threshold": 20.0},
+        ]),
+    ),
+    (
+        "2021 Ocak-Şubat faiz oranı %10'un üzerinde ve %20'nin altında olan aylar",
+        ready(core.HOUSING_FILTER_ID, conditions=[
+            {"metric": "housing_loan_interest_rate_pct", "operator": "gt", "threshold": 10.0},
+        ]),
+    ),
+    (
+        "2021 Ocak-Şubat nominal konut kredisi stokunun aylık azalışı %2'yi aşan aylar",
+        ready(core.HOUSING_FILTER_ID, conditions=[
+            {"metric": "nominal_housing_loan_change_pct", "operator": "gt", "threshold": 2.0},
+        ]),
+    ),
+])
+def test_observed_wrong_question_plan_never_runs_analysis(package, monkeypatch, question, plan):
+    monkeypatch.setattr(core, "run_housing_filter", forbidden)
+    monkeypatch.setattr(core, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(core, "build_inflation_evidence", forbidden)
+    with client_with_model(package, lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json={"question": question})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "clarification_required"
+    assert body["analysis"] is None
+
+
 @pytest.mark.parametrize("question,plan,reason", [
     ("Ocak-Şubat TÜFE aylık ve yıllık oranlarını göster.",
      ready(core.INFLATION_ID), "period_required"),

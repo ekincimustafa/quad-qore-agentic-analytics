@@ -502,6 +502,60 @@ def test_mismatched_filter_plan_never_executes_the_core(monkeypatch, data):
     assert result.analysis is None
 
 
+@pytest.mark.parametrize("question", [
+    "2021 Ocak-Mart faiz artarken reel konut kredisi stoku artan aylar",
+    "2021 Ocak-Mart faiz düşerken reel konut kredisi aylık artışı %2'yi aşan aylar",
+])
+def test_changed_legacy_conditions_never_execute_analysis(monkeypatch, data, question):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A changed legacy plan must not run an analysis")
+
+    monkeypatch.setattr(service, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(service, "run_housing_filter", forbidden)
+    monkeypatch.setattr(service, "build_inflation_evidence", forbidden)
+    housing, inflation = data
+    result = service.run_economic_question(
+        question, housing=housing, inflation=inflation,
+        model_call=lambda _: json.dumps(ready(service.HOUSING_ID)),
+    )
+    assert result.decision.status == "clarification_required"
+    assert result.analysis is None
+
+
+@pytest.mark.parametrize("question,conditions", [
+    (
+        "2021 Ocak-Mart faiz oranı %20'nin altında olmayan aylar",
+        [{"metric": "housing_loan_interest_rate_pct", "operator": "lt", "threshold": 20.0}],
+    ),
+    (
+        "2021 Ocak-Mart faiz oranı %10'un üzerinde ve %20'nin altında olan aylar",
+        [{"metric": "housing_loan_interest_rate_pct", "operator": "gt", "threshold": 10.0}],
+    ),
+    (
+        "2021 Ocak-Mart nominal konut kredisi stokunun aylık azalışı %2'yi aşan aylar",
+        [{"metric": "nominal_housing_loan_change_pct", "operator": "gt", "threshold": 2.0}],
+    ),
+])
+def test_observed_wrong_filter_plans_never_execute_the_core(
+    monkeypatch, data, question, conditions,
+):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A wrong filter plan must not run an analysis")
+
+    monkeypatch.setattr(service, "run_housing_filter", forbidden)
+    monkeypatch.setattr(service, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(service, "build_inflation_evidence", forbidden)
+    housing, inflation = data
+    result = service.run_economic_question(
+        question, housing=housing, inflation=inflation,
+        model_call=lambda _: json.dumps(
+            ready(service.HOUSING_FILTER_ID, conditions=conditions)
+        ),
+    )
+    assert result.decision.status == "clarification_required"
+    assert result.analysis is None
+
+
 @pytest.mark.parametrize("question,response,expected_status", [
     ("Konut faiz ve reel kredi koşulunu bul.",
      {"status": "clarification_required", "reason": "period_required"}, "clarification_required"),
