@@ -10,6 +10,35 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## Issue #98 doğal dönem çözümleme — 22 Ekim 2026 (PR #101)
+
+- Etkin dal `feat/natural-question-periods`; `main` `f3a15a8` üzerinden açıldı.
+- `app/services/question_periods.py` eklendi: tam yıl, çeyrek, yarıyıl, kapalı
+  adlandırılmış aralık, ay noktası ve tam gün aralığı çözümlemesi; artık/çelişkili
+  tarih denetimi. `app/services/economic_question.py` ortak ayrıştırıcıya bağlandı,
+  model istemi güncellendi. Eksik veya varsayılabilecek dönem yine
+  `period_required` döndürüyor.
+- Ayrıştırıcı, servis, normal API ve doğrulanmış dosya API regresyon testleri
+  eklendi; kabul edilen biçimler `docs/economic-question.md` içinde belgelendi.
+  Mevcut değerlendirme vakaları değiştirilmedi.
+- Bağımsız inceleme bulguları düzeltildi: kısmi karşılaştırma niyeti cümle
+  konumundan bağımsız `unsupported`; ISO/sayısal gün sınırları ve ters yıl
+  aralığı reddediliyor; `2023 yılında Ocak-Mart` yıl bağlamıyla 2023-01–03
+  çözülüyor; çıplak `Ocak ve Mart` listesi aralığa dönüşmüyor, `Ocak ve Mart
+  arasında` aralık kalıyor. Yanlış planlarda servis ve iki HTTP yolunda analiz
+  0 kez çalışıyor.
+- Son inceleme düzeltmeleri: gün sınırı denetimi karşılaştırma yoluna da
+  uygulanıyor; ay listesi/aralık ayrımı iki month-point fallback dahil tekrar
+  eden yıllar ve tab/çoklu boşluklarda korunuyor; `2023 yılında` bağlamı açık
+  `yılının tamamı`/`yılı boyunca` isteğinden ayrılıyor. Açık tam yıl ile dar
+  dönem aynı yıl olsa bile `period_required`; analiz 0 kez çalışıyor.
+- Odaklı çalışma: 308 test geçti. Tam çevrimdışı doğrulama başarılı:
+  1124 geçti, 2 atlandı; Economic 37/37 ve Housing 9/9 stub değerlendirme;
+  `git diff --check` temiz (`out/verification/20261022T133059Z-832-e660d4e0`).
+  PR: https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/101.
+  Aynı dala commit/push yapıldı; yeni head bağımsız incelemeye bırakıldı, bu dal
+  birleştirilmedi ve canlı EVDS/model çağrısı yapılmadı.
+
 ## Portföy README düzenlemesi — 21 Ekim 2026
 
 - Dal `docs/portfolio-readme`; başlangıç güncel `main` `56ffc46` (PR #96 merge).

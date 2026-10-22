@@ -107,6 +107,76 @@ def test_documented_requests_call_one_service_and_equal_direct_api(monkeypatch, 
         assert chart["data"][0]["x"] == [f"{row.period}-01" for row in evidence.observations]
 
 
+@pytest.mark.parametrize("question,start,end", [
+    ("2023 yılında genel TÜFE değişimlerini göster.", "2023-01", "2023-12"),
+    ("2023 yılının tamamında genel TÜFE değişimlerini göster.", "2023-01", "2023-12"),
+    ("2023'ün ikinci çeyreğinde genel TÜFE değişimlerini göster.", "2023-04", "2023-06"),
+    ("2023 yılının 2. çeyreğinde genel TÜFE değişimlerini göster.", "2023-04", "2023-06"),
+    ("2023'ün son altı ayında genel TÜFE değişimlerini göster.", "2023-07", "2023-12"),
+    ("2023 Ocak ile Mart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 Ocak'tan Mart'a kadar genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 yılında Ocak-Mart genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 Ocak ve Mart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("2023 Ocak\tve\tMart arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+    ("Ocak 2023 ve Mart 2023 arasında genel TÜFE değişimlerini göster.", "2023-01", "2023-03"),
+])
+def test_natural_closed_period_matches_direct_cpi_api(question, start, end):
+    payload = comparison_payload(question)
+    plan = ready(service.INFLATION_ID, start_period=start, end_period=end)
+    with client_with_model(lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json=payload)
+        direct = client.post(
+            "/analysis/inflation",
+            json={**payload["inflation"], "start_period": start, "end_period": end},
+        )
+    assert response.status_code == direct.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok" and body["decision"] == plan
+    assert body["analysis"]["analysis_id"] == service.INFLATION_ID
+    assert body["analysis"]["evidence"] == direct.json()["evidence"]
+
+
+@pytest.mark.parametrize("question,plan", [
+    ("2023 yılında genel TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-11")),
+    ("2023'ün ikinci çeyreğinde genel TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023'ün son altı ayında genel TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-06")),
+    ("2023 Ocak ile Mart arasında genel TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-02")),
+    ("Ocak-Mart TÜFE aylık ve yıllık oranlarını göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023 Ocak'tan itibaren TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-01")),
+    ("2023 Ocak ve Mart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023 Ocak\tve\tMart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023 Ocak ve 2023 Mart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("Ocak 2023 ve Mart 2023 TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023 yılının tamamında ve 2023 Ocak-Mart TÜFE değişimlerini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-03")),
+    ("2023 yılı boyunca 2023-02-15 ile 2023-03-15 arasındaki TÜFE değişimini göster.",
+     ready(service.INFLATION_ID, start_period="2023-01", end_period="2023-12")),
+])
+def test_wrong_natural_period_ready_plan_never_runs_analysis(monkeypatch, question, plan):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A wrong natural-period plan must not run an analysis")
+
+    monkeypatch.setattr(service, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(service, "build_inflation_evidence", forbidden)
+    with client_with_model(lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json=comparison_payload(question))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "clarification_required"
+    assert body["decision"] == {"status": "clarification_required", "reason": "period_required"}
+    assert body["analysis"] is None
+
+
 COMPARISON_PERIODS = pd.period_range("2022-12", "2024-12", freq="M").astype(str).tolist()
 COMPARISON_INDEX = [
     100.0, 102.0, 104.0, 106.0, 108.0, 110.0, 112.0, 114.0, 116.0, 118.0, 119.0, 119.5,
@@ -178,6 +248,16 @@ def test_comparison_endpoint_matches_existing_core_and_exposes_typed_evidence(mo
     ("2023 Ocak ile 2024 Ocak TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
      {"status": "unsupported", "reason": "unsupported_analysis"}),
     ("2023-01 ile 2024-01 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023-02-15 ile 2024-03-15 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("15.02.2023 ile 15.03.2024 TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 için ikinci çeyrek TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ile 2024 TÜFE değişimlerini ilk altı ay için karşılaştır.", comparison_ready(2023, 2024),
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+    ("2023 ve 2024 için Ocak ayı TÜFE değişimlerini karşılaştır.", comparison_ready(2023, 2024),
      {"status": "unsupported", "reason": "unsupported_analysis"}),
     ("2023 ve 2024 konut kredisi faizlerini karşılaştır.", comparison_ready(2023, 2024),
      {"status": "unsupported", "reason": "unsupported_analysis"}),
