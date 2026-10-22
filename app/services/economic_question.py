@@ -1,4 +1,4 @@
-"""Bounded Turkish question planning for the two existing Python analyses."""
+"""Bounded Turkish question planning for the existing Housing/CPI analyses."""
 
 from __future__ import annotations
 
@@ -12,6 +12,13 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError,
 
 from app.lakehouse.core_validators import check_missing_periods, parse_period_to_date
 from app.services.housing_analysis import HousingAnalysisRun, run_housing_analysis
+from app.services.housing_filter import (
+    ANALYSIS_ID as HOUSING_FILTER_ID,
+    HousingConditionFilterEvidence,
+    HousingFilterCondition,
+    run_housing_filter,
+)
+from app.services.housing_filter_question import guard_housing_filter_question
 from app.services.housing_question import MAX_PLAN_CHARACTERS, MAX_QUESTION_CHARACTERS, ModelCall
 from app.services.inflation_analysis import (
     InflationAnalysisError,
@@ -89,6 +96,16 @@ class EconomicComparisonReadyPlan(BaseModel):
     second_year: Annotated[int, Field(ge=1, le=9999)]
 
 
+class EconomicHousingFilterReadyPlan(PeriodRange):
+    """Ready plan containing only typed, bounded Housing filter conditions."""
+
+    status: Literal["ready"]
+    analysis_id: Literal["housing_condition_filter"]
+    conditions: Annotated[
+        tuple[HousingFilterCondition, ...], Field(min_length=1, max_length=3)
+    ]
+
+
 class EconomicClarification(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
@@ -108,17 +125,28 @@ class EconomicDataUnavailable(BaseModel):
 
     status: Literal["data_unavailable"]
     analysis_id: (
-        Literal["housing_rate_down_real_credit_not_up", "cpi_inflation_summary", "cpi_two_year_comparison"]
+        Literal[
+            "housing_rate_down_real_credit_not_up",
+            "housing_condition_filter",
+            "cpi_inflation_summary",
+            "cpi_two_year_comparison",
+        ]
         | None
     )
 
 
 EconomicReadyDecision = Annotated[
-    Union[EconomicReadyPlan, EconomicComparisonReadyPlan],
+    Union[EconomicReadyPlan, EconomicComparisonReadyPlan, EconomicHousingFilterReadyPlan],
     Field(union_mode="left_to_right"),
 ]
 ModelDecision = Annotated[
-    Union[EconomicReadyPlan, EconomicComparisonReadyPlan, EconomicClarification, EconomicUnsupported],
+    Union[
+        EconomicReadyPlan,
+        EconomicComparisonReadyPlan,
+        EconomicHousingFilterReadyPlan,
+        EconomicClarification,
+        EconomicUnsupported,
+    ],
     Field(union_mode="left_to_right"),
 ]
 EconomicDecision = ModelDecision | EconomicDataUnavailable
@@ -172,7 +200,8 @@ def _comparison_out_of_scope(question: str) -> bool:
 
 
 def _ready_plan_guard(
-    question: str, plan: EconomicReadyPlan | EconomicComparisonReadyPlan,
+    question: str,
+    plan: EconomicReadyPlan | EconomicComparisonReadyPlan | EconomicHousingFilterReadyPlan,
 ) -> EconomicClarification | EconomicUnsupported | None:
     comparison_requested = bool(_COMPARISON_INTENT.search(_question_text(question)))
     if isinstance(plan, EconomicComparisonReadyPlan):
@@ -191,6 +220,13 @@ def _ready_plan_guard(
     requested = _explicit_period(question)
     if requested != (plan.start_period, plan.end_period):
         return EconomicClarification(status="clarification_required", reason="period_required")
+    if isinstance(plan, EconomicHousingFilterReadyPlan):
+        reason = guard_housing_filter_question(question, plan.conditions)
+        if reason == "unsupported":
+            return EconomicUnsupported(status="unsupported", reason="unsupported_analysis")
+        if reason is not None:
+            return EconomicClarification(status="clarification_required", reason=reason)
+        return None
     if plan.analysis_id != HOUSING_ID:
         return None
     text = _question_text(question)
@@ -226,7 +262,13 @@ class InflationQuestionData:
 class EconomicQuestionRun:
     decision: EconomicDecision
     coverage: EconomicCoverage
-    analysis: HousingAnalysisRun | InflationEvidence | InflationComparison | None
+    analysis: (
+        HousingAnalysisRun
+        | HousingConditionFilterEvidence
+        | InflationEvidence
+        | InflationComparison
+        | None
+    )
 
 
 def _periods(frame: pd.DataFrame) -> set[str]:
@@ -297,6 +339,12 @@ Hesaplanmış sayı, yorum, Markdown veya ek alan üretme.
 
 İzinli analizler:
 - {HOUSING_ID}: faiz düşerken reel konut kredisi stokunun artmadığı ayları bul.
+  Bu kimlik yalnızca bu sabit kuralın aynen istendiği durum içindir.
+- {HOUSING_FILTER_ID}: dönemdeki ayları 1-3 adet metrik/eşik koşuluyla filtrele.
+  İzinli metrikler: interest_rate_change_pp, real_housing_loan_change_pct,
+  nominal_housing_loan_change_pct, housing_loan_interest_rate_pct.
+  İzinli operatörler: lt, lte, gt, gte. Koşullar yalnızca AND ile birleşir.
+  Eşik sonlu bir sayı olmalı; yüzde puan (pp) ile yüzde (%) ayrımını koru.
 - {INFLATION_ID}: genel TÜFE endeksinin aylık, geçen yılın aynı ayına göre
   yıllık ve seçilen ilk-son ay değişimlerini özetle. Yıllık oran 12 aylık ortalama değildir.
 - {COMPARISON_ID}: iki tam takvim yılının Ocak–Aralık TÜFE değişimlerini ve Aralık
@@ -309,6 +357,12 @@ Kurallar:
 - Konut analizinde kredi tutarının nominal mi reel mi olduğu açık olmalıdır.
   Bu ayrım belirtilmemişse metric_ambiguous iste; kredi tutarını kendiliğinden
   enflasyondan arındırılmış kabul ederek ready üretme.
+- {HOUSING_FILTER_ID} yalnız kullanıcının açıkça söylediği koşulları taşır.
+  Koşul uydurma, kullanıcının koşulunu birleştirme veya eleme. Operatörleri
+  "altında/az" -> lt, "en fazla/ve altı" -> lte, "üzerinde/fazla" -> gt,
+  "en az/ve üzeri" -> gte olarak eşle. Yalnız faiz sorusunda nominal/reel
+  netleştirmesi isteme. Faiz seviyesi ile faiz değişimini karıştırma.
+  Ortalama, yıllık/toplam dönüşümü veya sıralama istenirse unsupported üret.
 - Dönemin yıl, başlangıç ve bitiş bilgilerini kullanıcı sorusundan çıkar.
   Bu bilgiler eksik veya belirsizse period_required üret; yıl veya sınır varsayma.
   available_periods yalnız veri uygunluk sınırıdır, kullanıcının dönem tercihi değildir.
@@ -318,8 +372,8 @@ Kurallar:
   aynı yılın iki kez verilmesi, ortalama, kısmi dönem, tahmin veya nedensellik
   istenirse ready üretme; uygun clarification/unsupported kararını ver.
   "2023-2024 TÜFE değişimlerini özetle" bir aralık özetidir; karşılaştırma değildir.
-- Tahmin, nedensellik, serbest ekonomik yorum, web araştırması, başka analiz
-  veya iki analizin birlikte çalıştırılması istenirse unsupported üret.
+- OR, sıralama/top-N, tahmin, nedensellik, serbest ekonomik yorum, web araştırması,
+  başka analiz veya iki analizin birlikte çalıştırılması istenirse unsupported üret.
 - Tam yıl aralığını aylara aç: 2021-2025 -> 2021-01 / 2025-12.
   Tam yıl, çeyrek ve yarıyılı da aylara aç: 2023 yılı -> 2023-01 / 2023-12;
   2023'ün ikinci çeyreği -> 2023-04 / 2023-06; son altı ay -> 2023-07 / 2023-12.
@@ -347,8 +401,14 @@ def validate_economic_question_plan(
         decision = _MODEL_DECISION.validate_json(response)
     except ValidationError:
         raise EconomicPlanValidationError("Model planı izin verilen karar şemasına uymuyor.") from None
-    if isinstance(decision, (EconomicReadyPlan, EconomicComparisonReadyPlan)):
-        available = coverage.housing if decision.analysis_id == HOUSING_ID else coverage.inflation
+    if isinstance(
+        decision,
+        (EconomicReadyPlan, EconomicComparisonReadyPlan, EconomicHousingFilterReadyPlan),
+    ):
+        housing_plan = isinstance(decision, EconomicHousingFilterReadyPlan) or (
+            isinstance(decision, EconomicReadyPlan) and decision.analysis_id == HOUSING_ID
+        )
+        available = coverage.housing if housing_plan else coverage.inflation
         if available is None:
             return EconomicDataUnavailable(status="data_unavailable", analysis_id=decision.analysis_id)
         if question is not None:
@@ -395,7 +455,10 @@ def run_economic_question(
     except Exception:
         raise EconomicPlanningError("Modelden analiz planı alınamadı.") from None
     decision = validate_economic_question_plan(response, coverage, question=question)
-    if not isinstance(decision, (EconomicReadyPlan, EconomicComparisonReadyPlan)):
+    if not isinstance(
+        decision,
+        (EconomicReadyPlan, EconomicComparisonReadyPlan, EconomicHousingFilterReadyPlan),
+    ):
         return EconomicQuestionRun(decision=decision, coverage=coverage, analysis=None)
     if isinstance(decision, EconomicComparisonReadyPlan):
         assert inflation is not None
@@ -403,6 +466,14 @@ def run_economic_question(
             inflation.cpi_monthly,
             first_year=decision.first_year, second_year=decision.second_year,
             source_ref=inflation.source_ref,
+        )
+    elif isinstance(decision, EconomicHousingFilterReadyPlan):
+        assert housing is not None
+        analysis = run_housing_filter(
+            housing.bddk_monthly, housing.evds_monthly,
+            start_period=decision.start_period, end_period=decision.end_period,
+            conditions=decision.conditions,
+            bddk_source_ref=housing.bddk_source_ref, evds_source_refs=housing.evds_source_refs,
         )
     elif decision.analysis_id == HOUSING_ID:
         assert housing is not None

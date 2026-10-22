@@ -9,6 +9,14 @@
   const number = value => value === null ? "—" : new Intl.NumberFormat("tr-TR", {maximumFractionDigits: 4}).format(value);
   const pct = value => value === null ? "—" : `%${number(value)}`;
   const pp = value => value === null ? "—" : `${value > 0 ? "+" : ""}${number(value)} yüzde puan`;
+  const metricLabels = {
+    interest_rate_change_pp: "Faiz değişimi",
+    real_housing_loan_change_pct: "Reel konut kredisi değişimi",
+    nominal_housing_loan_change_pct: "Nominal konut kredisi değişimi",
+    housing_loan_interest_rate_pct: "Konut kredisi faiz seviyesi"
+  };
+  const operatorLabels = {lt: "<", lte: "≤", gt: ">", gte: "≥"};
+  const unitLabels = {percentage_point: "yüzde puan", percent: "%"};
   const element = (tag, text, className) => {
     const node = document.createElement(tag);
     if (text !== undefined) node.textContent = text;
@@ -54,10 +62,11 @@
     const {analysis, available_periods: coverage} = body;
     const e = analysis.evidence;
     const housing = analysis.analysis_id === "housing_rate_down_real_credit_not_up";
+    const filter = analysis.analysis_id === "housing_condition_filter";
     const comparison = analysis.analysis_id === "cpi_two_year_comparison";
-    if (!housing && !comparison && analysis.analysis_id !== "cpi_inflation_summary") throw new Error("Unknown analysis");
+    if (!housing && !filter && !comparison && analysis.analysis_id !== "cpi_inflation_summary") throw new Error("Unknown analysis");
     const heading = element("div", undefined, "result-heading");
-    heading.append(element("h2", housing ? "Konut kredisi analizi" : comparison ? "İki yıl TÜFE karşılaştırması" : "TÜFE değişimleri"));
+    heading.append(element("h2", housing ? "Konut kredisi analizi" : filter ? "Koşullu konut filtresi" : comparison ? "İki yıl TÜFE karşılaştırması" : "TÜFE değişimleri"));
     heading.append(element("span", "Doğrulanmış yerel dosyalar", "badge")); result.append(heading);
     if (comparison) {
       const [first, second] = e.years;
@@ -67,18 +76,22 @@
     } else {
       result.append(element("p", housing
         ? `${e.period_start}–${e.period_end} dönemindeki ${e.observed_month_count} ayın ${e.matched_month_count} tanesinde faiz düşerken reel konut kredisi stoku artmadı.`
-        : `${e.period_start}–${e.period_end} döneminde ${e.observed_month_count} ay incelendi. İlk aydan son aya TÜFE endeksi değişimi %${number(e.first_to_last_index_change_pct)}.`, "summary"));
+        : filter
+          ? `${e.period_start}–${e.period_end} dönemindeki ${e.observed_month_count} aydan ${e.evaluable_month_count} tanesi değerlendirilebildi; ${e.matched_month_count} tanesi tüm koşulları sağladı.`
+          : `${e.period_start}–${e.period_end} döneminde ${e.observed_month_count} ay incelendi. İlk aydan son aya TÜFE endeksi değişimi %${number(e.first_to_last_index_change_pct)}.`, "summary"));
     }
-    const available = housing ? coverage.housing : coverage.inflation;
+    const available = housing || filter ? coverage.housing : coverage.inflation;
     const scope = comparison
       ? `İncelenen yıllar: ${e.years[0].year} ve ${e.years[1].year} (her biri Ocak–Aralık)`
       : `İncelenen dönem: ${e.period_start}–${e.period_end}`;
     result.append(element("p", `Veri kapsamı: ${available.start_period}–${available.end_period} · ${scope}`, "meta"));
     result.append(element("p", housing
       ? "Kredi stoku: Milyon TL · Reel stok: 2025 fiyatları · Faiz: % · Faiz değişimi: yüzde puan · TÜFE: 2025=100 · KFE: 2023=100"
-      : comparison
-        ? "Genel TÜFE: TP.TUKFIY2025.GENEL · Endeks: 2025=100 · Aralık yıllık oran: % · Ocak–Aralık endeks değişimi: % · Fark: ikinci yıl − birinci yıl, yüzde puan"
-        : "Genel TÜFE: TP.TUKFIY2025.GENEL · Endeks: 2025=100 · Aylık/yıllık değişimler: %", "meta"));
+      : filter
+        ? "Faiz değişimi: yüzde puan · Reel/nominal kredi değişimi: % · Faiz seviyesi: % · Koşullar yalnızca AND ile birleşir"
+        : comparison
+          ? "Genel TÜFE: TP.TUKFIY2025.GENEL · Endeks: 2025=100 · Aralık yıllık oran: % · Ocak–Aralık endeks değişimi: % · Fark: ikinci yıl − birinci yıl, yüzde puan"
+          : "Genel TÜFE: TP.TUKFIY2025.GENEL · Endeks: 2025=100 · Aylık/yıllık değişimler: %", "meta"));
     result.hidden = false;
     if (housing) {
       const chart = element("div", undefined, "chart"); chart.setAttribute("aria-label", "Konut kredisi, faiz ve endeks grafiği"); result.append(chart);
@@ -91,6 +104,23 @@
         e.results.map(row => [row.period, ...[row.nominal_housing_loan_mn_try, row.real_housing_loan_2025_mn_try, row.housing_loan_interest_rate_pct, row.interest_rate_change_pp, row.real_housing_loan_change_pct].map(number)]));
       else result.append(element("p", "Bu dönemde koşula uyan ay bulunamadı."));
       result.append(element("p", "Seçilen ilk ayın değişimleri null olduğundan bu ay eşleşmelere dahil edilmez.", "meta"));
+    } else if (filter) {
+      result.append(element("h3", "Koşullar (AND)"));
+      table(["Metrik", "Karşılaştırma", "Eşik", "Birim"],
+        e.conditions.map(condition => [
+          metricLabels[condition.metric] || condition.metric,
+          operatorLabels[condition.operator] || condition.operator,
+          number(condition.threshold),
+          unitLabels[condition.unit] || condition.unit
+        ]));
+      result.append(element("h3", `Eşleşen aylar (${e.matched_month_count})`));
+      if (e.results.length) {
+        table(["Ay", "Nominal (Milyon TL)", "Reel (2025 fiyatları)", "Nominal değişim (%)", "Reel değişim (%)", "Faiz (%)", "Faiz değişimi (puan)"],
+          e.results.map(row => [row.period, ...[row.nominal_housing_loan_mn_try, row.real_housing_loan_2025_mn_try, row.nominal_housing_loan_change_pct, row.real_housing_loan_change_pct, row.housing_loan_interest_rate_pct, row.interest_rate_change_pp].map(number)]));
+      } else {
+        result.append(element("p", "Bu dönemde tüm koşulları sağlayan ay bulunamadı."));
+      }
+      result.append(element("p", "İlk ayın önceki ayı olmadığından değişim koşulları bu ayda değerlendirilemez. Grafik yalnız eski sabit konut analizinde gösterilir.", "meta"));
     } else if (comparison) {
       e.years.forEach((item, index) => {
         result.append(element("h3", `${item.year} · Ocak–Aralık (${index === 0 ? "birinci" : "ikinci"} yıl)`));
@@ -111,12 +141,12 @@
       result.append(element("p", "—: Karşılaştırma için geçmiş ay yok. Yıllık oran, geçen yılın aynı ayına göredir; 12 aylık ortalama değildir.", "meta"));
     }
     result.append(element("h3", "Kaynaklar"));
-    if (housing) { sources("BDDK makbuz referansları", e.bddk_source_refs); sources("EVDS makbuz referansları", e.evds_source_refs); }
+    if (housing || filter) { sources("BDDK makbuz referansları", e.bddk_source_refs); sources("EVDS makbuz referansları", e.evds_source_refs); }
     else sources("TCMB EVDS · TÜFE makbuz referansları", e.source_ref.split("; "));
     const notes = element("div", undefined, "notes"); result.append(notes);
     list("Yöntem", e.methodology, notes);
     list("Sınırlamalar", e.limitations, notes);
-    if (housing) list("Veri kalitesi", e.data_quality_notes, notes);
+    if (housing || filter) list("Veri kalitesi", e.data_quality_notes, notes);
   }
   examples.forEach(button => button.addEventListener("click", () => { question.value = button.dataset.example; question.focus(); }));
   form.addEventListener("submit", async event => {
@@ -132,11 +162,11 @@
         say("error", messages[body.detail?.code] || "İstek tamamlanamadı. Lütfen daha sonra yeniden dene."); return;
       }
       if (body.status === "clarification_required") {
-        const messages = {period_required: "Hangi dönemi inceleyelim? Başlangıç ve bitiş yılını/ayını veya karşılaştırılacak iki farklı tam yılı belirt.", metric_ambiguous: "Hangi ölçüyü inceleyelim? Konut koşulunu veya TÜFE değişimini belirt.", question_ambiguous: "Konut kredisi koşulunu mu, TÜFE değişimlerini mi, iki tam yılın TÜFE karşılaştırmasını mı inceleyelim?", outside_coverage: "İstenen dönem veri kapsamının dışında. Aşağıdaki mevcut döneme uygun bir soru yaz."};
+        const messages = {period_required: "Hangi dönemi inceleyelim? Başlangıç ve bitiş yılını/ayını veya karşılaştırılacak iki farklı tam yılı belirt.", metric_ambiguous: "Hangi ölçüyü inceleyelim? Reel/nominal konut kredisi, faiz seviyesi veya faiz değişimini belirt.", question_ambiguous: "Konut filtresi koşullarını mı, TÜFE değişimlerini mi, iki tam yılın TÜFE karşılaştırmasını mı inceleyelim?", outside_coverage: "İstenen dönem veri kapsamının dışında. Aşağıdaki mevcut döneme uygun bir soru yaz."};
         const ranges = Object.entries(body.available_periods).filter(([,v]) => v).map(([k,v]) => `${k === "housing" ? "Konut" : "TÜFE"}: ${v.start_period}–${v.end_period}`).join(" · ");
         say(body.status, `${messages[body.decision.reason] || messages.question_ambiguous} ${ranges}`); return;
       }
-      if (body.status === "unsupported") { say(body.status, "Bu sürüm konut kredisi koşulunu, TÜFE değişimlerini veya iki tam yılın TÜFE karşılaştırmasını inceleyebilir. Ortalama, kısmi dönem, tahmin, nedensellik ve iki analizi birlikte isteyen sorular desteklenmiyor."); return; }
+      if (body.status === "unsupported") { say(body.status, "Bu sürüm parametreli konut koşullarını, TÜFE değişimlerini veya iki tam yılın TÜFE karşılaştırmasını inceleyebilir. OR, sıralama/top-N, ortalama, kısmi dönem, tahmin, nedensellik ve iki analizi birlikte isteyen sorular desteklenmiyor."); return; }
       if (body.status === "data_unavailable") { say("error", "İstenen analiz için kullanılabilir veri bulunmuyor."); return; }
       if (body.status !== "ok") throw new Error("Unknown result");
       await render(body); say("ok", "Analiz hazır. Sonuç, kaynaklar ve sınırlamalar aşağıda.");

@@ -449,6 +449,59 @@ def test_each_valid_plan_calls_only_its_existing_service_once_and_matches_direct
         assert result.analysis.first_to_last_index_change_pct == pytest.approx((140 / 130 - 1) * 100)
 
 
+def test_filter_plan_calls_core_once_and_matches_direct_evidence(monkeypatch, data):
+    housing, inflation = data
+    direct_filter = service.run_housing_filter
+    calls = []
+
+    def filter_call(*args, **kwargs):
+        calls.append(kwargs)
+        return direct_filter(*args, **kwargs)
+
+    monkeypatch.setattr(service, "run_housing_filter", filter_call)
+    conditions = [
+        {"metric": "interest_rate_change_pp", "operator": "lt", "threshold": 0.0},
+        {"metric": "nominal_housing_loan_change_pct", "operator": "lte", "threshold": 0.0},
+    ]
+    result = service.run_economic_question(
+        "2021 Ocak-Mart faiz düşerken nominal konut kredisi stoku artmayan aylar",
+        housing=housing, inflation=inflation,
+        model_call=lambda _: json.dumps(ready(service.HOUSING_FILTER_ID, conditions=conditions)),
+    )
+    direct = direct_filter(
+        housing.bddk_monthly, housing.evds_monthly,
+        start_period="2021-01", end_period="2021-03",
+        conditions=[service.HousingFilterCondition(**item) for item in conditions],
+        bddk_source_ref=housing.bddk_source_ref,
+        evds_source_refs=housing.evds_source_refs,
+    )
+    assert len(calls) == 1
+    assert result.decision.analysis_id == service.HOUSING_FILTER_ID
+    assert result.analysis.model_dump() == direct.model_dump()
+    assert result.analysis.matched_periods == ("2021-02",)
+
+
+def test_mismatched_filter_plan_never_executes_the_core(monkeypatch, data):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A mismatched filter plan must not run")
+
+    monkeypatch.setattr(service, "run_housing_filter", forbidden)
+    conditions = [
+        {"metric": "interest_rate_change_pp", "operator": "lt", "threshold": 0.0},
+        {"metric": "real_housing_loan_change_pct", "operator": "lte", "threshold": 0.0},
+    ]
+    housing, inflation = data
+    result = service.run_economic_question(
+        "2021 Ocak-Mart faiz düşerken nominal konut kredisi stoku artmayan aylar",
+        housing=housing, inflation=inflation,
+        model_call=lambda _: json.dumps(ready(service.HOUSING_FILTER_ID, conditions=conditions)),
+    )
+    assert result.decision == service.EconomicClarification(
+        status="clarification_required", reason="question_ambiguous",
+    )
+    assert result.analysis is None
+
+
 @pytest.mark.parametrize("question,response,expected_status", [
     ("Konut faiz ve reel kredi koşulunu bul.",
      {"status": "clarification_required", "reason": "period_required"}, "clarification_required"),

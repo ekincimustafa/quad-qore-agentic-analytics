@@ -166,9 +166,34 @@ def test_browser_question_flow_with_offline_plans(tmp_path, monkeypatch):
         "analysis": {"analysis_id": "cpi_two_year_comparison",
                      "evidence": comparison.model_dump(mode="json")},
     }
+    filter_plan = {
+        "status": "ready", "analysis_id": "housing_condition_filter",
+        "start_period": "2021-01", "end_period": "2021-02",
+        "conditions": [
+            {"metric": "interest_rate_change_pp", "operator": "lt", "threshold": 0.0},
+            {"metric": "nominal_housing_loan_change_pct", "operator": "lte", "threshold": 0.0},
+        ],
+    }
+    filter_run = run_economic_question(
+        "2021 Ocak-Şubat faiz düşerken nominal konut kredisi stoku artmayan aylar",
+        housing=HousingQuestionData(
+            pd.DataFrame(housing["bddk_monthly"]), pd.DataFrame(housing["evds_monthly"]),
+            housing["bddk_source_ref"], housing["evds_source_refs"],
+        ),
+        model_call=lambda _: json.dumps(filter_plan),
+    )
+    filter_payload = {
+        "status": "ok", "available_periods": filter_run.coverage.model_dump(),
+        "decision": filter_plan,
+        "analysis": {
+            "analysis_id": "housing_condition_filter",
+            "evidence": filter_run.analysis.model_dump(mode="json"),
+        },
+    }
     script = (Path(__file__).parent / "ui_browser_checks.js").read_text(encoding="utf-8")
     script = script.replace("__MATCHED_PAYLOAD__", json.dumps(matched_payload))
     script = script.replace("__COMPARISON_PAYLOAD__", json.dumps(comparison_payload))
+    script = script.replace("__FILTER_PAYLOAD__", json.dumps(filter_payload))
 
     @app.get("/__ui_test.js", include_in_schema=False)
     def checks():

@@ -49,6 +49,40 @@ def client_with_model(model):
     return TestClient(app)
 
 
+def test_filter_endpoint_matches_direct_core_and_exposes_typed_evidence(monkeypatch, payload):
+    payload["question"] = "2021 Ocak-Mart faiz düşerken nominal konut kredisi stoku artmayan aylar"
+    conditions = [
+        {"metric": "interest_rate_change_pp", "operator": "lt", "threshold": 0.0},
+        {"metric": "nominal_housing_loan_change_pct", "operator": "lte", "threshold": 0.0},
+    ]
+    plan = ready(service.HOUSING_FILTER_ID, conditions=conditions)
+    calls = []
+    original = service.run_housing_filter
+
+    def filter_call(*args, **kwargs):
+        calls.append(kwargs)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(service, "run_housing_filter", filter_call)
+    with client_with_model(lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json=payload)
+    assert response.status_code == 200 and len(calls) == 1
+    body = response.json()
+    assert body["status"] == "ok" and body["decision"] == plan
+    assert body["analysis"]["analysis_id"] == service.HOUSING_FILTER_ID
+    assert "chart" not in body["analysis"]
+    direct = original(
+        pd.DataFrame(payload["housing"]["bddk_monthly"]),
+        pd.DataFrame(payload["housing"]["evds_monthly"]),
+        start_period="2021-01", end_period="2021-03",
+        conditions=[service.HousingFilterCondition(**item) for item in conditions],
+        bddk_source_ref=payload["housing"]["bddk_source_ref"],
+        evds_source_refs=payload["housing"]["evds_source_refs"],
+    )
+    assert body["analysis"]["evidence"] == direct.model_dump(mode="json")
+    assert body["analysis"]["evidence"]["matched_periods"] == ["2021-02"]
+
+
 @pytest.mark.parametrize("analysis_id", [service.HOUSING_ID, service.INFLATION_ID])
 def test_documented_requests_call_one_service_and_equal_direct_api(monkeypatch, payload, analysis_id):
     if analysis_id == service.INFLATION_ID:
