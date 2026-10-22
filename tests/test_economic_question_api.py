@@ -93,6 +93,14 @@ def test_filter_endpoint_matches_direct_core_and_exposes_typed_evidence(monkeypa
         ready(service.HOUSING_ID),
     ),
     (
+        "2021 Ocak-Mart faiz düşerken reel konut kredisi stokunu göster",
+        ready(service.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Mart faiz düşerken reel konut kredisi bakiyesini incele",
+        ready(service.HOUSING_ID),
+    ),
+    (
         "2021 Ocak-Mart faiz oranı %20'nin altında olmayan aylar",
         ready(service.HOUSING_FILTER_ID, conditions=[
             {"metric": "housing_loan_interest_rate_pct", "operator": "lt", "threshold": 20.0},

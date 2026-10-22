@@ -101,6 +101,14 @@ def test_filter_endpoint_matches_verified_core_result(package, monkeypatch):
         ready(core.HOUSING_ID),
     ),
     (
+        "2021 Ocak-Şubat faiz düşerken reel konut kredisi stokunu göster",
+        ready(core.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Şubat faiz düşerken reel konut kredisi bakiyesini incele",
+        ready(core.HOUSING_ID),
+    ),
+    (
         "2021 Ocak-Şubat faiz oranı %20'nin altında olmayan aylar",
         ready(core.HOUSING_FILTER_ID, conditions=[
             {"metric": "housing_loan_interest_rate_pct", "operator": "lt", "threshold": 20.0},
@@ -399,7 +407,7 @@ def test_non_ready_and_invalid_plans_never_analyze(package, monkeypatch, plan, e
     prompts = []
     question = QUESTION
     if isinstance(plan, dict) and plan.get("start_period") == "2020-12":
-        question = "2020 Aralık-2021 Şubat faiz düşerken reel konut kredisi stokunu göster."
+        question = "2020 Aralık-2021 Şubat faiz düşerken reel konut kredisi stoku artmayan aylar."
     elif isinstance(plan, dict) and plan.get("end_period") == "2021-03":
         question = "2021 Ocak-Mart TÜFE değişimlerini göster."
 

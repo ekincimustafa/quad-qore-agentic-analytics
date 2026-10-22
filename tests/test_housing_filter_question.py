@@ -3,11 +3,26 @@
 import pytest
 
 from app.services.housing_filter import HousingFilterCondition
-from app.services.housing_filter_question import guard_housing_filter_question
+from app.services.housing_filter_question import (
+    guard_housing_filter_question,
+    guard_legacy_housing_question,
+)
 
 
 def condition(metric, operator, threshold):
     return HousingFilterCondition(metric=metric, operator=operator, threshold=threshold)
+
+
+def test_legacy_guard_requires_an_explicit_credit_direction():
+    assert guard_legacy_housing_question(
+        "2021 Ocak-Mart faiz düşerken reel konut kredisi stokunu göster"
+    ) == "question_ambiguous"
+    assert guard_legacy_housing_question(
+        "2021 Ocak-Mart faiz düşerken reel konut kredisi bakiyesini incele"
+    ) == "question_ambiguous"
+    assert guard_legacy_housing_question(
+        "2021 Ocak-Mart faiz düşerken reel konut kredisi stoku artmayan aylar"
+    ) is None
 
 
 @pytest.mark.parametrize("question,conditions", [

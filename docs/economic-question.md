@@ -53,8 +53,9 @@ Python, sorudaki açık metrik/yön/eşik/birim ifadelerini
 karşılaştırma kendi sayısına eşlenir; açık negasyon tersine çevrilir,
 azalış/düşüş eşikleri işaretli değişime dönüştürülür ve aynı metrikteki iki
 sınır birlikte korunur. Eski `housing_rate_down_real_credit_not_up` planı yalnız
-`interest_rate_change_pp lt 0` + `real_housing_loan_change_pct lte 0` koşullarıyla
-kabul edilir. Plan koşullarıyla birebir karşılaştırılır. Eksik/fazla/uydurulmuş koşul, açıkça
+`interest_rate_change_pp lt 0` + `real_housing_loan_change_pct lte 0` koşulları
+soruda açıkça istendiğinde kabul edilir; kredi değişim yönü belirtilmemişse plan
+reddedilir ve netleştirme istenir. Plan koşullarıyla birebir karşılaştırılır. Eksik/fazla/uydurulmuş koşul, açıkça
 belirtilmemiş nominal/reel kredi, yüzde ile yüzde puan karışıklığı, OR, sıralama/top-N,
 ortalama/yıllık/toplam, tahmin/nedensellik ve kapsam dışı analizlerde analiz **0** kez
 çalışır; uygun `metric_ambiguous`, `question_ambiguous` veya `unsupported` kararı döner.

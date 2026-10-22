@@ -100,6 +100,10 @@ def ready(analysis_id, start="2021-01", end="2021-03", **extra):
      ready(service.HOUSING_ID), ("clarification_required", "metric_ambiguous")),
     ("2021 Ocak-Mart reel kredi stoku değil, nominal kredi stokunu göster.",
      ready(service.HOUSING_ID), ("unsupported", "unsupported_analysis")),
+    ("2021 Ocak-Mart faiz düşerken nominal değil, reel kredi stokunu göster.",
+     ready(service.HOUSING_ID), ("clarification_required", "question_ambiguous")),
+    ("2021 Ocak-Mart faiz düşerken reel konut kredisi stokunu incele.",
+     ready(service.HOUSING_ID), ("clarification_required", "question_ambiguous")),
 ])
 def test_ungrounded_ready_plan_never_executes_analysis(monkeypatch, data, question, plan, expected):
     def forbidden(*args, **kwargs):
@@ -131,8 +135,6 @@ def test_ungrounded_ready_plan_never_executes_analysis(monkeypatch, data, questi
     ("2021 Şubat TÜFE değişimlerini göster.", service.INFLATION_ID, "2021-02", "2021-02"),
     ("2021 Ocak TÜFE değişimlerini göster.", service.INFLATION_ID, "2021-01", "2021-01"),
     ("2021 Ocak-Mart faiz düşerken enflasyondan arındırılmış bakiye artmayan ayları göster.",
-     service.HOUSING_ID, "2021-01", "2021-03"),
-    ("2021 Ocak-Mart faiz düşerken nominal değil, reel kredi stokunu göster.",
      service.HOUSING_ID, "2021-01", "2021-03"),
 ])
 def test_explicit_period_and_real_metric_reach_existing_analysis(data, question, analysis_id, start, end):
@@ -421,7 +423,7 @@ def test_each_valid_plan_calls_only_its_existing_service_once_and_matches_direct
         return json.dumps(ready(analysis_id))
 
     result = service.run_economic_question(
-        "2021 Ocak-Mart faiz düşerken reel konut kredisi stokunu incele.",
+        "2021 Ocak-Mart faiz düşerken reel konut kredisi stoku artmayan aylar",
         housing=housing, inflation=inflation, model_call=model,
     )
     assert len(prompts) == 1
@@ -569,7 +571,7 @@ def test_observed_wrong_filter_plans_never_execute_the_core(
      {"status": "unsupported", "reason": "unsupported_analysis"}, "unsupported"),
     ("2021 Ocak-Nisan TÜFE değişimini göster.",
      ready(service.INFLATION_ID, end="2021-04"), "clarification_required"),
-    ("2020 Aralık-2021 Mart faiz düşerken reel konut kredisi stokunu incele.",
+    ("2020 Aralık-2021 Mart faiz düşerken reel konut kredisi stoku artmayan aylar.",
      ready(service.HOUSING_ID, start="2020-12"), "clarification_required"),
 ])
 def test_non_executable_decisions_never_call_either_analysis(

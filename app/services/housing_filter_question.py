@@ -112,9 +112,6 @@ _NUMERIC_NEGATION = re.compile(
 _PERIOD_UNIT = re.compile(
     r"^\s*(?:ay|yıl|yil|gün|gun|hafta|çeyrek|ceyrek|dönem|donem)\w*\b"
 )
-_LEGACY_INTENT = re.compile(
-    r"\b(?:incele\w*|göster\w*|bul\w*|listele\w*|hangileri|aylar\w*)\b"
-)
 _LEGACY_CONDITIONS = (
     HousingFilterCondition(
         metric="interest_rate_change_pp", operator="lt", threshold=0.0
@@ -390,8 +387,6 @@ def _parse_span(
     text: str,
     span: _Span,
     spans: list[_Span],
-    *,
-    implicit_credit_not_up: bool = False,
 ) -> list[_Parsed] | str | None:
     previous, following = _neighbours(text, span, spans)
     suffix = text[span.end:min(following, span.end + 220)]
@@ -420,23 +415,7 @@ def _parse_span(
         )
     else:
         if not has_change:
-            if (
-                implicit_credit_not_up
-                and not numeric
-                and _LEGACY_INTENT.search(text)
-            ):
-                return [
-                    _Parsed(
-                        metric=(
-                            "real_housing_loan_change_pct"
-                            if span.kind == "real_credit"
-                            else "nominal_housing_loan_change_pct"
-                        ),
-                        operator="lte",
-                        threshold=0.0,
-                    )
-                ]
-            return "unsupported"
+            return "unsupported" if numeric else "question_ambiguous"
         metric = (
             "real_housing_loan_change_pct"
             if span.kind == "real_credit"
@@ -518,9 +497,7 @@ def _parsed_conditions(
 
     parsed: list[_Parsed] = []
     for span in spans:
-        item = _parse_span(
-            text, span, spans, implicit_credit_not_up=legacy
-        )
+        item = _parse_span(text, span, spans)
         if isinstance(item, str):
             return item
         if item is not None:
