@@ -3,7 +3,7 @@
 Takip: [#59](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/59).
 `app/services/economic_question.py`, Türkçe bir soruyu tek model çağrısında
 doğrulanmış plana dönüştürür ve en fazla bir mevcut Python analizini çalıştırır.
-Ortak HTTP yüzeyi `POST /analysis/economic/question` ve 37 vakalık offline HTTP
+Ortak HTTP yüzeyi `POST /analysis/economic/question` ve 45 vakalık offline HTTP
 değerlendirme seti mevcuttur. Mevcut `/analysis/housing/question` yalnızca konut
 analizini desteklemeye devam eder.
 
@@ -288,7 +288,7 @@ Offline stub sonuçları modelin Türkçe anlama başarısı değildir.
 .\.venv\Scripts\python.exe -m scripts.evaluate_economic_questions
 ```
 
-`evals/economic_question_cases.json` içindeki 37 vaka gerçek HTTP doğrulaması ve
+`evals/economic_question_cases.json` içindeki 45 vaka gerçek HTTP doğrulaması ve
 Python analizleriyle, sabit model yanıtları kullanılarak çalışır. Housing/TÜFE
 sonuçları aynı girdili doğrudan hesap endpoint'leriyle, filtre sonucu doğrudan
 `run_housing_filter()` çekirdeğiyle, karşılaştırma sonucu ise mevcut
@@ -306,11 +306,14 @@ sentetik sabitlerle ayrıca sınanır. Beklentiler model çıktısı görülmede
 desteklenen EQ-025'i değiştirdi: faiz değişimi `gt 0` ve reel kredi değişimi
 `gt 0` koşulları korunuyor; sentetik dönemde eşleşen ay yok. Diğer eski
 `unsupported`/netleştirme beklentileri (kapsam dışı, tahmin/nedensellik, OR,
-ortalama, açıkça belirtilmemiş nominal/reel kredi) değişmedi. Dağılım: 13 ready,
-13 netleştirme, 9 unsupported, 2 veri yokluğu. Tahmin/nedensellik/şema
+ortalama, açıkça belirtilmemiş nominal/reel kredi) değişmedi. 22 Ekim'de #107
+kapsamında EQ-038–045 eklendi: yalnız konut içeren yeni sentetik fixture üzerinde
+dört olumlu filtre planı, üç netleştirme ve bir desteklenmeyen OR isteği. Eşleşen
+aylar uygulamadan kopyalanmayan sabit oracle olarak tutulur. Dağılım: 17 ready,
+16 netleştirme, 10 unsupported, 2 veri yokluğu. Tahmin/nedensellik/şema
 değiştirme talepleri eski sette de vardır.
 
-Rapor **`offline_stub / harness_behavior_only`** olarak etiketlenir; 37/37 gibi
+Rapor **`offline_stub / harness_behavior_only`** olarak etiketlenir; 45/45 gibi
 bir stub sonucu modelin Türkçe anlama başarısı veya injection dayanıklılığı değildir.
 Hazırlıkta gerçek model/EVDS çağrısı yapılmadı. 20 Ekim'deki ayrı onaylı canlı
 koşunun sonucu aşağıda kaydedildi; #71'in dört gerçek vaka kaydı ayrı kanıttır

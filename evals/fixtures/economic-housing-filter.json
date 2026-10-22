@@ -1,0 +1,23 @@
+{
+  "question": "2021 Ocak-Haziran konut koşullarını filtrele.",
+  "housing": {
+    "bddk_monthly": [
+      {"period": "2021-01", "nominal_housing_loan_mn_try": 100.0},
+      {"period": "2021-02", "nominal_housing_loan_mn_try": 110.0},
+      {"period": "2021-03", "nominal_housing_loan_mn_try": 99.0},
+      {"period": "2021-04", "nominal_housing_loan_mn_try": 108.9},
+      {"period": "2021-05", "nominal_housing_loan_mn_try": 108.9},
+      {"period": "2021-06", "nominal_housing_loan_mn_try": 98.01}
+    ],
+    "evds_monthly": [
+      {"period": "2021-01", "housing_loan_interest_rate_pct": 20.0, "weekly_observation_count": 4, "cpi_index": 100.0, "housing_price_index": 100.0},
+      {"period": "2021-02", "housing_loan_interest_rate_pct": 19.0, "weekly_observation_count": 4, "cpi_index": 105.0, "housing_price_index": 100.0},
+      {"period": "2021-03", "housing_loan_interest_rate_pct": 21.0, "weekly_observation_count": 4, "cpi_index": 100.0, "housing_price_index": 100.0},
+      {"period": "2021-04", "housing_loan_interest_rate_pct": 22.0, "weekly_observation_count": 4, "cpi_index": 102.0, "housing_price_index": 100.0},
+      {"period": "2021-05", "housing_loan_interest_rate_pct": 18.0, "weekly_observation_count": 4, "cpi_index": 105.0, "housing_price_index": 100.0},
+      {"period": "2021-06", "housing_loan_interest_rate_pct": 18.5, "weekly_observation_count": 4, "cpi_index": 100.0, "housing_price_index": 100.0}
+    ],
+    "bddk_source_ref": "synthetic://housing-filter/bddk",
+    "evds_source_refs": "synthetic://housing-filter/interest; synthetic://housing-filter/cpi; synthetic://housing-filter/hpi"
+  }
+}

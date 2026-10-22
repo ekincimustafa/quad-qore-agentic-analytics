@@ -307,6 +307,78 @@
       "rationale": "Aylık oran karşılaştırması kısmi dönem isteğidir; iki tam yıl karşılaştırması değildir.",
       "offline_response": {"status": "unsupported", "reason": "unsupported_analysis"},
       "expected_decision": {"status": "unsupported", "reason": "unsupported_analysis"}
+    },
+    {
+      "id": "EQ-038",
+      "question": "2021 Ocak-Haziran faiz artarken reel konut kredisi stoku artan ayları göster.",
+      "fixture": "housing_filter",
+      "rationale": "Bağımsız oracle: faiz değişimi gt 0 ve reel kredi değişimi gt 0 yalnız 2021-04'te birlikte sağlanır.",
+      "offline_response": {"status": "ready", "analysis_id": "housing_condition_filter", "start_period": "2021-01", "end_period": "2021-06", "conditions": [{"metric": "interest_rate_change_pp", "operator": "gt", "threshold": 0.0}, {"metric": "real_housing_loan_change_pct", "operator": "gt", "threshold": 0.0}]},
+      "expected_decision": {"status": "ready", "analysis_id": "housing_condition_filter", "start_period": "2021-01", "end_period": "2021-06", "conditions": [{"metric": "interest_rate_change_pp", "operator": "gt", "threshold": 0.0}, {"metric": "real_housing_loan_change_pct", "operator": "gt", "threshold": 0.0}]},
+      "expected_observed_month_count": 6,
+      "expected_matched_periods": ["2021-04"]
+    },
+    {
+      "id": "EQ-039",
+      "question": "2021 Ocak-Haziran reel konut kredisi stokunun aylık artışı %2'yi aşan ayları göster.",
+      "fixture": "housing_filter",
+      "rationale": "Bağımsız oracle: reel kredi değişimi gt 2 olan aylar 2021-02 ve 2021-04'tür.",
+      "offline_response": {"status": "ready", "analysis_id": "housing_condition_filter", "start_period": "2021-01", "end_period": "2021-06", "conditions": [{"metric": "real_housing_loan_change_pct", "operator": "gt", "threshold": 2.0}]},
+      "expected_decision": {"status": "ready", "analysis_id": "housing_condition_filter", "start_period": "2021-01", "end_period": "2021-06", "conditions": [{"metric": "real_housing_loan_change_pct", "operator": "gt", "threshold": 2.0}]},
+      "expected_observed_month_count": 6,
+      "expected_matched_periods": ["2021-02", "2021-04"]
+    },
+    {
+      "id": "EQ-040",
+      "question": "2021 Ocak-Haziran faiz seviyesi %20'nin altında olan ve nominal konut kredisi stoku azalan ayları göster.",
+      "fixture": "housing_filter",
+      "rationale": "Bağımsız oracle: faiz seviyesi lt 20 ve nominal kredi değişimi lt 0 yalnız 2021-06'da birlikte sağlanır.",
+      "offline_response": {"status": "ready", "analysis_id": "housing_condition_filter", "start_period": "2021-01", "end_period": "2021-06", "conditions": [{"metric": "housing_loan_interest_rate_pct", "operator": "lt", "threshold": 20.0}, {"metric": "nominal_housing_loan_change_pct", "operator": "lt", "threshold": 0.0}]},
+      "expected_decision": {"status": "ready", "analysis_id": "housing_condition_filter", "start_period": "2021-01", "end_period": "2021-06", "conditions": [{"metric": "housing_loan_interest_rate_pct", "operator": "lt", "threshold": 20.0}, {"metric": "nominal_housing_loan_change_pct", "operator": "lt", "threshold": 0.0}]},
+      "expected_observed_month_count": 6,
+      "expected_matched_periods": ["2021-06"]
+    },
+    {
+      "id": "EQ-041",
+      "question": "2021 Ocak-Haziran faiz seviyesi %18'in üzerinde ve %20'nin altında olan ayları göster.",
+      "fixture": "housing_filter",
+      "rationale": "Bağımsız oracle: 18 lt seviye lt 20 olan aylar 2021-02 ve 2021-06'dır; eşikteki %18 Mayıs dahil değildir.",
+      "offline_response": {"status": "ready", "analysis_id": "housing_condition_filter", "start_period": "2021-01", "end_period": "2021-06", "conditions": [{"metric": "housing_loan_interest_rate_pct", "operator": "gt", "threshold": 18.0}, {"metric": "housing_loan_interest_rate_pct", "operator": "lt", "threshold": 20.0}]},
+      "expected_decision": {"status": "ready", "analysis_id": "housing_condition_filter", "start_period": "2021-01", "end_period": "2021-06", "conditions": [{"metric": "housing_loan_interest_rate_pct", "operator": "gt", "threshold": 18.0}, {"metric": "housing_loan_interest_rate_pct", "operator": "lt", "threshold": 20.0}]},
+      "expected_observed_month_count": 6,
+      "expected_matched_periods": ["2021-02", "2021-06"]
+    },
+    {
+      "id": "EQ-042",
+      "question": "2021 Ocak-Haziran faiz düşerken reel konut kredisi stokunu göster.",
+      "fixture": "housing_filter",
+      "rationale": "Kredi yönü belirtilmemiş; mevcut legacy ready planı için açık yön olmadan analiz çalıştırılmaz.",
+      "offline_response": {"status": "clarification_required", "reason": "question_ambiguous"},
+      "expected_decision": {"status": "clarification_required", "reason": "question_ambiguous"}
+    },
+    {
+      "id": "EQ-043",
+      "question": "2021 Ocak-Haziran faiz düşerken konut kredisi stokunun artmadığı ayları göster.",
+      "fixture": "housing_filter",
+      "rationale": "Kredi stoku nominal mi reel mi belirtilmemiş; metrik belirsizliği netleştirme gerektirir.",
+      "offline_response": {"status": "clarification_required", "reason": "metric_ambiguous"},
+      "expected_decision": {"status": "clarification_required", "reason": "metric_ambiguous"}
+    },
+    {
+      "id": "EQ-044",
+      "question": "Ocak-Haziran faiz artarken reel konut kredisi stoku artan ayları göster.",
+      "fixture": "housing_filter",
+      "rationale": "Ay aralığı var fakat yıl yok; yıl veri kapsamından veya bugünden varsayılmaz.",
+      "offline_response": {"status": "clarification_required", "reason": "period_required"},
+      "expected_decision": {"status": "clarification_required", "reason": "period_required"}
+    },
+    {
+      "id": "EQ-045",
+      "question": "2021 Ocak-Haziran faiz artan veya reel konut kredisi stoku artan ayları göster.",
+      "fixture": "housing_filter",
+      "rationale": "VEYA ile birleşik koşul isteği desteklenmez; koşullar yalnız AND ile birleştirilir.",
+      "offline_response": {"status": "unsupported", "reason": "unsupported_analysis"},
+      "expected_decision": {"status": "unsupported", "reason": "unsupported_analysis"}
     }
   ]
 }

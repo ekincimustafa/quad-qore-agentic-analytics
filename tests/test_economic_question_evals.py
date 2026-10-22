@@ -32,13 +32,13 @@ def test_offline_command_runs_curated_cases_and_counts_only_question_executions(
     report = json.loads(report_path.read_text(encoding="utf-8"))
     assert report["measurement"] == "harness_behavior_only"
     assert report["live_model_call_attempts"] == 0
-    assert report["passed_cases"] == report["selected_cases"] == 37
-    assert sum(row["stub_calls"] for row in report["results"]) == 36
+    assert report["passed_cases"] == report["selected_cases"] == 45
+    assert sum(row["stub_calls"] for row in report["results"]) == 44
     assert sum(row["housing_calls"] for row in report["results"]) == 4
-    assert sum(row["filter_calls"] for row in report["results"]) == 1
+    assert sum(row["filter_calls"] for row in report["results"]) == 5
     assert sum(row["inflation_calls"] for row in report["results"]) == 5
     assert sum(row["comparison_calls"] for row in report["results"]) == 3
-    assert report["case_set_sha256"] and len(report["fixture_sha256"]) == 4
+    assert report["case_set_sha256"] and len(report["fixture_sha256"]) == 5
     assert report["source_commit"] and report["evaluator_sha256"]
     assert report["results"][0]["expected_decision"] == report["results"][0]["actual_decision"]
 
@@ -330,6 +330,109 @@ def test_comparison_cases_run_one_comparison_and_keep_hand_calculated_constants(
     assert report["all_selected_cases_passed"]
     assert [row["comparison_calls"] for row in report["results"]] == [1, 1, 1]
     assert all(row["housing_calls"] == row["inflation_calls"] == 0 for row in report["results"])
+
+
+@pytest.mark.parametrize(("case_id", "matched_periods"), [
+    ("EQ-038", ["2021-04"]),
+    ("EQ-039", ["2021-02", "2021-04"]),
+    ("EQ-040", ["2021-06"]),
+    ("EQ-041", ["2021-02", "2021-06"]),
+])
+def test_positive_housing_filter_cases_use_fixed_oracle_and_one_filter_call(
+    cases, fixtures, case_id, matched_periods,
+):
+    case = evaluator.select_cases(cases, [case_id])[0]
+    reference = evaluator._filter_reference(evaluator._payload(case, fixtures), case.expected_decision)
+    assert list(reference["matched_periods"]) == case.expected_matched_periods == matched_periods
+    assert reference["observed_month_count"] == case.expected_observed_month_count == 6
+
+    report = evaluator.evaluate_cases([case], fixtures)
+    row = report["results"][0]
+    assert report["all_selected_cases_passed"] and row["outcome"] == "passed"
+    assert row["filter_calls"] == 1
+    assert row["housing_calls"] == row["inflation_calls"] == row["comparison_calls"] == 0
+
+
+def test_negative_housing_filter_cases_execute_no_analysis(cases, fixtures):
+    selected = evaluator.select_cases(cases, ["EQ-042", "EQ-043", "EQ-044", "EQ-045"])
+    report = evaluator.evaluate_cases(selected, fixtures)
+    assert report["all_selected_cases_passed"]
+    for row in report["results"]:
+        assert row["actual_decision"] == row["expected_decision"]
+        assert row["housing_calls"] == row["filter_calls"] == 0
+        assert row["inflation_calls"] == row["comparison_calls"] == 0
+
+
+@pytest.mark.parametrize(("case_id", "response"), [
+    ("EQ-038", {
+        "status": "ready", "analysis_id": "housing_condition_filter",
+        "start_period": "2021-01", "end_period": "2021-06",
+        "conditions": [
+            {"metric": "interest_rate_change_pp", "operator": "lt", "threshold": 0.0},
+            {"metric": "real_housing_loan_change_pct", "operator": "gt", "threshold": 0.0},
+        ],
+    }),
+    ("EQ-039", {
+        "status": "ready", "analysis_id": "housing_condition_filter",
+        "start_period": "2021-01", "end_period": "2021-06",
+        "conditions": [
+            {"metric": "real_housing_loan_change_pct", "operator": "gt", "threshold": 3.0},
+        ],
+    }),
+    ("EQ-041", {
+        "status": "ready", "analysis_id": "housing_condition_filter",
+        "start_period": "2021-01", "end_period": "2021-06",
+        "conditions": [
+            {"metric": "housing_loan_interest_rate_pct", "operator": "gt", "threshold": 18.0},
+        ],
+    }),
+    ("EQ-042", {
+        "status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up",
+        "start_period": "2021-01", "end_period": "2021-06",
+    }),
+])
+def test_wrong_filter_or_legacy_ready_plans_fail_without_analysis(cases, fixtures, case_id, response):
+    case = evaluator.select_cases(cases, [case_id])[0]
+    report = evaluator.evaluate_cases(
+        [case], fixtures, live=True,
+        model_call=lambda _: json.dumps(response), max_model_calls=1,
+    )
+    row = report["results"][0]
+    assert not report["all_selected_cases_passed"] and row["outcome"] == "failed"
+    assert row["model_decision_matches_expectation"] is False
+    assert row["python_blocked_ready_plan"] is True
+    assert row["housing_calls"] == row["filter_calls"] == 0
+    assert row["inflation_calls"] == row["comparison_calls"] == 0
+
+
+def test_new_filter_live_path_counts_attempts_and_stops_on_first_failure(cases, fixtures, fake_provider):
+    selected = evaluator.select_cases(cases, ["EQ-038", "EQ-040", "EQ-043"])
+    answers = {case.question: case.offline_response for case in selected}
+    wrong = {
+        "status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up",
+        "start_period": "2021-01", "end_period": "2021-06",
+    }
+
+    def handler(request):
+        prompt = json.loads(request.content)["messages"][0]["content"]
+        question = json.loads(prompt.split("İSTEK_VERİSİ:\n", 1)[1])["question"]
+        return _response(json.dumps(
+            wrong if question == selected[1].question else answers[question],
+            ensure_ascii=False,
+        ))
+
+    requests, _, _ = fake_provider(handler)
+    report = evaluator.evaluate_cases(
+        selected, fixtures, live=True,
+        model_call=llm_client.ask_llm, max_model_calls=3,
+    )
+    assert len(requests) == report["live_model_call_attempts"] == 2
+    assert report["passed_cases"] == 1 and report["failed_cases"] == 1
+    assert report["skipped_cases"] == 1
+    assert report["results"][0]["filter_calls"] == 1
+    assert report["results"][1]["reason"] == "status_mismatch"
+    assert report["results"][1]["filter_calls"] == report["results"][1]["housing_calls"] == 0
+    assert report["results"][2]["reason"] == "not_run_after_failure"
 
 
 def test_bad_comparison_expectation_spends_no_provider_calls(cases, fixtures):

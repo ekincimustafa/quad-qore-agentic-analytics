@@ -10,6 +10,31 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## #107 konut filtresi kabul vakaları — 22 Ekim 2026
+
+- Dal `test/housing-filter-acceptance`; güncel `origin/main` `8119e1d` (PR #106
+  merge) üzerinden açıldı. Yerel değişiklik yoktu; Afra #99/#102 ve Osman #100
+  kapsamına dokunulmadı. Runtime/prompt/API/UI değişmedi.
+- `evals/fixtures/economic-housing-filter.json` eklendi: yalnız sentetik konut
+  girdisi, 2021-01–06 altı ay, `synthetic://` kaynakları. Mevcut dört fixture
+  değişmedi.
+- Mevcut evaluator genişletildi: fixture seçimi/`_payload`/`FIXTURES`/hash zinciri
+  yeni fixture'ı biliyor; `EconomicSuite` üst sınırı 45. Eski 37 vakanın
+  soru/plan/beklenti/gerekçesi değişmedi. EQ-038–045 eklendi: dört olumlu
+  `housing_condition_filter` planı, üç netleştirme ve bir unsupported OR isteği.
+  Eşleşen aylar uygulamadan kopyalanmayan sabit oracle olarak tutuldu.
+- Odaklı servis/API/dosya/filtre/evaluator paketi **391 passed**. Odaklı
+  regresyonlar altı gözlem ve tek filtre çağrısını, negatiflerde sıfır analizi,
+  yanlış yön/eşik/eksik sınır ve eksik kredi yönlü legacy ready planlarının
+  başarısız kalmasını, sahte sağlayıcıda iki denemede ilk hatada durmayı kontrol
+  eder. Canlı LLM/EVDS/ağ çağrısı yapılmadı.
+- Tek `scripts.verify_project`: **1227 passed, 2 skipped**; Housing **9/9**,
+  Economic **45/45**, canlı çağrı **0**, `git diff --check` temiz
+  (`out/verification/20261022T195542Z-28320-25ceb497`). Bunlar
+  `harness_behavior_only` stub sonuçlarıdır; model anlama/kabul metriği değildir.
+- Canlı koşu komutu yalnız PR açıklamasında öneri olarak hazırlanır; çalıştırma
+  yoktur. Bir sonraki adım bağımsız PR incelemesidir; bu oturum merge yapmaz.
+
 ## #105 parametreli konut filtresini soru/API/ekran akışına bağlama — 22 Ekim 2026
 
 - Dal `feat/housing-filter-question`; güncel `origin/main` `dcd5814` (PR #104

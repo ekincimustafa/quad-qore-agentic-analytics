@@ -31,6 +31,7 @@ FIXTURES = {
     "cpi_history": ROOT / "docs/economic-question-cpi-example.json",
     "comparison": ROOT / "docs/economic-question-comparison-example.json",
     "comparison_missing_history": ROOT / "docs/economic-question-comparison-missing-history-example.json",
+    "housing_filter": ROOT / "evals/fixtures/economic-housing-filter.json",
 }
 ENDPOINT = "/analysis/economic/question"
 MODEL_DECISION = TypeAdapter(service.ModelDecision)
@@ -50,7 +51,8 @@ class EconomicCase(BaseModel):
     id: str = Field(pattern=r"^EQ-[0-9]{3}$")
     question: str = Field(min_length=1, max_length=2_000)
     fixture: Literal[
-        "both", "cpi_history", "comparison", "comparison_missing_history", "housing_only", "none",
+        "both", "cpi_history", "comparison", "comparison_missing_history",
+        "housing_filter", "housing_only", "none",
     ] = "both"
     offline_response: dict[str, Any]
     expected_decision: service.EconomicDecision
@@ -93,7 +95,7 @@ class EconomicSuite(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     schema_version: Literal["1.0"]
-    cases: list[EconomicCase] = Field(min_length=1, max_length=40)
+    cases: list[EconomicCase] = Field(min_length=1, max_length=45)
 
     @model_validator(mode="after")
     def unique_ids(self) -> EconomicSuite:
@@ -109,6 +111,7 @@ def _payload(case: EconomicCase, fixtures: dict[str, dict]) -> dict:
         "cpi_history": "cpi_history",
         "comparison": "comparison",
         "comparison_missing_history": "comparison_missing_history",
+        "housing_filter": "housing_filter",
     }.get(case.fixture, "both")
     payload = copy.deepcopy(fixtures[fixture])
     payload["question"] = case.question
