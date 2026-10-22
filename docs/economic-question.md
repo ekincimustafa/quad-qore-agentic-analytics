@@ -49,17 +49,30 @@ yanlış bir `ready` planı engellemesi model başarısı değildir.
 
 ### `ready` planı için analiz öncesi kontrol
 
-Sorudaki döneme yalnız şu açık biçimlerde karşılık aranır: `2021 Ocak-Mart` veya
-`Ocak-Mart 2021`, `2020 Aralık-2021 Mart`, `2021-02`, `01/2021 ile 03/2021`,
-`1 Ocak 2021–31 Mart 2021` (tam ay sınırları), `2021'in ilk çeyreği/ilk üç ayı`
-ve tam yıl aralığı `2021-2025`. `2021 Ocak TÜFE...` gibi gerçekten tek ay isteyen
-ifade de kabul edilir. Tek ayın ardından `itibaren`, `sonra/sonraki`, `sonrası`
-veya `başlayarak` gelirse bitiş eksik sayılır; tanınan ay kapalı tek aya çevrilmez.
-Planın iki ucu sorudaki kapalı ifadeyle aynı olmalıdır; eksik yıl veya bitiş,
-başka/çelişkili yıl, kısmi günlük sınır veya tanınmayan biçim `period_required`
-döndürür. Veri
-kapsamından veya bugünden yıl/bitiş tamamlanmaz. Bu sınırlı kontrol genel bir
-Türkçe tarih ayrıştırıcısı değildir.
+Sorudaki döneme yalnız şu açık biçimlerde karşılık aranır:
+
+- tam yıl: `2023 yılında`, `2023 yılı boyunca`, `2023 yılının tamamında`
+  (2023-01–2023-12);
+- çeyrek: `2023'ün ikinci çeyreği`, `2023 yılının 2. çeyreği`,
+  `2023'ün ilk üç ayı`; `ilk/ikinci/üçüncü/dördüncü` ve `1./2./3./4.` eşdeğerdir;
+- yarıyıl: `2023'ün ilk/son altı ayı`, `2023 yılının ilk/son yarısı` (sayı `6` da
+  kabul edilir);
+- kapalı ay aralığı: `2023 Ocak-Mart`, `Ocak-Mart 2023`,
+  `2020 Aralık-2021 Mart`, `2023 Ocak ile Mart arasında`,
+  `2023 Ocak'tan Mart'a kadar`;
+- noktalar: `2021-02`, `01/2021 ile 03/2021`, `2021 Ocak` gibi tek ay, tam gün
+  sınırlı `1 Ocak 2021–31 Mart 2021` ve tam yıl aralığı `2021-2025`.
+
+Tek ayın ardından `itibaren`, `sonra/sonraki`, `sonrası` veya `başlayarak`
+gelirse bitiş eksik sayılır; tanınan ay kapalı tek aya çevrilmez. Planın iki ucu
+sorudaki kapalı ifadeyle aynı olmalıdır; eksik yıl veya bitiş, başka/çelişkili
+tarih, kısmi günlük sınır veya tanınmayan biçim `period_required` döndürür.
+`Ocak-Mart` (yıl yok), `2023 Ocak'tan itibaren` (bitiş yok), `son altı ay` veya
+`geçen yıl` (referans politikası yok) gibi ifadelerde yıl/bitiş bugünden veya veri
+kapsamından tamamlanmaz. Dönem parçaları `app/services/question_periods.py`
+içinde birleştirilip çelişki denetlenir; birden çok farklı tarihten ilki
+seçilmez. Yeni bir dönem biçimi yeni bir analiz türü eklemez. Bu sınırlı kontrol
+genel bir Türkçe tarih ayrıştırıcısı değildir.
 
 Konut `ready` kararı için kredi metriği açıkça `reel`, `enflasyondan
 arındırılmış` veya eşdeğer TÜFE ile arındırılmış kredi/stok/bakiye/tutar olmalıdır.

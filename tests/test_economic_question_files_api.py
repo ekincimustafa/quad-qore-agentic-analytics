@@ -71,6 +71,14 @@ def client_with_model(package, model):
      ready(core.INFLATION_ID, end_period="2021-01"), "period_required"),
     ("2021 Ocak'tan sonraki TÜFE değişimlerini göster.",
      ready(core.INFLATION_ID, end_period="2021-01"), "period_required"),
+    ("2021 yılının ikinci çeyreğinde TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID), "period_required"),
+    ("2021 yılının son altı ayında TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID), "period_required"),
+    ("2021 Ocak ile Mart arasında TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID), "period_required"),
+    ("2021 yılında Ocak-Mart TÜFE değişimlerini göster.",
+     ready(core.INFLATION_ID), "period_required"),
 ])
 def test_observed_ready_mistakes_are_blocked_after_file_verification(
     package, monkeypatch, question, plan, reason,
@@ -90,6 +98,31 @@ def test_observed_ready_mistakes_are_blocked_after_file_verification(
     assert body["status"] == "clarification_required"
     assert body["decision"] == {"status": "clarification_required", "reason": reason}
     assert body["analysis"] is None
+
+
+def test_natural_closed_month_range_runs_existing_calculation_once(package, monkeypatch):
+    prompts, calls = [], []
+    original = core.build_inflation_evidence
+
+    def evidence(*args, **kwargs):
+        calls.append(kwargs)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(core, "build_inflation_evidence", evidence)
+
+    def model(prompt):
+        prompts.append(prompt)
+        return json.dumps(ready(core.INFLATION_ID))
+
+    question = "2021 Ocak ile Şubat arasında TÜFE değişimlerini göster."
+    with client_with_model(package, model) as client:
+        response = client.post(ENDPOINT, json={"question": question})
+    assert response.status_code == 200 and len(prompts) == 1 and len(calls) == 1
+    body = response.json()
+    assert body["status"] == "ok" and body["decision"] == ready(core.INFLATION_ID)
+    assert [row["period"] for row in body["analysis"]["evidence"]["observations"]] == [
+        "2021-01", "2021-02",
+    ]
 
 
 @pytest.mark.parametrize("analysis_id", [core.HOUSING_ID, core.INFLATION_ID])

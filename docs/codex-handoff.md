@@ -10,6 +10,23 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## Issue #98 doğal dönem çözümleme — 22 Ekim 2026 (PR beklemede)
+
+- Etkin dal `feat/natural-question-periods`; `main` `f3a15a8` üzerinden açıldı.
+- `app/services/question_periods.py` eklendi: tam yıl, çeyrek, yarıyıl, kapalı
+  adlandırılmış aralık, ay noktası ve tam gün aralığı çözümlemesi; artık/çelişkili
+  tarih denetimi. `app/services/economic_question.py` ortak ayrıştırıcıya bağlandı,
+  model istemi güncellendi. Eksik veya varsayılabilecek dönem yine
+  `period_required` döndürüyor.
+- Ayrıştırıcı, servis, normal API ve doğrulanmış dosya API regresyon testleri
+  eklendi; kabul edilen biçimler `docs/economic-question.md` içinde belgelendi.
+  Mevcut değerlendirme vakaları değiştirilmedi.
+- Odaklı çalışma: 283 test geçti. Tam çevrimdışı doğrulama başarılı:
+  1064 geçti, 2 atlandı; Economic 37/37 ve Housing 9/9 stub değerlendirme;
+  `git diff --check` temiz (`out/verification/20261022T114253Z-19360-c7c7e704`).
+  Bağımsız inceleme sonraki adım; bu dal burada birleştirilmedi ve canlı
+  EVDS/model çağrısı yapılmadı.
+
 ## Portföy README düzenlemesi — 21 Ekim 2026
 
 - Dal `docs/portfolio-readme`; başlangıç güncel `main` `56ffc46` (PR #96 merge).
