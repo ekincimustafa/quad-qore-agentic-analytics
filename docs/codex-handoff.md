@@ -2,13 +2,72 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli `56ffc46` (PR #96 sonrası main).
+için bir sürüm garantisi değildir. Kod temeli `dcd5814` (PR #104 sonrası main).
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
 güncel durumu belirtir. Tarihli bölümlerdeki dal/CI/onay bekleme ifadeleri yalnız
 o tarihin kanıtıdır ve güncel engel değildir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
+
+## #105 parametreli konut filtresini soru/API/ekran akışına bağlama — 22 Ekim 2026
+
+- Dal `feat/housing-filter-question`; güncel `origin/main` `dcd5814` (PR #104
+  merge) üzerinden açıldı. #103 çekirdeği yeniden kullanıldı; hesaplar
+  kopyalanmadı. Afra #99 ve Osman #100 kapsamına dokunulmadı.
+- Yeni `housing_condition_filter` planı `EconomicHousingFilterReadyPlan` olarak
+  eklendi: açık dönem + 1–3 AND koşulu. Mevcut dört metrik ve `lt/lte/gt/gte`
+  operatörleri strict/frozen Pydantic ile korunuyor. Eski
+  `housing_rate_down_real_credit_not_up` sözleşmesi değişmedi.
+- `app/services/housing_filter_question.py`, modelin şema-geçerli ama
+  niyet-dışı planını analizden önce durduran dar bir guard ekliyor. Yüzde puan
+  ile `%` ayrımı, faiz seviyesi/değişimi, reel/nominal belirsizliği, OR,
+  sıralama/top-N, ortalama/yıllık/toplam, tahmin/nedensellik ve kapsam dışı
+  metrikler reddediliyor; açık “reel ve nominal” iki koşul olarak korunuyor.
+  Eksik/uyuşmayan dönem `period_required`, kapsam dışı dönem
+  `outside_coverage`; bu durumlarda analiz 0 kez çalışıyor.
+- Normal `/analysis/economic/question` ve `/files` yolları yeni evidence tipini
+  döndürüyor; `/files` doğrulanmış kaynak/sınırlama notlarını koruyor. Ekran
+  koşul özeti ve eşleşen ay tablosu gösteriyor, yeni grafik üretmiyor; eski
+  `.chart` temizleniyor. `docs/economic-question.md` ve README plan/guard/HTTP/UI
+  kapsamıyla güncellendi.
+- Offline evaluator filtre referansını, `filter_calls` sayacını ve beklenen
+  çağrı sayılarını biliyor. 37 vaka tek tek incelendi; yalnız gerçekten yeni
+  yetenekle desteklenen `EQ-025` filtre ready vakasına çevrildi. Diğer
+  `unsupported`/netleştirme beklentileri değişmedi. Dağılım: 13 ready,
+  13 clarification, 9 unsupported, 2 data_unavailable. Yanlış filtre eşiği
+  regresyonu ham model kararını başarı saymıyor ve filtre çağrısının 0 olduğunu
+  doğruluyor.
+- Odaklı: `test_housing_filter_question.py` **28 passed**; ekonomik
+  servis/API **187 passed**; dosya API **70 passed**; UI **5 passed**; evaluator
+  kontrol testleri **36 passed**. Tek `scripts.verify_project`:
+  **1185 passed, 2 skipped**; Housing **9/9**, Economic **37/37**, canlı çağrı
+  **0**, `git diff --check` temiz
+  (`out/verification/20261022T163736Z-18468-172992c8`). Bu sonuçlar
+  `harness_behavior_only` stub kapsamıdır; canlı model/EVDS kabulü değildir.
+- PR [#106](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/106)
+  açıldı; ilk kod commit'i `127d488`. Bağımsız incelemede duruldu. Merge, release ve
+  canlı LLM/EVDS çağrısı yapılmadı.
+- Bağımsız incelemedeki dört P1 bulgu aynı dalda düzeltildi (`e839935`):
+  `altında olmayan` gibi negasyonlar ters operatöre çevriliyor; aynı metrikteki
+  iki sınır birlikte korunuyor; `azalışı %2'yi aşan` gibi ifadeler `lt -2`
+  işaretli değişime dönüşüyor. Takip incelemesinde legacy varsayımsal
+  `implicit_credit_not_up` fallback'i kaldırıldı (`b2082f6`): eski
+  `housing_rate_down_real_credit_not_up` planı yalnız iki koşul açıkça
+  istendiğinde kabul ediliyor; kredi değişim yönü belirtilmemişse
+  `question_ambiguous` dönüyor ve servis, normal HTTP, verified `/files`
+  yollarında analiz **0** kez çalışıyor. Eski testlerdeki eksik koşullu başarı
+  beklentileri netleştirme/negatif regresyonlara ayrıldı; dispatch soruları açık
+  iki koşulla yazıldı; `faiz düşerken reel stok artmayan` örnekleri çalışmaya
+  devam ediyor.
+- Son inceleme düzeltmeleri odaklı paketi **358 passed**. Tek
+  `scripts.verify_project`: **1217 passed, 2 skipped**; Housing **9/9**,
+  Economic **37/37**, canlı çağrı **0**, `git diff --check` temiz
+  (`out/verification/20261022T192936Z-18144-b40895b5`). Önceki `e839935`
+  koşusu **1211 passed, 2 skipped** idi
+  (`out/verification/20261022T172113Z-3196-c8f3f507`). Bunlar
+  `harness_behavior_only` stub kapsamıdır; canlı model/EVDS kabulü değildir.
+  Review thread'leri bağımsız incelemeye bırakılır; merge/release yok.
 
 ## #103 parametreli konut koşulu filtreleme çekirdeği — 22 Ekim 2026
 

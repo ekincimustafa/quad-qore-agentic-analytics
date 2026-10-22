@@ -67,6 +67,13 @@
     assert(result.querySelectorAll("tbody tr").length === 1 && result.querySelector("tbody tr td").textContent === "2021-02", "match table displays calculated evidence row");
     assert(result.textContent.includes("3 ayın 1 tanesinde"), "summary reads evidence counters");
     assert(!result.querySelector("img") && !window.UI_XSS && result.textContent.includes("<img src=x"), "source text is inert text, not HTML");
+    const filter = __FILTER_PAYLOAD__;
+    window.fetch = async () => new Response(JSON.stringify(filter), {headers: {"Content-Type": "application/json"}});
+    await send("filter response");
+    assert(result.textContent.includes("Koşullar (AND)") && result.textContent.includes("Nominal konut kredisi değişimi"), "filter conditions are summarized");
+    assert(result.textContent.includes("değerlendirilebildi") && result.textContent.includes("Eşleşen aylar (1)"), "filter counters use evidence");
+    assert(result.querySelectorAll("tbody tr").length === 3 && result.textContent.includes("2021-02"), "filter condition and match tables render");
+    assert(!result.querySelector(".chart") && !result.querySelector(".js-plotly-plot"), "filter never reuses the legacy housing chart");
     const comparison = __COMPARISON_PAYLOAD__;
     window.fetch = async () => new Response(JSON.stringify(comparison), {headers: {"Content-Type": "application/json"}});
     await send("comparison response");

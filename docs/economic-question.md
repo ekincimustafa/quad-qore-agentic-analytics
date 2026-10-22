@@ -10,7 +10,10 @@ analizini desteklemeye devam eder.
 İzinli `analysis_id` değerleri:
 
 - `housing_rate_down_real_credit_not_up`: faiz düşerken reel konut kredisi
-  stokunun artmadığı aylar; mevcut `run_housing_analysis()` servisi.
+  stokunun artmadığı aylar; mevcut `run_housing_analysis()` servisi. Bu kimlik
+  yalnız sabit kuralın aynen istendiği sorular içindir.
+- `housing_condition_filter`: dönemdeki ayları 1–3 tipli metrik/operatör/eşik
+  koşuluyla (AND) filtreler; mevcut `run_housing_filter()` çekirdeği.
 - `cpi_inflation_summary`: genel TÜFE endeksinin aylık, aynı ayın önceki yılına
   göre yıllık ve seçilen ilk-son ay değişimleri; mevcut
   `build_inflation_evidence()` servisi ve üç panelli `build_inflation_chart()`
@@ -42,9 +45,24 @@ NaN/Infinity bulunmaz. Servis fiziksel dosya veya hash doğrulaması yapmaz.
 
 Eski kuralın parametre karşılığı
 `interest_rate_change_pp lt 0` + `real_housing_loan_change_pct lte 0`
-mevcut `find_rate_down_real_credit_not_up()` ile aynı ayları verir. Bu PR
-yalnız çekirdek ve testleridir; LLM planlama, `analysis_id` dispatch'i,
-HTTP/ekran entegrasyonu ve OR/sıralama/top-N yoktur.
+mevcut `find_rate_down_real_credit_not_up()` ile aynı ayları verir. Soru/HTTP
+katmanında bu analiz `{"status":"ready","analysis_id":"housing_condition_filter",
+"start_period":"...","end_period":"...","conditions":[...]}` planıyla seçilir.
+Python, sorudaki açık metrik/yön/eşik/birim ifadelerini
+`app/services/housing_filter_question.py` ile sınırlı biçimde çıkarır. Her
+karşılaştırma kendi sayısına eşlenir; açık negasyon tersine çevrilir,
+azalış/düşüş eşikleri işaretli değişime dönüştürülür ve aynı metrikteki iki
+sınır birlikte korunur. Eski `housing_rate_down_real_credit_not_up` planı yalnız
+`interest_rate_change_pp lt 0` + `real_housing_loan_change_pct lte 0` koşulları
+soruda açıkça istendiğinde kabul edilir; kredi değişim yönü belirtilmemişse plan
+reddedilir ve netleştirme istenir. Plan koşullarıyla birebir karşılaştırılır. Eksik/fazla/uydurulmuş koşul, açıkça
+belirtilmemiş nominal/reel kredi, yüzde ile yüzde puan karışıklığı, OR, sıralama/top-N,
+ortalama/yıllık/toplam, tahmin/nedensellik ve kapsam dışı analizlerde analiz **0** kez
+çalışır; uygun `metric_ambiguous`, `question_ambiguous` veya `unsupported` kararı döner.
+Yalnız faiz sorusunda nominal/reel netleştirmesi istenmez; nominal ve reel
+kredi koşulları birlikte açıkça istenirse iki koşul da korunur. Doğal dil guard'ı
+genel bir Türkçe ayrıştırıcısı değildir ve modelin niyeti doğru anladığını
+kanıtlamaz.
 
 Çağıran, normalize edilmiş `HousingQuestionData` ve/veya
 `InflationQuestionData` sağlar. Servis konut kapsamını ortak, kesintisiz
@@ -54,9 +72,9 @@ gönderilmez. Bu satırlar henüz fiziksel dosya/manifest ile doğrulanmış ver
 sayılmaz.
 
 Konut/TÜFE planı yalnızca `status`, izinli `analysis_id`, `start_period`,
-`end_period`; karşılaştırma planı yalnızca `status`, `analysis_id`,
-`first_year`, `second_year` alanlarını taşıyabilir. `ready` için dönem veya iki
-yıl açık olmalıdır. Belirsiz dönem/metrik
+`end_period`; filtre planı ayrıca 1–3 `conditions`; karşılaştırma planı yalnızca
+`status`, `analysis_id`, `first_year`, `second_year` alanlarını taşıyabilir.
+`ready` için dönem veya iki yıl açık olmalıdır. Belirsiz dönem/metrik
 veya analiz `clarification_required`; tahmin, nedensellik, başka analiz ve iki
 analizi birlikte isteme `unsupported` kararıdır. İstenen dönem veriye sığmazsa
 kırpılmaz, `outside_coverage` açıklaması döner. Seçilen veri yoksa
@@ -191,12 +209,16 @@ Kaynak etiketleri fiziksel dosya doğrulaması yerine geçmez; bu HTTP yüzeyi
 
 `available_periods` içinde `housing` ve `inflation` dönemleri veya `null` vardır.
 `analysis.analysis_id`, `analysis.evidence` tipini belirler. Konut sonucunda
-ayrıca mevcut altı trace'li `analysis.chart` bulunur. Tek dönem TÜFE özetinde
-aynı evidence'dan üretilen mevcut üç panelli `analysis.chart` yer alır; grafik
-için ek model, veri veya hesap çağrısı yapılmaz. İki yıl karşılaştırması yalnız
-evidence taşır. Karşılaştırmada iki nested evidence'ın kaynak referansı ve
-`input_origin` bilgisi korunur. Endpoint anlatım çağrısı yapmaz ve sohbet
-geçmişi tutmaz.
+ayrıca mevcut altı trace'li `analysis.chart` bulunur. `housing_condition_filter`
+sonucu yalnız tipli evidence taşır: koşullar/birimler, gözlem/değerlendirilebilir/
+eşleşen ay sayıları, kronolojik eşleşen aylar ve kaynak/kalite/sınırlama
+notları. Yeni grafik üretilmez ve eski sabit konut grafiği yeni sonuç gibi
+kullanılmaz; ekran önceki grafiği temizler ve koşul özeti ile eşleşen ay
+tablosunu gösterir. Tek dönem TÜFE özetinde aynı evidence'dan üretilen mevcut
+üç panelli `analysis.chart` yer alır; grafik için ek model, veri veya hesap
+çağrısı yapılmaz. İki yıl karşılaştırması yalnız evidence taşır. Karşılaştırmada
+iki nested evidence'ın kaynak referansı ve `input_origin` bilgisi korunur.
+Endpoint anlatım çağrısı yapmaz ve sohbet geçmişi tutmaz.
 
 ### Sentetik istek örnekleri
 
@@ -235,13 +257,16 @@ gerekir; bir dosya bozuksa diğer analize sessiz geçiş veya eski veri cache'i 
 BDDK Bronze→Silver eşitliği, EVDS fiziksel hash/kaynak/metadata ve sürekli kapsam
 kontrolleri gevşetilmedi. Doğrulanmış bellek kopyası plan sonrasında tekrar okunmaz.
 
-`run_verified_economic_question()` iki mevcut hesabı aynı `run_economic_question()`
-çekirdeğine verir. Konut kapsamı ortak aylardır; TÜFE tüm doğrulanmış EVDS geçmişini
-kullanır, konut kapsamına kırpılmaz. Soru başına en fazla bir plan ve bir hesap
-çağrısı vardır; netleştirme/unsupported/kapsam dışı planda hesap çalışmaz.
-Yanıt aynı `status/decision/available_periods/analysis` yapısındadır. Konutta mevcut
-evidence/grafik ve weekly coverage notu korunur. TÜFE özetinde hesaplar aynı kalır;
-üç panelli grafik doğrulanmış evidence'dan ek çağrı yapılmadan üretilir ve
+`run_verified_economic_question()` iki mevcut hesabı ve parametreli filtre
+çekirdeğini aynı `run_economic_question()` çekirdeğine verir. Konut kapsamı ortak
+aylardır; TÜFE tüm doğrulanmış EVDS geçmişini kullanır, konut kapsamına kırpılmaz.
+Soru başına en fazla bir plan ve bir hesap çağrısı vardır; netleştirme/unsupported/
+kapsam dışı planda hesap çalışmaz. Yanıt aynı `status/decision/available_periods/
+analysis` yapısındadır. Konutta mevcut evidence/grafik ve weekly coverage notu
+korunur. `housing_condition_filter` evidence'ında hesaplar aynı kalır; fiziksel
+doğrulama sınırlaması doğrulanmış dosya ifadesiyle değiştirilir ve weekly coverage
+notu kalite notlarına eklenir. TÜFE özetinde hesaplar aynı kalır; üç panelli grafik
+doğrulanmış evidence'dan ek çağrı yapılmadan üretilir ve
 `input_origin=verified_files`, yalnız TÜFE makbuz referansları ve fiziksel doğrulama
 notu döner; eski satır API'sinde `caller_supplied` varsayılanı değişmez.
 
@@ -265,20 +290,25 @@ Offline stub sonuçları modelin Türkçe anlama başarısı değildir.
 
 `evals/economic_question_cases.json` içindeki 37 vaka gerçek HTTP doğrulaması ve
 Python analizleriyle, sabit model yanıtları kullanılarak çalışır. Housing/TÜFE
-sonuçları aynı girdili doğrudan hesap endpoint'leriyle, karşılaştırma sonucu ise
-mevcut `compare_inflation_years` çekirdeğiyle karşılaştırılır;
-soru başına plan/analiz çağrıları sayılır. Referans hesap istekleri soru
-yürütme sayacına dahil değildir. Rapor `out/economic-question-eval-offline.json`
-altındadır; `--output` yalnızca `out/` içinde başka bir rapor seçebilir.
+sonuçları aynı girdili doğrudan hesap endpoint'leriyle, filtre sonucu doğrudan
+`run_housing_filter()` çekirdeğiyle, karşılaştırma sonucu ise mevcut
+`compare_inflation_years` çekirdeğiyle karşılaştırılır; soru başına plan/analiz
+çağrıları sayılır. Referans hesap istekleri soru yürütme sayacına dahil değildir.
+Rapor `out/economic-question-eval-offline.json` altındadır; `--output` yalnızca
+`out/` içinde başka bir rapor seçebilir.
 
 İlk 28 vakanın soru/beklenti/stub yanıtları korunmuştur. Son 9 vaka iki tam yıl
 karşılaştırmasını, ters yıl sırasını, önceki Aralık eksikliğinde null davranışını,
 aynı yıl, kapsam dışı yıl, belirsiz dönem ve desteklenmeyen ay/ortalama/
 yıllıklandırma isteklerini kapsar. Aralık yıllık oranları ve farkı elle hesaplanan
 sentetik sabitlerle ayrıca sınanır. Beklentiler model çıktısı görülmeden yazıldı;
-`rationale` alanı gerekçeyi açıklar. Anlamlı fakat desteklenmeyen ekonomik sorular
-anlamsız olarak etiketlenmez. Dağılım: 12 ready, 13 netleştirme, 10 unsupported,
-2 veri yokluğu. Tahmin/nedensellik/şema değiştirme talepleri eski sette de vardır.
+`rationale` alanı gerekçeyi açıklar. Yeni filtre yeteneği yalnız gerçekten
+desteklenen EQ-025'i değiştirdi: faiz değişimi `gt 0` ve reel kredi değişimi
+`gt 0` koşulları korunuyor; sentetik dönemde eşleşen ay yok. Diğer eski
+`unsupported`/netleştirme beklentileri (kapsam dışı, tahmin/nedensellik, OR,
+ortalama, açıkça belirtilmemiş nominal/reel kredi) değişmedi. Dağılım: 13 ready,
+13 netleştirme, 9 unsupported, 2 veri yokluğu. Tahmin/nedensellik/şema
+değiştirme talepleri eski sette de vardır.
 
 Rapor **`offline_stub / harness_behavior_only`** olarak etiketlenir; 37/37 gibi
 bir stub sonucu modelin Türkçe anlama başarısı veya injection dayanıklılığı değildir.

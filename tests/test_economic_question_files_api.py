@@ -62,6 +62,83 @@ def client_with_model(package, model):
     return TestClient(app)
 
 
+def test_filter_endpoint_matches_verified_core_result(package, monkeypatch):
+    conditions = [
+        {"metric": "interest_rate_change_pp", "operator": "lt", "threshold": 0.0},
+        {"metric": "nominal_housing_loan_change_pct", "operator": "lte", "threshold": 0.0},
+    ]
+    plan = ready(core.HOUSING_FILTER_ID, conditions=conditions)
+    captured = []
+    original = core.run_housing_filter
+
+    def filter_call(*args, **kwargs):
+        result = original(*args, **kwargs)
+        captured.append(result)
+        return result
+
+    monkeypatch.setattr(core, "run_housing_filter", filter_call)
+    with client_with_model(package, lambda _: json.dumps(plan)) as client:
+        response = client.post(
+            ENDPOINT,
+            json={"question": "2021 Ocak-Şubat faiz düşerken nominal konut kredisi stoku artmayan aylar"},
+        )
+    assert response.status_code == 200 and len(captured) == 1
+    body = response.json()
+    assert body["status"] == "ok" and body["decision"] == plan
+    expected = files_service._with_verified_filter_notes(captured[0])
+    assert body["analysis"]["evidence"] == expected.model_dump(mode="json")
+    assert any("doğrulanmış" in item for item in body["analysis"]["evidence"]["limitations"])
+    assert any("weekly_coverage: unverified" in item for item in body["analysis"]["evidence"]["data_quality_notes"])
+
+
+@pytest.mark.parametrize("question,plan", [
+    (
+        "2021 Ocak-Şubat faiz artarken reel konut kredisi stoku artan aylar",
+        ready(core.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Şubat faiz düşerken reel konut kredisi aylık artışı %2'yi aşan aylar",
+        ready(core.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Şubat faiz düşerken reel konut kredisi stokunu göster",
+        ready(core.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Şubat faiz düşerken reel konut kredisi bakiyesini incele",
+        ready(core.HOUSING_ID),
+    ),
+    (
+        "2021 Ocak-Şubat faiz oranı %20'nin altında olmayan aylar",
+        ready(core.HOUSING_FILTER_ID, conditions=[
+            {"metric": "housing_loan_interest_rate_pct", "operator": "lt", "threshold": 20.0},
+        ]),
+    ),
+    (
+        "2021 Ocak-Şubat faiz oranı %10'un üzerinde ve %20'nin altında olan aylar",
+        ready(core.HOUSING_FILTER_ID, conditions=[
+            {"metric": "housing_loan_interest_rate_pct", "operator": "gt", "threshold": 10.0},
+        ]),
+    ),
+    (
+        "2021 Ocak-Şubat nominal konut kredisi stokunun aylık azalışı %2'yi aşan aylar",
+        ready(core.HOUSING_FILTER_ID, conditions=[
+            {"metric": "nominal_housing_loan_change_pct", "operator": "gt", "threshold": 2.0},
+        ]),
+    ),
+])
+def test_observed_wrong_question_plan_never_runs_analysis(package, monkeypatch, question, plan):
+    monkeypatch.setattr(core, "run_housing_filter", forbidden)
+    monkeypatch.setattr(core, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(core, "build_inflation_evidence", forbidden)
+    with client_with_model(package, lambda _: json.dumps(plan)) as client:
+        response = client.post(ENDPOINT, json={"question": question})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "clarification_required"
+    assert body["analysis"] is None
+
+
 @pytest.mark.parametrize("question,plan,reason", [
     ("Ocak-Şubat TÜFE aylık ve yıllık oranlarını göster.",
      ready(core.INFLATION_ID), "period_required"),
@@ -330,7 +407,7 @@ def test_non_ready_and_invalid_plans_never_analyze(package, monkeypatch, plan, e
     prompts = []
     question = QUESTION
     if isinstance(plan, dict) and plan.get("start_period") == "2020-12":
-        question = "2020 Aralık-2021 Şubat faiz düşerken reel konut kredisi stokunu göster."
+        question = "2020 Aralık-2021 Şubat faiz düşerken reel konut kredisi stoku artmayan aylar."
     elif isinstance(plan, dict) and plan.get("end_period") == "2021-03":
         question = "2021 Ocak-Mart TÜFE değişimlerini göster."
 

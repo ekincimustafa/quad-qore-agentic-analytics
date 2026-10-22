@@ -2,10 +2,10 @@
 
 A small, runnable analytics demo built for KKB Hackathon 2026 and CV/portfolio use.
 You ask an economic question in natural language; a bounded LLM plan selects one of
-three allowed analyses, and Python performs every calculation. A FastAPI web screen
-serves the result: housing-loan analysis, a CPI summary, or a comparison of two full
-calendar years. Results include evidence, a Plotly chart where available, and optional
-guarded narration.
+the allowed analyses, and Python performs every calculation. A FastAPI web screen
+serves the result: housing-loan analysis, a parameterized housing condition filter,
+a CPI summary, or a comparison of two full calendar years. Results include evidence,
+a Plotly chart where available, and optional guarded narration.
 
 The housing scenario identifies months when housing-loan interest rates decreased
 but the inflation-adjusted housing-loan stock did not increase. The default analysis
@@ -38,7 +38,7 @@ See [Local question screen — offline preview](#local-question-screen--offline-
 | Guarded narration | Model JSON checked against the same month/metric; Turkish text rendered from evidence | [Narration contract](docs/housing-narration.md) |
 | LLM client | Configured OpenAI-compatible Chat Completions, bounded SDK timeout, one attempt and safe application errors | [LLM guide](docs/llm-client.md) |
 | Question analysis | Turkish question + normalized rows, typed decisions, one allowed Housing analysis and shared period validation | [Question API guide](docs/housing-question.md) |
-| Economic question | Bounded question plan and shared HTTP dispatch to existing Housing/CPI services, including the three-panel CPI chart and two full-year CPI comparison | [Economic question guide](docs/economic-question.md) |
+| Economic question | Bounded question plan and shared HTTP dispatch to existing Housing/CPI services, including the parameterized housing condition filter, the three-panel CPI chart and two full-year CPI comparison | [Economic question guide](docs/economic-question.md) |
 | Question evaluation | Nine Housing cases; 37 Economic cases with offline HTTP checks and explicitly selected, budgeted live planning | [Housing evaluation](docs/housing-question-evals.md), [Economic evaluation](docs/economic-question.md#offline-değerlendirme) |
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
 | File demo CLI | Physical EVDS manifest checks, source/output protection, evidence/chart/summary and optional offline HTML | [Demo guide](docs/housing-demo.md) |
@@ -260,17 +260,21 @@ The API is at <http://127.0.0.1:8000/docs>. The new endpoint takes only:
 ```
 
 Another supported question is `2023 Ocak-Aralık TÜFE aylık ve yıllık değişimlerini özetle.`
+In normal model mode, a parameterized housing question such as
+`2021 Ocak-Mart faiz artarken reel konut kredisi stoku artan aylar hangileri?`
+can select the condition filter (1–3 AND conditions over the four allowed metrics).
 Question planning uses the configured model. The approved four-call live run
 in #71 is complete; additional automated live requests need separate approval.
 Offline tests use stub plans.
 The API was merged in PR #72; the #70 screen was merged in PR #73 (`5bc12a7`).
 The screen at <http://127.0.0.1:8000/> calls this API; summaries only format
-evidence, with no extra model call. The normal screen supports the three bounded
-analyses (Housing, CPI summary and two-year CPI comparison). The CPI summary
+evidence, with no extra model call. The normal screen supports the fixed Housing
+analysis, the parameterized Housing condition filter, the CPI summary and the
+two-year CPI comparison. The CPI summary
 reuses the existing three-panel index/monthly/annual chart before its table; the
 two-year comparison remains table-based. The offline preview below fixes plans
 for only the three example questions. No live-model success is claimed for the
-two-year comparison.
+condition filter or the two-year comparison.
 
 ### Local question screen — offline preview
 
