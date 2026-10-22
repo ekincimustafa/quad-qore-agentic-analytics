@@ -37,8 +37,10 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   (`out/verification/20261022T143352Z-2952-ff70a813`). Mevcut analiz/API
   beklentileri değişmedi.
 - Kapsam yalnız deterministik çekirdektir: LLM planlama/`analysis_id` dispatch,
-  HTTP/ekran/grafik, OR/sıralama/top-N ve yeni bağımlılık yok. PR bağımsız
-  incelemeye bırakıldı; merge/release ve canlı LLM/EVDS çağrısı yapılmadı.
+  HTTP/ekran/grafik, OR/sıralama/top-N ve yeni bağımlılık yok. PR
+  [#104](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/104)
+  bağımsız incelemeye bırakıldı; merge/release ve canlı LLM/EVDS çağrısı
+  yapılmadı.
 
 ## Issue #98 doğal dönem çözümleme — 22 Ekim 2026 (PR #101)
 
