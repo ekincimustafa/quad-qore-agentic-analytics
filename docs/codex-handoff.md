@@ -10,6 +10,24 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## #107 EQ-038 canlı planlama düzeltmesi — 24 Ekim 2026
+
+- Dal `fix/housing-filter-planning`; güncel `main` `be81ad7` üzerinden açıldı.
+  Canlı rapor `out/economic-question-eval-107-live.json` değiştirilmedi.
+- Kök neden: EQ-038 için model doğrudan `unsupported / unsupported_analysis`
+  döndürdü; `python_blocked_ready_plan=false` ve filtre/analiz çağrısı 0.
+  Ret Python guard'dan değil, ham model planından geldi.
+- `build_economic_question_prompt` yalnız netleştirildi: sayısal eşiksiz
+  artan/artmayan/azalan/azalmayan yönleri `gt/lte/lt/gte 0.0`; iki metrik
+  koşulu tek `housing_condition_filter` planı; "iki analiz" kuralının bu
+  koşulları kapsamadığı belirtildi. Hesaplar, guard, fixture ve beklentiler değişmedi.
+- Odaklı Economic/API/evaluator/filtre paketi **310 passed**. Tek
+  `scripts.verify_project`: **1277 passed, 2 skipped**; Housing **9/9**,
+  Economic **45/45**, canlı çağrı **0**, diff-check temiz
+  (`out/verification/20261023T213613Z-20180-07d7c6cc`).
+- Gerçek modelle yeniden canlı koşu yapılmadı; EQ-038 düzeltmesinin model
+  davranışına etkisi doğrulanmadı. Sahte model testleri bunun kanıtı değildir.
+
 ## #107 konut filtresi kabul vakaları — 22–23 Ekim 2026
 
 - Dal `test/housing-filter-acceptance`; `origin/main` `8119e1d` (PR #106 merge)

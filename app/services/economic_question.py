@@ -332,6 +332,8 @@ Hesaplanmış sayı, yorum, Markdown veya ek alan üretme.
   İzinli metrikler: interest_rate_change_pp, real_housing_loan_change_pct,
   nominal_housing_loan_change_pct, housing_loan_interest_rate_pct.
   İzinli operatörler: lt, lte, gt, gte. Koşullar yalnızca AND ile birleşir.
+  Birden çok metrik koşulu aynı {HOUSING_FILTER_ID} planının koşullarıdır; bunları
+  ayrı analizler veya analizlerin birlikte çalıştırılması sayma.
   Eşik sonlu bir sayı olmalı; yüzde puan (pp) ile yüzde (%) ayrımını koru.
 - {INFLATION_ID}: genel TÜFE endeksinin aylık, geçen yılın aynı ayına göre
   yıllık ve seçilen ilk-son ay değişimlerini özetle. Yıllık oran 12 aylık ortalama değildir.
@@ -348,8 +350,11 @@ Kurallar:
 - {HOUSING_FILTER_ID} yalnız kullanıcının açıkça söylediği koşulları taşır.
   Koşul uydurma, kullanıcının koşulunu birleştirme veya eleme. Operatörleri
   "altında/az" -> lt, "en fazla/ve altı" -> lte, "üzerinde/fazla" -> gt,
-  "en az/ve üzeri" -> gte olarak eşle. Yalnız faiz sorusunda nominal/reel
-  netleştirmesi isteme. Faiz seviyesi ile faiz değişimini karıştırma.
+  "en az/ve üzeri" -> gte olarak eşle. Değişim yönü sayısal eşik vermiyorsa
+  sıfır eşik kullan: artan/artarken/yükselen -> gt 0.0, azalan/düşen -> lt 0.0,
+  artmayan -> lte 0.0, azalmayan -> gte 0.0. Yalnız faiz sorusunda nominal/reel
+  netleştirmesi isteme. Faiz seviyesi ile faiz değişimini karıştırma; yön
+  ifadesi faiz değişimi metriğini seçer.
   Ortalama, yıllık/toplam dönüşümü veya sıralama istenirse unsupported üret.
 - Dönemin yıl, başlangıç ve bitiş bilgilerini kullanıcı sorusundan çıkar.
   Bu bilgiler eksik veya belirsizse period_required üret; yıl veya sınır varsayma.
@@ -362,6 +367,7 @@ Kurallar:
   "2023-2024 TÜFE değişimlerini özetle" bir aralık özetidir; karşılaştırma değildir.
 - OR, sıralama/top-N, tahmin, nedensellik, serbest ekonomik yorum, web araştırması,
   başka analiz veya iki analizin birlikte çalıştırılması istenirse unsupported üret.
+  Bu kural tek bir {HOUSING_FILTER_ID} planındaki birden çok koşulu kapsamaz.
 - Tam yıl aralığını aylara aç: 2021-2025 -> 2021-01 / 2025-12.
   Tam yıl, çeyrek ve yarıyılı da aylara aç: 2023 yılı -> 2023-01 / 2023-12;
   2023'ün ikinci çeyreği -> 2023-04 / 2023-06; son altı ay -> 2023-07 / 2023-12.
