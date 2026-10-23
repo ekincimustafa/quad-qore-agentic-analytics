@@ -36,6 +36,80 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   yoktur. PR [#109](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/109)
   bağımsız incelemeye açıldı; bu oturum merge yapmaz.
 
+## #99 bağımsız ekonomik kullanıcı kabul seti — 22 Ekim 2026
+
+- Sorumlu: Afra (@afratopcu).
+- Dal: `test/economic-user-acceptance-99`; başlangıç main commit'i:
+  `f3a15a8051fae6784b44ef15c62a9c382ccd3647`.
+- `evals/economic_user_acceptance_cases.json` ve
+  `docs/economic-user-acceptance.md` hazırlandı.
+- Toplam 48 bağımsız vaka: 8 konut, 8 TÜFE, 8 iki tam yıl
+  karşılaştırması, 8 netleştirme, 8 kapsam dışı,
+  4 parametreli konut filtresi ve 4 çok turlu devam sorusu.
+- Yerel kontrol: 48/48 vaka, benzersiz kimlikler, kategori dağılımı,
+  analysis_id, dönem ve yıl sırası doğrulandı; `git diff --check` temiz.
+- Mevcut 37 Economic ve 9 Housing vakası, evaluator, runtime,
+  API, UI ve CI değiştirilmedi. Canlı LLM/EVDS çağrısı yapılmadı.
+- Kabul setinin `planned` etiketleri başlangıç commit'i `f3a15a8`
+  için geçerlidir; güncel `main` özellik envanteri değildir.
+  #104/#106 sonrasında konut filtreleme uygulamaya eklendi.
+  EUA-041–044 için canlı model başarısı iddia edilmez; çok turlu
+  devam soruları hâlâ geleceğe yönelik kabul beklentisidir.
+- PR #102 ilk teslim commit'i `6f3ce9c` ile açıldı; ilk head'in
+  zorunlu Python 3.12 CI kontrolü başarılıydı.
+- Bağımsız incelemede istenen güncel `main` birleştirmesi
+  `d87103e` merge commit'iyle tamamlandı. #99 ve #105
+  handoff kayıtları birlikte korundu.
+- Sonraki adım: belge düzeltmelerini doğrulayıp aynı PR #102'ye
+  commit/push etmek ve yeni head'in CI sonucunu kontrol etmek.
+  Canlı LLM/EVDS çağrısı, release veya uygulayan tarafından
+  PR merge işlemi yapılmayacak.
+
+## #100 çevrimdışı yerel kurulum ve veri paketi teşhis komutu — 22 Ekim 2026
+
+- Dal `feat/check-local-setup`; güncel `origin/main` `dcd5814` üzerinden açıldı,
+  sonrasında `8119e1d` (PR #106 merge) normal merge ile birleştirilerek tüm
+  benzersiz README/handoff kayıtları korundu.
+- `scripts/check_local_setup.py` eklendi (`python -m scripts.check_local_setup [--data-root <yol>] [--json]`):
+  - Giriş, `argparse`, Python 3.12 ve `requirements.txt` paket/sürüm kontrolleri
+    yalnız standart kütüphane ile çalışır; üçüncü parti (`dotenv`, `pandas`,
+    `pydantic` vb.) ve `app.*` modülleri ancak ortam uygun (`python` ve
+    `dependencies` `ok`) olduğunda tembel (lazy) import edilir. Uygun olmayan
+    ortamda veri/model kontrolleri `status: skipped`, `code: not_run` olarak
+    raporlanır (`preview_ready: false`, `exit 1`, traceback yok).
+  - `_check_dependencies`, paket pinlerini doğrudan `requirements.txt` kaynağından
+    okur ve kurulu sürümleri hem ana sürüm (`major_version_mismatch`, örn.
+    Pydantic `1.10.0` vs `2.13.5`) hem de tam pin (`pin_mismatch`) düzeyinde
+    karşılaştırır (`incompatible_dependencies`); kurulum veya ortam değişikliği
+    yapmaz.
+  - Veri kökü seçiminde `--data-root > süreç ANALYTICS_DATA_ROOT > yerel .env > repo kökü`
+    önceliğini uygular; süreç ortamını `.env` ile ezmez ve boşluklu Windows yollarını
+    destekler.
+  - Gerçek dosya doğrulamasını yeniden yazmadan `VerifiedHousingQuestionPaths`,
+    `load_verified_question_inputs` ve `derive_economic_coverage` ile tam
+    Bronze/makbuz/hash/Silver zincirini denetler; BDDK, TÜFE ve konut kapsamı için
+    satır/dönem sayılarını doğrulanmış snapshot'tan dinamik üretir.
+  - LLM ayarını yalnız yerel `read_llm_settings()` ile denetler; sağlayıcıya ağ
+    isteği göndermez, `Ayar mevcut; sağlayıcı erişimi denenmedi` ile canlı erişim
+    arasındaki farkı korur (`live_model_access_verified: false`), anahtar veya ham
+    `.env`/hata gövdesi sızdırmaz.
+  - Veri ve çalışma zamanı uygunsa LLM anahtarı olmasa da `preview_ready: true` ve
+    çıkış kodu `0` döner (`llm_not_configured` / `llm_config_invalid` yalnız uyarıdır);
+    eksik/bozuk veri veya zorunlu ortam hatasında çıkış kodu `1` döner.
+- `tests/test_check_local_setup.py`: **26 passed** (geçerli sentetik paket, boşluklu
+  yol, dinamik dönem/satır üretimi, 4 kademeli veri kökü önceliği, 14 eksik/bozuk
+  veri ve Bronze hash senaryosu, `python -S` ve boş `--without-pip` sanal ortam
+  subprocess testleri, `requirements.txt` ana sürüm ve pin uyuşmazlığı testleri,
+  LLM ayar varyasyonları, gizli değer sızdırmama ve sıfır ağ/model/analiz çağrısı).
+- Yerelde mevcut gerçek teslim paketi (`out/issue-076 setup/delivery/inputs`,
+  boşluklu yol) üzerinde tek çevrimdışı teşhis koşusu doğrulandı: `exit 0`,
+  `preview_ready: true`, BDDK/TÜFE/konut kapsamı 66 ay (`2021-01`–`2026-06`).
+- `README.md` kullanım ve bilinen teşhis kodları tablosuyla güncellendi. Uygulama
+  HTTP sözleşmesi, UI, ekonomik planlama/hesaplar ve bağımlılıklar değişmedi.
+- Tam çevrimdışı doğrulama (`scripts.verify_project`): **1245 passed**; Housing
+  **9/9**, Economic **37/37** stub değerlendirme, canlı çağrı **0**,
+  `git diff --check` temiz (`out/verification/20261022T201838Z-42824-f5b4b164`).
+
 ## #105 parametreli konut filtresini soru/API/ekran akışına bağlama — 22 Ekim 2026
 
 - Dal `feat/housing-filter-question`; güncel `origin/main` `dcd5814` (PR #104

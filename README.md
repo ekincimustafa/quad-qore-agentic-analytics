@@ -43,6 +43,7 @@ See [Local question screen — offline preview](#local-question-screen--offline-
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
 | File demo CLI | Physical EVDS manifest checks, source/output protection, evidence/chart/summary and optional offline HTML | [Demo guide](docs/housing-demo.md) |
 | Verified question files | Server-controlled local BDDK/EVDS files verified before question planning; Python wrapper only | [File question guide](docs/housing-question-files.md) |
+| Local setup diagnosis CLI | Offline Python 3.12, runtime package, verified BDDK/EVDS data-package and local LLM-config check | [scripts/check_local_setup.py](scripts/check_local_setup.py) |
 | CI | Offline pytest suite on pull requests and pushes to main, using Python 3.12 | [Workflow](.github/workflows/tests.yml) |
 
 The key-free sample below uses **synthetic data**. Manifest production,
@@ -213,6 +214,60 @@ HTTP 503 (`demo_data_unavailable`); invalid analytical input produces HTTP 422.
 The older `/housing/demo` service uses generic source references. The new
 `/economic/question/files` endpoint uses the existing physical raw/receipt/hash,
 BDDK Bronze-to-Silver and EVDS manifest verifier; its provenance is preserved.
+
+### Offline local setup and data-package diagnosis
+
+Before starting the local server or offline preview, run the setup diagnosis CLI to
+check Python 3.12, required runtime packages, the verified BDDK/EVDS data package, and
+local LLM configuration in a single offline command. This is a setup/health check and
+does **not** replace `python -m scripts.verify_project`.
+
+The real BDDK/EVDS data package is delivered separately and is not included in a Git
+clone. Data root selection follows `--data-root > process ANALYTICS_DATA_ROOT > local .env > repository root`
+without overwriting the process environment with `.env`.
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.check_local_setup --data-root ".\out\question data\inputs"
+.\.venv\Scripts\python.exe -m scripts.check_local_setup --data-root ".\out\question data\inputs" --json
+```
+
+Linux:
+
+```bash
+.venv/bin/python -m scripts.check_local_setup --data-root "./out/question data/inputs"
+.venv/bin/python -m scripts.check_local_setup --data-root "./out/question data/inputs" --json
+```
+
+If `--data-root` is omitted, `ANALYTICS_DATA_ROOT` (from the process environment or
+local `.env`) or the repository root is checked. The command makes zero network, EVDS
+or LLM calls, never prints secret values or raw `.env` lines, and never modifies or
+repairs files.
+
+- **Exit code `0` (`preview_ready: true`):** Python 3.12, runtime dependencies, and the
+  complete Bronze/receipt/hash/Silver data chain passed verification. Offline preview
+  (`python -m scripts.preview_question_ui`) is ready even when no LLM key is configured.
+- **Exit code `1` (`preview_ready: false`):** Python version, runtime dependencies, or
+  the data package is missing or corrupt.
+- **Model configuration vs live access:** `normal_mode_configured: true` only means
+  `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_CHAT_MODEL` and `LLM_TIMEOUT_SECONDS` passed local
+  syntax validation (`Ayar mevcut; sağlayıcı erişimi denenmedi`). Live provider access is
+  never tested (`live_model_access_verified: false`).
+
+| Diagnostic code | Category | Meaning and action |
+| --- | --- | --- |
+| `ok` | All | Check passed |
+| `python_version_mismatch` | `python` | Active interpreter is not Python 3.12 (`exit 1`); recreate `.venv` with Python 3.12 |
+| `missing_dependencies` | `dependencies` | One or more runtime packages from `requirements.txt` are missing (`exit 1`); run `pip install -r requirements.txt` |
+| `incompatible_dependencies` | `dependencies` | Installed package version conflicts with `requirements.txt` pin or major version (`exit 1`); run `pip install -r requirements.txt` |
+| `not_run` | `data_root`, `data_package`, `llm_config` | Check skipped (`status: skipped`) because Python or runtime package checks failed (`exit 1`) |
+| `data_root_missing` | `data_package` | Selected data root does not exist or is not a directory (`exit 1`); point `--data-root` or `ANALYTICS_DATA_ROOT` to the directory containing `data/` |
+| `data_files_missing` | `data_package` | Required Silver, EVDS manifest, or Bronze/receipt files are missing under the selected root (`exit 1`); extract the verified delivery package and select its `inputs` folder |
+| `data_integrity_failed` | `data_package` | Hash, provenance, schema, or Bronze-to-Silver verification failed (`exit 1`); re-extract from the unmodified verified archive |
+| `llm_configured_untested` | `llm_config` | Local LLM settings are present; live provider access was not tested (`exit 0` if data and runtime are ready) |
+| `llm_not_configured` | `llm_config` | Warning: `LLM_API_KEY`, `LLM_BASE_URL` or `LLM_CHAT_MODEL` is not set (`exit 0` for offline preview; configure `.env` for normal mode) |
+| `llm_config_invalid` | `llm_config` | Warning: local LLM setting syntax (such as URL or timeout) is invalid (`exit 0` for offline preview; fix `.env` before normal mode) |
 
 ### Question-only API with verified server files
 
