@@ -10,6 +10,35 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## #99 bağımsız ekonomik kullanıcı kabul seti — 22 Ekim 2026
+
+- Sorumlu: Afra (@afratopcu).
+- Dal: `test/economic-user-acceptance-99`; başlangıç main commit'i:
+  `f3a15a8051fae6784b44ef15c62a9c382ccd3647`.
+- `evals/economic_user_acceptance_cases.json` ve
+  `docs/economic-user-acceptance.md` hazırlandı.
+- Toplam 48 bağımsız vaka: 8 konut, 8 TÜFE, 8 iki tam yıl
+  karşılaştırması, 8 netleştirme, 8 kapsam dışı,
+  4 parametreli konut filtresi ve 4 çok turlu devam sorusu.
+- Yerel kontrol: 48/48 vaka, benzersiz kimlikler, kategori dağılımı,
+  analysis_id, dönem ve yıl sırası doğrulandı; `git diff --check` temiz.
+- Mevcut 37 Economic ve 9 Housing vakası, evaluator, runtime,
+  API, UI ve CI değiştirilmedi. Canlı LLM/EVDS çağrısı yapılmadı.
+- Kabul setinin `planned` etiketleri başlangıç commit'i `f3a15a8`
+  için geçerlidir; güncel `main` özellik envanteri değildir.
+  #104/#106 sonrasında konut filtreleme uygulamaya eklendi.
+  EUA-041–044 için canlı model başarısı iddia edilmez; çok turlu
+  devam soruları hâlâ geleceğe yönelik kabul beklentisidir.
+- PR #102 ilk teslim commit'i `6f3ce9c` ile açıldı; ilk head'in
+  zorunlu Python 3.12 CI kontrolü başarılıydı.
+- Bağımsız incelemede istenen güncel `main` birleştirmesi
+  `d87103e` merge commit'iyle tamamlandı. #99 ve #105
+  handoff kayıtları birlikte korundu.
+- Sonraki adım: belge düzeltmelerini doğrulayıp aynı PR #102'ye
+  commit/push etmek ve yeni head'in CI sonucunu kontrol etmek.
+  Canlı LLM/EVDS çağrısı, release veya uygulayan tarafından
+  PR merge işlemi yapılmayacak.
+
 ## #100 çevrimdışı yerel kurulum ve veri paketi teşhis komutu — 22 Ekim 2026
 
 - Dal `feat/check-local-setup`; güncel `origin/main` `dcd5814` üzerinden açıldı,
