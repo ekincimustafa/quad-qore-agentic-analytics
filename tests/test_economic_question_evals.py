@@ -127,6 +127,40 @@ def answers_for(cases):
     return handler
 
 
+_FILTER_METRICS = (
+    "interest_rate_change_pp",
+    "real_housing_loan_change_pct",
+    "nominal_housing_loan_change_pct",
+    "housing_loan_interest_rate_pct",
+)
+
+
+def _mutated_filter_response(response, kind):
+    answer = copy.deepcopy(response)
+    conditions = answer["conditions"]
+    if kind == "wrong_direction":
+        conditions[0]["operator"] = "lt" if conditions[0]["operator"] in {"gt", "gte"} else "gt"
+    elif kind == "wrong_threshold":
+        conditions[0]["threshold"] += 1.0
+    elif kind == "wrong_metric":
+        used = {condition["metric"] for condition in conditions}
+        conditions[0]["metric"] = next(metric for metric in _FILTER_METRICS if metric not in used)
+    elif kind == "missing":
+        conditions.pop()
+    elif kind == "extra":
+        used = {condition["metric"] for condition in conditions}
+        conditions.append({
+            "metric": next(metric for metric in _FILTER_METRICS if metric not in used),
+            "operator": "lt",
+            "threshold": 100.0,
+        })
+    elif kind == "duplicate":
+        conditions.append(copy.deepcopy(conditions[0]))
+    else:
+        raise AssertionError(f"Unknown mutation: {kind}")
+    return answer
+
+
 def test_live_cli_with_fake_sdk_provider_selects_cases_in_order_and_records_attempts(
     tmp_path, monkeypatch, cases, fake_provider,
 ):
@@ -351,6 +385,124 @@ def test_positive_housing_filter_cases_use_fixed_oracle_and_one_filter_call(
     assert report["all_selected_cases_passed"] and row["outcome"] == "passed"
     assert row["filter_calls"] == 1
     assert row["housing_calls"] == row["inflation_calls"] == row["comparison_calls"] == 0
+
+
+@pytest.mark.parametrize("case_id", ["EQ-038", "EQ-040", "EQ-041"])
+def test_reversed_housing_filter_conditions_pass_and_next_case_runs(
+    cases, fixtures, fake_provider, case_id,
+):
+    selected = evaluator.select_cases(cases, [case_id, "EQ-010"])
+    reversed_response = copy.deepcopy(selected[0].offline_response)
+    reversed_response["conditions"].reverse()
+    selected = [selected[0].model_copy(update={"offline_response": reversed_response}), selected[1]]
+    requests, _, _ = fake_provider(answers_for(selected))
+    report = evaluator.evaluate_cases(
+        selected, fixtures, live=True,
+        model_call=llm_client.ask_llm, max_model_calls=2,
+    )
+    assert len(requests) == report["live_model_call_attempts"] == 2, {
+        key: report["results"][0][key] for key in (
+            "outcome", "reason", "application_decision_matches_expectation",
+            "model_decision_matches_expectation", "actual_decision",
+        )
+    }
+    assert report["all_selected_cases_passed"]
+    row = report["results"][0]
+    assert json.loads(json.dumps(row["actual_model_decision"])) == reversed_response
+    assert row["actual_model_decision"] != row["expected_decision"]
+    assert row["application_decision_matches_expectation"] is True
+    assert row["model_decision_matches_expectation"] is True
+    assert row["filter_calls"] == 1
+    assert row["housing_calls"] == row["inflation_calls"] == row["comparison_calls"] == 0
+    assert report["results"][1]["outcome"] == "passed"
+
+
+def test_reversed_housing_filter_conditions_still_respect_the_call_budget(cases, fixtures, fake_provider):
+    selected = evaluator.select_cases(cases, ["EQ-038", "EQ-040"])
+    reversed_first = copy.deepcopy(selected[0].offline_response)
+    reversed_first["conditions"].reverse()
+    selected = [selected[0].model_copy(update={"offline_response": reversed_first}), selected[1]]
+    requests, _, _ = fake_provider(answers_for(selected))
+    report = evaluator.evaluate_cases(
+        selected, fixtures, live=True,
+        model_call=llm_client.ask_llm, max_model_calls=1,
+    )
+    assert len(requests) == report["live_model_call_attempts"] == 1
+    assert report["results"][0]["outcome"] == "passed"
+    assert report["results"][0]["filter_calls"] == 1
+    assert report["results"][1]["outcome"] == "skipped"
+    assert report["results"][1]["reason"] == "budget_exhausted"
+    assert report["results"][1]["model_call_attempts"] == 0
+
+
+@pytest.mark.parametrize(
+    "kind",
+    ["wrong_direction", "wrong_threshold", "wrong_metric", "missing", "extra", "duplicate"],
+)
+@pytest.mark.parametrize("case_id", ["EQ-038", "EQ-040", "EQ-041"])
+def test_wrong_housing_filter_conditions_still_fail_without_analysis(
+    cases, fixtures, case_id, kind,
+):
+    case = evaluator.select_cases(cases, [case_id])[0]
+    answer = _mutated_filter_response(case.offline_response, kind)
+    report = evaluator.evaluate_cases(
+        [case], fixtures, live=True,
+        model_call=lambda _: json.dumps(answer), max_model_calls=1,
+    )
+    row = report["results"][0]
+    assert not report["all_selected_cases_passed"]
+    assert json.loads(json.dumps(row["actual_model_decision"])) == answer
+    assert row["application_decision_matches_expectation"] is False
+    assert row["model_decision_matches_expectation"] is False
+    assert row["python_blocked_ready_plan"] is True
+    assert row["housing_calls"] == row["filter_calls"] == 0
+    assert row["inflation_calls"] == row["comparison_calls"] == 0
+
+
+def test_housing_filter_comparison_ignores_only_condition_order(cases, fixtures):
+    case = evaluator.select_cases(cases, ["EQ-038"])[0]
+    plan = case.expected_decision.model_dump(mode="json")
+    reversed_plan = {**plan, "conditions": list(reversed(plan["conditions"]))}
+    assert evaluator._normalized_match(reversed_plan, plan)
+    assert not evaluator._normalized_match(
+        {**plan, "conditions": plan["conditions"][:1]}, plan,
+    )
+    assert not evaluator._normalized_match(
+        {**plan, "conditions": [*plan["conditions"], plan["conditions"][0]]}, plan,
+    )
+
+    reference = evaluator._filter_reference(evaluator._payload(case, fixtures), case.expected_decision)
+    reversed_evidence = {
+        **reference, "conditions": list(reversed(reference["conditions"])),
+    }
+    assert evaluator._normalized_match(reversed_evidence, reference)
+    for field, value in [
+        ("observed_month_count", reference["observed_month_count"] + 1),
+        ("matched_periods", ["2021-05"]),
+        ("results", []),
+    ]:
+        assert not evaluator._normalized_match({**reversed_evidence, field: value}, reference)
+
+    wrong_unit = copy.deepcopy(reversed_evidence)
+    wrong_unit["conditions"][0]["unit"] = "percent" if wrong_unit["conditions"][0]["unit"] == "percentage_point" else "percentage_point"
+    assert not evaluator._normalized_match(wrong_unit, reference)
+
+    for kind in ["wrong_direction", "wrong_threshold", "wrong_metric", "missing", "extra", "duplicate"]:
+        changed = copy.deepcopy(plan)
+        if kind == "missing":
+            changed["conditions"].pop()
+        elif kind == "extra":
+            changed["conditions"].append({
+                "metric": "housing_loan_interest_rate_pct", "operator": "lt", "threshold": 100.0,
+            })
+        elif kind == "duplicate":
+            changed["conditions"].append(copy.deepcopy(changed["conditions"][0]))
+        else:
+            changed = _mutated_filter_response(changed, kind)
+        assert not evaluator._normalized_match(changed, plan)
+
+    assert plan == case.expected_decision.model_dump(mode="json")
+    assert list(reversed(reversed_plan["conditions"])) == plan["conditions"]
 
 
 def test_negative_housing_filter_cases_execute_no_analysis(cases, fixtures):

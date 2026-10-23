@@ -169,6 +169,28 @@ def _close(actual: float | None, expected: float | None) -> bool:
     return math.isclose(actual, expected, rel_tol=0.0, abs_tol=1e-9)
 
 
+def _normalized_housing_filter(value: Any) -> Any:
+    """Compare AND conditions in any order without altering reported values."""
+    if not isinstance(value, dict) or value.get("analysis_id") != service.HOUSING_FILTER_ID:
+        return value
+    conditions = value.get("conditions")
+    if not isinstance(conditions, (list, tuple)):
+        return value
+    return {
+        **value,
+        "conditions": sorted(
+            conditions,
+            key=lambda condition: json.dumps(
+                condition, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+            ),
+        ),
+    }
+
+
+def _normalized_match(actual: Any, expected: Any) -> bool:
+    return _normalized_housing_filter(actual) == _normalized_housing_filter(expected)
+
+
 def _prepare(client: TestClient, cases: list[EconomicCase], fixtures: dict[str, dict]) -> dict[str, dict]:
     """Validate fixtures and human calculation expectations before any provider call."""
     references = {}
@@ -236,7 +258,7 @@ def _check_analysis(reference: dict | None, body: dict, case: EconomicCase) -> s
     if isinstance(plan, service.EconomicHousingFilterReadyPlan):
         if analysis is None or analysis["analysis_id"] != plan.analysis_id:
             return "reference_or_analysis_mismatch"
-        if analysis["evidence"] != reference:
+        if not _normalized_match(analysis["evidence"], reference):
             return "evidence_mismatch"
         if analysis["evidence"]["observed_month_count"] != case.expected_observed_month_count:
             return "observation_count_mismatch"
@@ -344,20 +366,21 @@ def evaluate_cases(
                 if response.status_code == 200:
                     row["application_decision_matches_expectation"] = (
                         body.get("status") == expected_status
-                        and body.get("decision") == expected_json
+                        and _normalized_match(body.get("decision"), expected_json)
                     )
                 if response.status_code == 502:
                     reason = "invalid_plan" if body["detail"]["code"] == "invalid_question_plan" else "model_call_failed"
                 elif response.status_code != 200 or body.get("status") != expected_status:
                     reason = "status_mismatch"
-                elif body["decision"] != expected_json:
+                elif not _normalized_match(body["decision"], expected_json):
                     reason = "decision_mismatch"
                 else:
                     reason = _check_analysis(references.get(case.id), body, case)
                 if response.status_code == 200 and model_calls:
                     row["actual_model_decision"] = MODEL_DECISION.validate_json(actual_model_text).model_dump()
-                    row["model_decision_matches_expectation"] = (
-                        row["actual_model_decision"] in row["accepted_model_decisions"]
+                    row["model_decision_matches_expectation"] = any(
+                        _normalized_match(row["actual_model_decision"], accepted)
+                        for accepted in row["accepted_model_decisions"]
                     )
                     row["python_blocked_ready_plan"] = (
                         row["actual_model_decision"]["status"] == "ready"
