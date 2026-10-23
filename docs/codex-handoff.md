@@ -10,6 +10,43 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## #107 konut filtresi kabul vakaları — 22–23 Ekim 2026
+
+- Dal `test/housing-filter-acceptance`; `origin/main` `8119e1d` (PR #106 merge)
+  üzerinden açıldı, inceleme sonrası güncel `origin/main` `d5fd045` normal merge
+  ile alındı. Çakışan handoff kaydında Afra #99/#102 ve Osman #100 bölümleri
+  birlikte korundu; force-push yok. Runtime/prompt/API/UI değişmedi.
+- `evals/fixtures/economic-housing-filter.json` eklendi: yalnız sentetik konut
+  girdisi, 2021-01–06 altı ay, `synthetic://` kaynakları. Mevcut dört fixture
+  değişmedi.
+- Mevcut evaluator genişletildi: fixture seçimi/`_payload`/`FIXTURES`/hash zinciri
+  yeni fixture'ı biliyor; `EconomicSuite` üst sınırı 45. Eski 37 vakanın
+  soru/plan/beklenti/gerekçesi değişmedi. EQ-038–045 eklendi: dört olumlu
+  `housing_condition_filter` planı, üç netleştirme ve bir unsupported OR isteği.
+  Eşleşen aylar uygulamadan kopyalanmayan sabit oracle olarak tutuldu.
+- Odaklı servis/API/dosya/filtre/evaluator paketi **391 passed**. Odaklı
+  regresyonlar altı gözlem ve tek filtre çağrısını, negatiflerde sıfır analizi,
+  yanlış yön/eşik/eksik sınır ve eksik kredi yönlü legacy ready planlarının
+  başarısız kalmasını, sahte sağlayıcıda iki denemede ilk hatada durmayı kontrol
+  eder. Canlı LLM/EVDS/ağ çağrısı yapılmadı.
+- PR #109 inceleme bulgusu düzeltildi: yalnız `housing_condition_filter`
+  karşılaştırmasında AND koşullarının sırası önemsiz. Normalizasyon koşul
+  listesini yalnız karşılaştırma için sıralar; koşul çokluğu, metrik/operator/
+  eşik (evidence'da birim) ve diğer alanlar katı karşılaştırılır. Ham
+  model/application/evidence değerleri raporda değiştirilmez, eşik yuvarlanmaz.
+- Sahte sağlayıcı regresyonları EQ-038/EQ-040/EQ-041 için yalnız ters koşul
+  sırasının geçtiğini ve sonraki vakanın çalıştığını; yanlış yön/eşik/metrik,
+  eksik/fazla/tekrarlı koşulların sıfır analizle başarısız kaldığını; çağrı
+  bütçesinin vaka başına tek çağrıda durduğunu doğrular. Odaklı evaluator
+  paketi **69 passed**. Canlı LLM/EVDS/ağ çağrısı yapılmadı.
+- Tek `scripts.verify_project`: **1276 passed, 2 skipped**; Housing **9/9**,
+  Economic **45/45**, canlı çağrı **0**, `git diff --check` temiz
+  (`out/verification/20261023T182752Z-5108-8352359a`). Bunlar
+  `harness_behavior_only` stub sonuçlarıdır; model anlama/kabul metriği değildir.
+- Canlı koşu komutu yalnız PR açıklamasında öneri olarak hazırlanır; çalıştırma
+  yoktur. PR [#109](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/109)
+  bağımsız incelemeye açık kalır; bu oturum merge yapmaz.
+
 ## #99 bağımsız ekonomik kullanıcı kabul seti — 22 Ekim 2026
 
 - Sorumlu: Afra (@afratopcu).

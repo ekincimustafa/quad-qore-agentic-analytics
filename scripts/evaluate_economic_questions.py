@@ -31,6 +31,7 @@ FIXTURES = {
     "cpi_history": ROOT / "docs/economic-question-cpi-example.json",
     "comparison": ROOT / "docs/economic-question-comparison-example.json",
     "comparison_missing_history": ROOT / "docs/economic-question-comparison-missing-history-example.json",
+    "housing_filter": ROOT / "evals/fixtures/economic-housing-filter.json",
 }
 ENDPOINT = "/analysis/economic/question"
 MODEL_DECISION = TypeAdapter(service.ModelDecision)
@@ -50,7 +51,8 @@ class EconomicCase(BaseModel):
     id: str = Field(pattern=r"^EQ-[0-9]{3}$")
     question: str = Field(min_length=1, max_length=2_000)
     fixture: Literal[
-        "both", "cpi_history", "comparison", "comparison_missing_history", "housing_only", "none",
+        "both", "cpi_history", "comparison", "comparison_missing_history",
+        "housing_filter", "housing_only", "none",
     ] = "both"
     offline_response: dict[str, Any]
     expected_decision: service.EconomicDecision
@@ -93,7 +95,7 @@ class EconomicSuite(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     schema_version: Literal["1.0"]
-    cases: list[EconomicCase] = Field(min_length=1, max_length=40)
+    cases: list[EconomicCase] = Field(min_length=1, max_length=45)
 
     @model_validator(mode="after")
     def unique_ids(self) -> EconomicSuite:
@@ -109,6 +111,7 @@ def _payload(case: EconomicCase, fixtures: dict[str, dict]) -> dict:
         "cpi_history": "cpi_history",
         "comparison": "comparison",
         "comparison_missing_history": "comparison_missing_history",
+        "housing_filter": "housing_filter",
     }.get(case.fixture, "both")
     payload = copy.deepcopy(fixtures[fixture])
     payload["question"] = case.question
@@ -164,6 +167,28 @@ def _close(actual: float | None, expected: float | None) -> bool:
     if expected is None or actual is None:
         return actual is expected
     return math.isclose(actual, expected, rel_tol=0.0, abs_tol=1e-9)
+
+
+def _normalized_housing_filter(value: Any) -> Any:
+    """Compare AND conditions in any order without altering reported values."""
+    if not isinstance(value, dict) or value.get("analysis_id") != service.HOUSING_FILTER_ID:
+        return value
+    conditions = value.get("conditions")
+    if not isinstance(conditions, (list, tuple)):
+        return value
+    return {
+        **value,
+        "conditions": sorted(
+            conditions,
+            key=lambda condition: json.dumps(
+                condition, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+            ),
+        ),
+    }
+
+
+def _normalized_match(actual: Any, expected: Any) -> bool:
+    return _normalized_housing_filter(actual) == _normalized_housing_filter(expected)
 
 
 def _prepare(client: TestClient, cases: list[EconomicCase], fixtures: dict[str, dict]) -> dict[str, dict]:
@@ -233,7 +258,7 @@ def _check_analysis(reference: dict | None, body: dict, case: EconomicCase) -> s
     if isinstance(plan, service.EconomicHousingFilterReadyPlan):
         if analysis is None or analysis["analysis_id"] != plan.analysis_id:
             return "reference_or_analysis_mismatch"
-        if analysis["evidence"] != reference:
+        if not _normalized_match(analysis["evidence"], reference):
             return "evidence_mismatch"
         if analysis["evidence"]["observed_month_count"] != case.expected_observed_month_count:
             return "observation_count_mismatch"
@@ -341,20 +366,21 @@ def evaluate_cases(
                 if response.status_code == 200:
                     row["application_decision_matches_expectation"] = (
                         body.get("status") == expected_status
-                        and body.get("decision") == expected_json
+                        and _normalized_match(body.get("decision"), expected_json)
                     )
                 if response.status_code == 502:
                     reason = "invalid_plan" if body["detail"]["code"] == "invalid_question_plan" else "model_call_failed"
                 elif response.status_code != 200 or body.get("status") != expected_status:
                     reason = "status_mismatch"
-                elif body["decision"] != expected_json:
+                elif not _normalized_match(body["decision"], expected_json):
                     reason = "decision_mismatch"
                 else:
                     reason = _check_analysis(references.get(case.id), body, case)
                 if response.status_code == 200 and model_calls:
                     row["actual_model_decision"] = MODEL_DECISION.validate_json(actual_model_text).model_dump()
-                    row["model_decision_matches_expectation"] = (
-                        row["actual_model_decision"] in row["accepted_model_decisions"]
+                    row["model_decision_matches_expectation"] = any(
+                        _normalized_match(row["actual_model_decision"], accepted)
+                        for accepted in row["accepted_model_decisions"]
                     )
                     row["python_blocked_ready_plan"] = (
                         row["actual_model_decision"]["status"] == "ready"

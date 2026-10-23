@@ -39,7 +39,7 @@ See [Local question screen — offline preview](#local-question-screen--offline-
 | LLM client | Configured OpenAI-compatible Chat Completions, bounded SDK timeout, one attempt and safe application errors | [LLM guide](docs/llm-client.md) |
 | Question analysis | Turkish question + normalized rows, typed decisions, one allowed Housing analysis and shared period validation | [Question API guide](docs/housing-question.md) |
 | Economic question | Bounded question plan and shared HTTP dispatch to existing Housing/CPI services, including the parameterized housing condition filter, the three-panel CPI chart and two full-year CPI comparison | [Economic question guide](docs/economic-question.md) |
-| Question evaluation | Nine Housing cases; 37 Economic cases with offline HTTP checks and explicitly selected, budgeted live planning | [Housing evaluation](docs/housing-question-evals.md), [Economic evaluation](docs/economic-question.md#offline-değerlendirme) |
+| Question evaluation | Nine Housing cases; 45 Economic cases with offline HTTP checks and explicitly selected, budgeted live planning | [Housing evaluation](docs/housing-question-evals.md), [Economic evaluation](docs/economic-question.md#offline-değerlendirme) |
 | HTML report | Embedded Plotly.js, matching-month table, sources, methodology and limitations | [Report guide](docs/housing-report.md) |
 | File demo CLI | Physical EVDS manifest checks, source/output protection, evidence/chart/summary and optional offline HTML | [Demo guide](docs/housing-demo.md) |
 | Verified question files | Server-controlled local BDDK/EVDS files verified before question planning; Python wrapper only | [File question guide](docs/housing-question-files.md) |
@@ -201,7 +201,7 @@ The shared [question endpoint](docs/economic-question.md) routes CPI and
 Housing questions through the bounded service core. A third bounded path compares
 two explicitly requested full calendar years of CPI changes with the existing
 `compare_inflation_years` core; average/partial-period comparison remains out of
-scope. Its 37-case evaluator runs offline with stub plans. The Housing question
+scope. Its 45-case evaluator runs offline with stub plans. The Housing question
 endpoint still allows only its existing Housing analysis.
 
 The file-backed endpoint expects these paths relative to the repository root:
