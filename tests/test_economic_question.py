@@ -451,6 +451,19 @@ def test_each_valid_plan_calls_only_its_existing_service_once_and_matches_direct
         assert result.analysis.first_to_last_index_change_pct == pytest.approx((140 / 130 - 1) * 100)
 
 
+def test_prompt_guides_unthresholded_directions_into_one_filter_plan(data):
+    housing, inflation = data
+    coverage = service.derive_economic_coverage(housing=housing, inflation=inflation)
+    prompt = service.build_economic_question_prompt(
+        "2022 Şubat-Nisan faiz artarken reel konut kredisi stoku artan aylar",
+        coverage,
+    )
+    assert "artan/artarken/yükselen -> gt 0.0" in prompt
+    assert "artmayan -> lte 0.0" in prompt
+    assert f"aynı {service.HOUSING_FILTER_ID} planının koşullarıdır" in prompt
+    assert f"tek bir {service.HOUSING_FILTER_ID} planındaki birden çok koşulu" in prompt
+
+
 def test_filter_plan_calls_core_once_and_matches_direct_evidence(monkeypatch, data):
     housing, inflation = data
     direct_filter = service.run_housing_filter
