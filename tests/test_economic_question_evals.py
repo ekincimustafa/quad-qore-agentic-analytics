@@ -180,6 +180,7 @@ def test_live_cli_with_fake_sdk_provider_selects_cases_in_order_and_records_atte
     assert all(client.is_closed() for client in clients)
     assert report["passed_cases"] == 4 and report["failed_cases"] == report["skipped_cases"] == 0
     assert all(row["model_call_attempts"] == 1 and row["stub_calls"] == 0 for row in report["results"])
+    assert all(row["provider_error_code"] is None for row in report["results"])
     assert all(row["actual_model_decision"] in row["accepted_model_decisions"] for row in report["results"])
     assert all(row["model_decision_matches_expectation"] is True
                and row["application_decision_matches_expectation"] is True
@@ -199,9 +200,9 @@ def test_budget_exhaustion_skips_remaining_cases_without_request(cases, fixtures
                for row in report["results"][1:])
 
 
-@pytest.mark.parametrize("status", [429, 503])
+@pytest.mark.parametrize(("status", "code"), [(429, "rate_limited"), (503, "provider_unavailable")])
 def test_provider_failure_is_counted_and_stops_without_retry_or_secret(
-    cases, fixtures, fake_provider, status,
+    cases, fixtures, fake_provider, status, code,
 ):
     requests, _, options = fake_provider(lambda request: httpx.Response(status, json={
         "error": {"message": "private-test-key secret-upstream-body"},
@@ -211,10 +212,45 @@ def test_provider_failure_is_counted_and_stops_without_retry_or_secret(
     assert len(requests) == report["live_model_call_attempts"] == 1
     assert options[0]["max_retries"] == 0
     assert report["failed_cases"] == 1 and report["skipped_cases"] == 2
-    assert report["results"][0]["reason"] == "model_call_failed"
-    assert report["results"][0]["http_status"] == 502
+    row = report["results"][0]
+    assert row["reason"] == "model_call_failed"
+    assert row["http_status"] == 502
+    assert row["provider_error_code"] == code
+    assert row["housing_calls"] == row["filter_calls"] == 0
+    assert row["inflation_calls"] == row["comparison_calls"] == 0
     assert all(row["reason"] == "not_run_after_failure" for row in report["results"][1:])
+    assert all(row["provider_error_code"] is None for row in report["results"][1:])
     assert "private-test-key" not in json.dumps(report) and "secret-upstream-body" not in json.dumps(report)
+
+
+@pytest.mark.parametrize(("raised", "expected"), [
+    (llm_client.LLMRequestError("timeout", "private-test-key timeout body"), "timeout"),
+    (llm_client.LLMRequestError("access_denied", "secret-upstream-body"), "access_denied"),
+    (llm_client.LLMRequestError("request_rejected", "private-test-key"), "request_rejected"),
+    (llm_client.LLMRequestError("unknown_code", "private-test-key secret-upstream-body"), None),
+    (ValueError("private-test-key secret-upstream-body"), None),
+])
+def test_wrapper_records_only_known_safe_provider_error_codes(
+    cases, fixtures, raised, expected,
+):
+    def failing_model(_):
+        raise raised
+
+    report = evaluator.evaluate_cases(
+        cases[:2], fixtures, live=True, model_call=failing_model, max_model_calls=2,
+    )
+    row = report["results"][0]
+    assert len(report["results"]) == 2
+    assert report["live_model_call_attempts"] == row["model_call_attempts"] == 1
+    assert report["failed_cases"] == 1 and report["skipped_cases"] == 1
+    assert row["reason"] == "model_call_failed" and row["provider_error_code"] == expected
+    assert row["housing_calls"] == row["filter_calls"] == 0
+    assert row["inflation_calls"] == row["comparison_calls"] == 0
+    assert report["results"][1]["reason"] == "not_run_after_failure"
+    assert report["results"][1]["provider_error_code"] is None
+    serialized = json.dumps(report)
+    assert "private-test-key" not in serialized and "secret-upstream-body" not in serialized
+    assert "unknown_code" not in serialized
 
 
 @pytest.mark.parametrize("kind", ["invalid", "wrong_period", "wrong_analysis", "wrong_outside_period"])
