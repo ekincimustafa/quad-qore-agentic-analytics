@@ -10,6 +10,39 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+## #111 ön kontrollü tek komut yerel uygulama başlatıcısı — 24 Ekim 2026
+
+- Sorumlu: Osman (@OsmanerdemDutar). Dal `feat/local-app-launcher`; güncel `origin/main`
+  `e67df98` üzerinden açıldı.
+- `scripts/run_local_app.py` eklendi (`python -m scripts.run_local_app [--mode preview|model] [--data-root <yol>] [--port 1..65535] [--check-only]`):
+  - Üst düzeyde yalnız Python standart kütüphanesi ve stdlib-only `scripts.check_local_setup`
+    kullanılır; `uvicorn`, `scripts.preview_question_ui` ve `app.api.main` ancak ön
+    kontroller başarılı olduğunda ve `--check-only` verilmediğinde tembel (lazy) import edilir.
+  - `run_diagnostics`, `resolve_data_root` ve `format_human_report` yeniden yazılamadan
+    doğrudan kullanılır; `--data-root > süreç ANALYTICS_DATA_ROOT > yerel .env > repo kökü`
+    önceliği korunur.
+  - Varsayılan `--mode preview` anahtarsız çalışır (`create_preview_app`, yalnız 3 sabit
+    örnek); `--mode model` (`create_app`) yerel LLM ayarları eksik veya geçersizse
+    sunucuyu başlatmadan `exit 1` ile durur. Geçersiz `--mode`/`--port` veya bilinmeyen
+    argümanlar `exit 2` döndürür.
+  - `--check-only` ön kontrolleri ve seçilen modun hazırlık özetini yazdırır; sunucu,
+    socket bind, tarayıcı veya sağlayıcı çağrısı başlatmadan (`0` çağrı) uygun çıkış
+    koduyla (`0` veya `1`) sonlanır.
+  - Sunucu yalnız `127.0.0.1` üzerinde çalışır; seçilen veri kökü sunucu ömrü boyunca
+    süreç `ANALYTICS_DATA_ROOT` değişkenine uygulanır ve kapanışta, `Ctrl+C`'de veya
+    hatada eski değer/eksiklik durumuna geri yüklenir (`.env` ve `LLM_*` değiştirilmez).
+    Dolu portta başka süreç öldürülmez veya başka porta geçilmez (`exit 1`).
+- `tests/test_run_local_app.py`: **18 passed** (hatalı argümanlarda `exit 2`, `--check-only`
+  sıfır socket/sunucu/model, `preview` ve `model` fabrika/dependency ayrımı, 4 kademeli
+  veri kökü önceliği ve sunucuya taşınması, dolu port ve `Ctrl+C` ortam geri yükleme,
+  bozuk veri/uyumsuz ortam ve boş `--without-pip` venv subprocess testi, ayrıca `127.0.0.1`
+  yerel loopback üzerinde `GET /health` ve `GET /` HTTP 200 subprocess smoke testi;
+  harici ağ/LLM/EVDS çağrısı **0**).
+- `README.md` Windows/Linux başlatma ve `--check-only` örnekleriyle güncellendi.
+- Tam çevrimdışı doğrulama (`scripts.verify_project`): **1297 passed**; Housing
+  **9/9**, Economic **45/45** stub değerlendirme, canlı çağrı **0**,
+  `git diff --check` temiz (`out/verification/20261024T095622Z-47232-13276454`).
+
 ## #107 EQ-038 canlı planlama düzeltmesi — 24 Ekim 2026
 
 - Dal `fix/housing-filter-planning`; güncel `main` `be81ad7` üzerinden açıldı.
