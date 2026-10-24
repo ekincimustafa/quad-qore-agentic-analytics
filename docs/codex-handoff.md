@@ -10,6 +10,17 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+
+## #110 TÜFE karşılaştırma grafik ve offline HTML — 25 Ekim 2026
+
+- Branch: feat/inflation-comparison-report; başlangıç main b82b653.
+- Üç panelli, altı trace içeren grafik ve internetsiz HTML raporu hazırlandı.
+- Hesaplamalar mevcut InflationComparison evidence üzerinden alınıyor.
+- Sentetik 2023-2024 HTML raporu out/inflation-comparison/sample.html altında üretildi.
+- Odaklı testler: 40 passed. Tarayıcıda görsel kontrol henüz yapılmadı.
+- API/UI/evaluator değiştirilmedi; canlı LLM/EVDS çağrısı yapılmadı.
+- Sonraki adım: tam offline doğrulama, commit, push ve Issue #110 için tek PR. Merge/release yok.
+
 ## #107 evaluator sağlayıcı hata kodu — 24 Ekim 2026
 
 - Dal `fix/eval-provider-error-code`; `main` `e67df98` üzerinden açıldı. Eski canlı
