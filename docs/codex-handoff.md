@@ -10,6 +10,17 @@ Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
+
+## #110 TÜFE karşılaştırma grafik ve offline HTML — 25 Ekim 2026
+
+- Branch: feat/inflation-comparison-report; başlangıç main b82b653.
+- Üç panelli, altı trace içeren grafik ve internetsiz HTML raporu hazırlandı.
+- Hesaplamalar mevcut InflationComparison evidence üzerinden alınıyor.
+- Sentetik 2023-2024 HTML raporu out/inflation-comparison/sample.html altında üretildi.
+- Odaklı testler: 40 passed. Tarayıcıda görsel kontrol henüz yapılmadı.
+- API/UI/evaluator değiştirilmedi; canlı LLM/EVDS çağrısı yapılmadı.
+- Sonraki adım: tam offline doğrulama, commit, push ve Issue #110 için tek PR. Merge/release yok.
+
 ## #111 ön kontrollü tek komut yerel uygulama başlatıcısı — 24 Ekim 2026
 
 - Sorumlu: Osman (@OsmanerdemDutar). Dal `feat/local-app-launcher`; güncel `origin/main`
@@ -42,6 +53,27 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 - Tam çevrimdışı doğrulama (`scripts.verify_project`): **1297 passed**; Housing
   **9/9**, Economic **45/45** stub değerlendirme, canlı çağrı **0**,
   `git diff --check` temiz (`out/verification/20261024T095622Z-47232-13276454`).
+
+## #107 evaluator sağlayıcı hata kodu — 24 Ekim 2026
+
+- Dal `fix/eval-provider-error-code`; `main` `e67df98` üzerinden açıldı. Eski canlı
+  raporlar korundu; canlı LLM/EVDS çağrısı yapılmadı.
+- `scripts/evaluate_economic_questions.py` canlı `model_call` sarmalayıcısı
+  `LLMRequestError`'ı servisin `EconomicPlanningError` dönüşümünden önce yakalıyor.
+  Yalnız izinli kodlar (`timeout`, `authentication_failed`, `access_denied`,
+  `rate_limited`, `connection_failed`, `invalid_response`, `provider_unavailable`,
+  `request_rejected`, `provider_error`) `provider_error_code` alanına yazılıyor;
+  bilinmeyen kod ve diğer istisnalarda değer `null`. İstisna yeniden yükseltiliyor;
+  mesaj, ham sağlayıcı gövdesi, anahtar, URL veya traceback rapora girmiyor.
+- HTTP sözleşmesi, servis, istemci, prompt, hesaplar, guard'lar, fixture'lar ve
+  beklentiler değişmedi. Sahte sağlayıcı testleri farklı güvenli kodları, sır
+  sızmamasını, ilk hatada durmayı, başarısız denemenin bütçeye sayılmasını ve sıfır
+  analiz çağrısını doğruluyor.
+- Odaklı `tests/test_economic_question_evals.py`: **74 passed**. Tek
+  `scripts.verify_project`: **1282 passed, 2 skipped**; Housing **9/9**, Economic
+  **45/45**, canlı çağrı **0**, diff-check temiz
+  (`out/verification/20261024T134723Z-21620-6220df15`).
+- Merge/release yapılmadı; sonraki adım bağımsız inceleme ve CI sonucudur.
 
 ## #107 EQ-038 canlı planlama düzeltmesi — 24 Ekim 2026
 

@@ -503,3 +503,14 @@ table in the [acceptance record](docs/release-acceptance.md) hold the dated evid
 - Runtime calculations use pandas; Parquet I/O uses pyarrow; presentation uses Plotly. Full dependencies are in [requirements.txt](requirements.txt).
 - Keep credentials in local configuration. Never commit keys, raw data, generated reports or secret-bearing logs.
 - Tests cover deterministic calculations, integrity/error boundaries, API, narration and report behavior. CI is test automation; deployment is future work.
+
+
+## Two-year CPI comparison — offline HTML
+
+Generate a synthetic report:
+
+    python -m scripts.render_inflation_comparison_sample --first-year 2023 --second-year 2024 --output out/inflation-comparison/sample.html
+
+The report embeds Plotly.js and works offline. It reuses existing CPI evidence without recalculating results. No live LLM/EVDS calls are made. Existing outputs require --overwrite.
+
+See [the comparison report guide](docs/inflation-comparison-report.md).

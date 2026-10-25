@@ -35,6 +35,17 @@ FIXTURES = {
 }
 ENDPOINT = "/analysis/economic/question"
 MODEL_DECISION = TypeAdapter(service.ModelDecision)
+_SAFE_PROVIDER_ERROR_CODES = frozenset({
+    "timeout",
+    "authentication_failed",
+    "access_denied",
+    "rate_limited",
+    "connection_failed",
+    "invalid_response",
+    "provider_unavailable",
+    "request_rejected",
+    "provider_error",
+})
 
 
 class ComparisonExpectation(BaseModel):
@@ -318,6 +329,7 @@ def evaluate_cases(
                 "outcome": "skipped", "reason": stopped,
                 "model_call_attempts": 0, "stub_calls": 0, "housing_calls": 0,
                 "filter_calls": 0, "inflation_calls": 0, "comparison_calls": 0,
+                "provider_error_code": None,
             }
             if live and (stopped or live_calls >= max_model_calls):
                 row["reason"] = stopped or "budget_exhausted"
@@ -330,17 +342,23 @@ def evaluate_cases(
             model_calls = []
             actual_model_text = None
             limit_error = None
+            provider_error_code = None
             attempts_before = live_calls
 
             def model(prompt):
-                nonlocal live_calls, actual_model_text, limit_error
+                nonlocal live_calls, actual_model_text, limit_error, provider_error_code
                 if live and (live_calls >= max_model_calls or model_calls):
                     limit_error = "model_call_limit_exceeded"
                     raise RuntimeError("Evaluation call limit reached.")
                 model_calls.append(prompt)
                 if live:
                     live_calls += 1  # Failed provider requests consume the budget too.
-                    actual_model_text = model_call(prompt)
+                    try:
+                        actual_model_text = model_call(prompt)
+                    except llm_client.LLMRequestError as exc:
+                        if isinstance(exc.code, str) and exc.code in _SAFE_PROVIDER_ERROR_CODES:
+                            provider_error_code = exc.code
+                        raise
                 else:
                     actual_model_text = json.dumps(case.offline_response, ensure_ascii=False)
                 return actual_model_text
@@ -415,6 +433,7 @@ def evaluate_cases(
                 "housing_calls": housing.call_count, "inflation_calls": inflation.call_count,
                 "filter_calls": housing_filter.call_count,
                 "comparison_calls": comparison.call_count,
+                "provider_error_code": provider_error_code,
             })
             rows.append(row)
             if live and reason is not None:
