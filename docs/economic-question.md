@@ -7,6 +7,15 @@ Ortak HTTP yüzeyi `POST /analysis/economic/question` ve 45 vakalık offline HTT
 değerlendirme seti mevcuttur. Mevcut `/analysis/housing/question` yalnızca konut
 analizini desteklemeye devam eder.
 
+Normal model yolunda `ask_economic_plan`, aşağıdaki mevcut karar tiplerini
+OpenAI uyumlu API'ye `response_format=json_schema` ile gönderir. Servis, normal
+HTTP, doğrulanmış dosya HTTP ve canlı evaluator CLI aynı planlayıcıyı kullanır.
+Sağlayıcı/modelin şema desteği gerekir; reddedilen istekte otomatik tekrar veya
+metin moduna geçiş yoktur. Dönen metin ayrıca mevcut katı Pydantic doğrulaması
+ve Python guard'lardan geçer; Markdown kod bloğu soyulmaz, eksik alan veya
+koşul uydurulmaz. Offline sabit planlar ve enjekte edilen `model_call` arayüzü
+değişmedi. Ayrıntı: [LLM istemcisi](llm-client.md#hata-ve-anlatım-sınırı).
+
 İzinli `analysis_id` değerleri:
 
 - `housing_rate_down_real_credit_not_up`: faiz düşerken reel konut kredisi

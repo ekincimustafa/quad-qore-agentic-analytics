@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import Annotated, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Literal, Union
 
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
@@ -41,6 +41,9 @@ from app.services.question_periods import (
     normalize_question_text as _question_text,
     year_tokens as _year_tokens,
 )
+
+if TYPE_CHECKING:
+    from app.connectors.llm_client import LLMSettings
 
 
 HOUSING_ID = "housing_rate_down_real_credit_not_up"
@@ -154,6 +157,17 @@ ModelDecision = Annotated[
 ]
 EconomicDecision = ModelDecision | EconomicDataUnavailable
 _MODEL_DECISION = TypeAdapter(ModelDecision)
+
+
+def ask_economic_plan(prompt: str, *, settings: LLMSettings | None = None) -> str:
+    """Request the existing decision schema; validate the returned text separately."""
+    from app.connectors.llm_client import ask_llm
+
+    # Every permitted union branch is an object. Keep its alternatives and
+    # definitions intact, including required fields and extra-field rejection.
+    schema = {"type": "object", **_MODEL_DECISION.json_schema()}
+    return ask_llm(prompt, settings=settings, response_schema=schema)
+
 
 _COMPARISON_INTENT = re.compile(r"\b(?:karşılaştır\w*|kıyasla\w*)\b")
 _COMPARISON_OUT_OF_SCOPE = re.compile(r"\b(?:ortalama\w*|tahmin\w*|öngör\w*|yıllıklandır\w*|neden\w*|nedensellik\w*)\b")
@@ -439,9 +453,7 @@ def run_economic_question(
             coverage=coverage, analysis=None,
         )
     if model_call is None:
-        from app.connectors.llm_client import ask_llm
-
-        model_call = ask_llm
+        model_call = ask_economic_plan
     if not callable(model_call):
         raise TypeError("model_call must be callable.")
     try:

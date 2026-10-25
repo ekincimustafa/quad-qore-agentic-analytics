@@ -11,7 +11,7 @@ etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğre
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
 
-## LLM kısa üretim teşhisi ve isteğe bağlı thinking ayarı — 25 Ekim 2026
+## LLM şemalı planlama ve güvenli teşhis — 25 Ekim 2026
 
 - Dal `fix/llm-thinking-and-probe`, başlangıç `main` `a57c65a`.
 - İstemci `LLM_REASONING_EFFORT` boşken eski isteği korur; low/medium/high açıkça
@@ -19,9 +19,9 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 - `python -m scripts.smoke_test_llm --probe --reasoning-effort low --timeout-seconds 60`
   yalnız tek kısa üretim isteğidir. Analiz çalışmaz; timeout aşaması yalnız izinli
   türlerden aktarılır. Anahtar/URL/ham hata/yanıt yazdırılmaz; ortam geri yüklenir.
-- Economic canlı raporu artık timeout/reasoning/retry ayarlarını da kaydeder.
-  Prompt, hesaplar, guard, vaka beklentileri ve HTTP sözleşmeleri değiştirilmedi.
-- Odaklı SDK/CLI/evaluator: **143 passed**. Tek offline `scripts.verify_project`:
+- Economic canlı raporu timeout/reasoning/retry ve response_format ayarlarını
+  kaydeder. Prompt, hesaplar, guard, vaka beklentileri ve HTTP sözleşmeleri korunur.
+- İlk SDK/CLI/evaluator: **143 passed**. İlk offline `scripts.verify_project`:
   **1364 passed, 1 skipped**, Housing **9/9**, Economic **45/45**, canlı **0**;
   günlük `out/verification/20261025T170455Z-2-e2644db7` (Git dışında).
 - Gemini anahtarı bu ortamda yok; önceki 60/120 sn timeout'larının nedeni ve
@@ -31,11 +31,27 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   biçim/alan hatasını saklamadığından o yanıt sonradan geri alınamıyor.
   `invalid_plan_diagnostics` yalnız kapalı biçim/hata türlerini ve bilinen şema
   alanlarını kaydeder; metin/değer/bilinmeyen alan adı yazılmaz. Yanıt onarılmaz.
-  Ek odaklı evaluator 81 passed; tek yeni offline doğrulama 1370 passed,
+  Ek odaklı evaluator 81 passed; o sürümde offline doğrulama 1370 passed,
   1 skipped, Housing 9/9, Economic 45/45, canlı 0
   (`out/verification/20261025T185657Z-2-5c5798db`).
-- Sonraki adım ayrı bağımsız PR incelemesi ve Mustafa'nın yerel anahtarıyla tek
-  kısa kontrol. Uygulayan oturum kendi PR'ını merge etmez; release yapılmaz.
+- Son yerel kullanıcı teşhisi: EQ-038 / 3.5 Flash-Lite / low, tek deneme,
+  `invalid_plan_diagnostics.format=code_fence_prefix`, filtre 0. Model yanıtı
+  gelmiş, Markdown öneki yüzünden katı JSON doğrulamasında reddedilmiş; içerideki
+  planın doğruluğu bu kayıttan bilinmiyor. Eski 3.8 timeout/5xx ayrı hata türüdür.
+- Aynı PR #116: `ask_economic_plan`, mevcut Pydantic karar şemasını JSON nesnesi
+  kökü + anyOf/$defs ile `response_format=json_schema`, strict=true olarak gönderir.
+  Doğrudan servis, iki HTTP yolu ve canlı evaluator CLI bu tek fonksiyonu kullanır.
+  Evaluator CLI başlangıçta okunan frozen ayarları isteğe de geçirir. Normal
+  `ask_llm`, Housing/anlatım ve kısa probe şemasız eski sözleşmeyi korur.
+- Kod bloğu soyma, alan/koşul onarma, metin modu fallback'i, otomatik retry veya
+  model değişimi yok. Şema reddinde tek güvenli hata; planlar ayrıca mevcut
+  Python kontrollerinden geçer. Odaklı istemci/servis/iki API/evaluator 423 passed.
+- Son kodda tek `scripts.verify_project`: **4/4**, pytest **1383 passed,
+  1 skipped**, Housing **9/9**, Economic **45/45**, canlı **0**; diff-check temiz.
+  Kayıt `out/verification/20261025T193553Z-2-44d7c934` (Git dışında).
+- Sonraki adım bağımsız PR incelemesi ve Mustafa'nın yerel anahtarıyla EQ-038'in
+  tek şemalı isteği. Sağlayıcının bu şemayı kabul ettiği ve soruyu doğru anladığı
+  henüz canlı doğrulanmadı. Uygulayan oturum kendi PR'ını merge etmez; release yok.
 
 ## #110 TÜFE karşılaştırma grafik ve offline HTML — 25 Ekim 2026
 

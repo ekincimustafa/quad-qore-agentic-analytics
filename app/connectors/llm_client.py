@@ -133,10 +133,17 @@ def _safe_provider_error(exc: OpenAIError) -> LLMRequestError:
     return LLMRequestError("provider_error", "LLM isteği tamamlanamadı.")
 
 
-def ask_llm(prompt: str, *, settings: LLMSettings | None = None) -> str:
+def ask_llm(
+    prompt: str, *, settings: LLMSettings | None = None,
+    response_schema: dict[str, Any] | None = None,
+) -> str:
     """Return one complete text response, without exposing provider errors."""
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("LLM modeline gönderilecek mesaj boş olmayan metin olmalıdır.")
+    if response_schema is not None and (
+        not isinstance(response_schema, dict) or not response_schema
+    ):
+        raise ValueError("Yanıt şeması boş olmayan bir JSON Schema nesnesi olmalıdır.")
     settings = settings if settings is not None else read_llm_settings()
     request: dict[str, Any] = {
         "model": settings.chat_model,
@@ -145,6 +152,13 @@ def ask_llm(prompt: str, *, settings: LLMSettings | None = None) -> str:
     # Omit the option entirely for existing configurations/providers.
     if settings.reasoning_effort is not None:
         request["reasoning_effort"] = settings.reasoning_effort
+    if response_schema is not None:
+        request["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "analysis_plan", "strict": True, "schema": response_schema,
+            },
+        }
     try:
         with create_llm_client(settings) as client:
             response = client.chat.completions.create(**request)

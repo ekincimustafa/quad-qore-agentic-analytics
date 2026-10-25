@@ -94,9 +94,31 @@ def test_sdk_uses_explicit_settings_single_attempt_and_closes(monkeypatch):
     assert body["model"] == "test-model"
     assert body["messages"] == [{"role": "user", "content": "test prompt"}]
     assert "reasoning_effort" not in body
+    assert "response_format" not in body
     assert options[0]["timeout"] == 8.5
     assert options[0]["max_retries"] == 0
     assert clients[0].is_closed()
+
+
+def test_explicit_schema_is_sent_once_without_changing_the_response(monkeypatch):
+    schema = {
+        "type": "object", "properties": {"status": {"type": "string", "enum": ["ready"]}},
+        "required": ["status"], "additionalProperties": False,
+    }
+    before = json.dumps(schema, sort_keys=True)
+    # Even a non-compliant provider response must be returned unchanged to the
+    # caller's existing validator, never stripped or repaired by the client.
+    content = '```json\n{"status":"ready"}\n```'
+    requests, clients, options = _mock_provider(monkeypatch, lambda request: _response(content))
+    assert llm_client.ask_llm("JSON plan", response_schema=schema) == content
+    body = json.loads(requests[0].content)
+    assert body["response_format"] == {
+        "type": "json_schema",
+        "json_schema": {"name": "analysis_plan", "strict": True, "schema": schema},
+    }
+    assert len(requests) == 1 and options[0]["max_retries"] == 0
+    assert clients[0].is_closed()
+    assert json.dumps(schema, sort_keys=True) == before
 
 
 @pytest.mark.parametrize("effort", ["low", "medium", "high"])
@@ -246,3 +268,76 @@ def test_real_sdk_through_default_api_preserves_narration_validation(monkeypatch
         assert "nedensellik kanıtlamaz" in response.json()["narration"]
     else:
         assert response.json()["detail"]["code"] == "narration_failed"
+
+
+@pytest.mark.parametrize("files", [False, True])
+@pytest.mark.parametrize("kind", ["valid", "fence", "extra_field", "wrong_condition"])
+def test_economic_api_defaults_send_schema_and_still_validate_every_plan(
+    monkeypatch, tmp_path, files, kind,
+):
+    import shutil
+    from pathlib import Path
+    from unittest.mock import patch
+
+    from fastapi.testclient import TestClient
+    from app.api import economic_question as api
+    from app.api.main import create_app
+    from app.services import economic_question as service
+    from app.services.housing_question_files import VerifiedHousingQuestionPaths
+    from tests.housing_test_support import write_bddk
+
+    root = Path(__file__).resolve().parents[1]
+    question = "2021 Ocak-Şubat faiz düşerken reel konut kredisi stoku artmayan ayları göster."
+    plan = {
+        "status": "ready", "analysis_id": service.HOUSING_FILTER_ID,
+        "start_period": "2021-01", "end_period": "2021-02",
+        "conditions": [
+            {"metric": "interest_rate_change_pp", "operator": "lt", "threshold": 0.0},
+            {"metric": "real_housing_loan_change_pct", "operator": "lte", "threshold": 0.0},
+        ],
+    }
+    if kind == "extra_field":
+        plan["private-test-key"] = "secret-upstream-body"
+    elif kind == "wrong_condition":
+        plan["conditions"][0]["operator"] = "gt"
+    content = json.dumps(plan)
+    if kind == "fence":
+        content = "```json\n" + content + "\n```"
+    requests, clients, _ = _mock_provider(monkeypatch, lambda request: _response(content))
+    app = create_app()
+    if files:
+        shutil.copytree(root / "tests/fixtures/evds_manifest_v1", tmp_path, dirs_exist_ok=True)
+        write_bddk(tmp_path, ["2021-01", "2021-02", "2021-03"])
+        paths = VerifiedHousingQuestionPaths(project_root=tmp_path)
+        app.dependency_overrides[api.get_verified_economic_paths] = lambda: paths
+        endpoint = "/analysis/economic/question/files"
+        payload = {"question": question}
+    else:
+        endpoint = "/analysis/economic/question"
+        payload = json.loads((root / "docs/economic-question-api-example.json").read_text(encoding="utf-8"))
+        payload["question"] = question
+    # Crucially do not override get_economic_question_model: exercise production
+    # wiring with the real SDK and a fake HTTP server, including physical files.
+    with patch.object(service, "run_housing_filter", wraps=service.run_housing_filter) as analysis:
+        with TestClient(app) as client:
+            response = client.post(endpoint, json=payload)
+    body = response.json()
+    request_body = json.loads(requests[0].content)
+    assert request_body["response_format"]["type"] == "json_schema"
+    assert request_body["response_format"]["json_schema"]["schema"] == {
+        "type": "object", **service._MODEL_DECISION.json_schema(),
+    }
+    assert len(requests) == 1 and clients[0].is_closed()
+    assert analysis.call_count == (1 if kind == "valid" else 0)
+    if kind == "valid":
+        assert response.status_code == 200 and body["status"] == "ok"
+        assert body["decision"] == plan
+        # The physical manifest fixture and normalized-row example contain
+        # different values; only the latter matches February's two conditions.
+        assert body["analysis"]["evidence"]["matched_periods"] == ([] if files else ["2021-02"])
+    elif kind == "wrong_condition":
+        assert response.status_code == 200 and body["status"] == "clarification_required"
+        assert body["analysis"] is None
+    else:
+        assert response.status_code == 502 and body["detail"]["code"] == "invalid_question_plan"
+    assert "private-test-key" not in response.text and "secret-upstream-body" not in response.text

@@ -1,7 +1,8 @@
 # Yapılandırılabilir LLM istemcisi
 
 API narrator'ı `app/connectors/llm_client.py` içindeki `ask_llm` fonksiyonunu
-kullanır. Tek protokol OpenAI uyumlu Chat Completions'tır; başka protokollere
+kullanır. Economic soru planlayıcısı aynı istemciyi `ask_economic_plan` üzerinden
+şemalı JSON çıktısıyla çağırır. Tek protokol OpenAI uyumlu Chat Completions'tır; başka protokollere
 adapter veya sağlayıcı seçme framework'ü eklenmedi. Hesaplar Python'da kalır.
 
 ## Yapılandırma
@@ -19,7 +20,7 @@ LLM_REASONING_EFFORT=
 
 Anahtar, tam API base URL ve model zorunludur; otomatik sağlayıcı/model varsayılanı
 ve `MIA_*` fallback'i yoktur. URL HTTPS olmalı; user-info, query ve fragment
-içeremez. `.env` yalnızca anlatım istendiğinde okunur; process environment
+içeremez. `.env` yalnızca model çağrısı gerektiğinde okunur; process environment
 değerleri `.env` tarafından değiştirilmez. Anahtarı Git'e eklemeyin.
 
 Timeout sonlu, 0'dan büyük ve en fazla 120 saniyedir. Bu SDK/HTTP timeout'udur;
@@ -38,6 +39,24 @@ Bu seçenek daha kısa yanıt süresini garanti etmez ve önceki timeout'ların
 nedeninin düşünme seviyesi olduğunu kanıtlamaz. Otomatik model/sağlayıcı geçişi yoktur.
 
 ## Hata ve anlatım sınırı
+
+Economic soru yolu (`run_economic_question` varsayılanı, iki Economic HTTP
+endpoint'i ve canlı evaluator CLI) aynı `ask_economic_plan` fonksiyonunu kullanır.
+Karar şeması mevcut Pydantic `ModelDecision` tanımlarından üretilir ve
+`response_format={"type":"json_schema","json_schema":{"name":"analysis_plan",
+"strict":true,"schema":...}}` olarak sağlayıcıya gönderilir. JSON nesnesi kökü
+altındaki `anyOf` alternatifleri, `$defs`, zorunlu alanlar, koşul sınırları ve
+`additionalProperties=false` korunur; ikinci bir plan/hesap sözleşmesi yoktur.
+Seçilen sağlayıcı/model bu şemayı desteklemelidir. Google'ın yukarıdaki resmî
+belgesi yapılandırılmış çıktıyı gösterir; bu projenin şemasıyla gerçek model
+kabulü ayrıca doğrulanmalıdır. Şema isteği reddedilirse güvenli hata verilir;
+metin moduna düşme, otomatik tekrar veya başka modele geçiş yapılmaz.
+
+İstemci şemalı istekte de yanıtı onarmaz. Kod bloğu, ek alan veya yanlış plan
+Python doğrulamasından geçmez; tarih/metrik/koşul/kapsam kontrolleri hesaplardan
+önce uygulanır. Şema uyumu doğru analiz seçildiği anlamına gelmez.
+Normal `ask_llm(prompt)` çağrısı, kısa `--probe`, mevcut Housing soru yolu ve
+anlatım yolu `response_format` göndermez; mevcut sözleşmeleri korunur.
 
 Eksik/geçersiz ayarlar `LLMConfigurationError`; kimlik/izin, 429, timeout,
 bağlantı, 5xx ve beklenmeyen yanıtlar güvenli kodlu `LLMRequestError` üretir.
@@ -103,7 +122,8 @@ tek istek gönderir ve gerçek narrator doğrulamasını çalıştırır. Beklen
 ölçmez.
 
 Economic evaluator'ın yeni canlı raporlarında `llm_request_settings`, koşu
-başlangıcında okunan timeout, isteğe bağlı reasoning effort ve retry 0 bilgisini
+başlangıcında okunan timeout, isteğe bağlı reasoning effort, retry 0 ve
+`response_format=json_schema` bilgisini
 tutar; anahtar veya URL içermez. Önceki raporlar değiştirilmez. Offline raporlar
 LLM ayarı okumaz. Mevcut vaka beklentileri, çağrı bütçesi ve ilk hatada durma kuralı korunur.
 

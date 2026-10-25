@@ -559,12 +559,15 @@ def main(argv: list[str] | None = None) -> int:
                 "timeout_seconds": settings.timeout_seconds,
                 "reasoning_effort": settings.reasoning_effort,
                 "max_retries": 0,
+                "response_format": "json_schema",
             }
         output.parent.mkdir(parents=True, exist_ok=True)
         # Reserve the output before spending calls; live reports are never overwritten.
         with output.open("x" if args.live else "w", encoding="utf-8") as stream:
             report = evaluate_cases(cases, {key: json.loads(raw) for key, raw in fixture_bytes.items()},
-                live=args.live, model_call=llm_client.ask_llm if args.live else None,
+                live=args.live,
+                model_call=(lambda prompt: service.ask_economic_plan(prompt, settings=settings))
+                if args.live else None,
                 max_model_calls=args.max_model_calls, model_name=model_name)
             report.update(metadata)
             stream.write(json.dumps(report, ensure_ascii=False, indent=2) + "\n")

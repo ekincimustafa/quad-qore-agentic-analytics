@@ -129,9 +129,11 @@ def test_live_report_records_effective_options_without_secrets(tmp_path, monkeyp
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["llm_request_settings"] == {
         "timeout_seconds": 5.0, "reasoning_effort": "low", "max_retries": 0,
+        "response_format": "json_schema",
     }
     assert len(requests) == 1
     assert json.loads(requests[0].content)["reasoning_effort"] == "low"
+    assert json.loads(requests[0].content)["response_format"]["type"] == "json_schema"
     assert "private-test-key" not in output.read_text(encoding="utf-8")
 
 
@@ -205,6 +207,60 @@ def test_live_cli_with_fake_sdk_provider_selects_cases_in_order_and_records_atte
                and row["python_blocked_ready_plan"] is False for row in report["results"])
     assert "private-test-key" not in json.dumps(report)
     assert not (tmp_path / "out/economic-question-eval-offline.json").exists()
+
+
+@pytest.mark.parametrize("kind", ["valid", "fence", "wrong_condition", "schema_rejected"])
+def test_cli_filter_uses_structured_planner_and_preserves_failure_boundaries(
+    tmp_path, monkeypatch, cases, fake_provider, kind,
+):
+    selected = evaluator.select_cases(cases, ["EQ-038", "EQ-040"])
+    answer = copy.deepcopy(selected[0].offline_response)
+    if kind == "wrong_condition":
+        answer["conditions"][0]["operator"] = "lt"
+    content = json.dumps(answer)
+    if kind == "fence":
+        content = "```json\n" + content + "\n```"
+    requests, clients, options = fake_provider(lambda request: (
+        httpx.Response(400, json={"error": {"message": "private-test-key secret-upstream-body"}})
+        if kind == "schema_rejected" else _response(content)
+    ))
+    monkeypatch.setattr(evaluator, "ROOT", tmp_path)
+    output = tmp_path / "out/structured.json"
+    # One permitted request: a successful first case leaves the second budget-
+    # skipped; every failure stops before it, without a text-mode fallback.
+    assert evaluator.main([
+        "--live", "--case", "EQ-038", "--case", "EQ-040",
+        "--max-model-calls", "1", "--output", str(output),
+    ]) == 1
+    report = json.loads(output.read_text(encoding="utf-8"))
+    row = report["results"][0]
+    body = json.loads(requests[0].content)
+    schema = body["response_format"]["json_schema"]["schema"]
+    assert body["response_format"]["type"] == "json_schema"
+    assert schema["type"] == "object" and len(schema["anyOf"]) == 5
+    assert schema["$defs"]["HousingFilterCondition"]["properties"]["operator"]["enum"] == ["lt", "lte", "gt", "gte"]
+    assert schema["$defs"]["EconomicHousingFilterReadyPlan"]["properties"]["conditions"]["maxItems"] == 3
+    assert report["live_model_call_attempts"] == len(requests) == 1
+    assert options[0]["max_retries"] == 0 and clients[0].is_closed()
+    assert row["filter_calls"] == (1 if kind == "valid" else 0)
+    assert row["housing_calls"] == row["inflation_calls"] == row["comparison_calls"] == 0
+    if kind == "valid":
+        assert row["outcome"] == "passed"  # Includes the independent April oracle.
+        assert row["actual_model_decision"] == answer
+        assert report["results"][1]["reason"] == "budget_exhausted"
+    else:
+        assert row["outcome"] == "failed"
+        assert report["results"][1]["reason"] == "not_run_after_failure"
+    if kind == "fence":
+        assert row["reason"] == "invalid_plan"
+        assert row["invalid_plan_diagnostics"] == {"format": "code_fence_prefix"}
+    elif kind == "wrong_condition":
+        assert row["python_blocked_ready_plan"] is True
+        assert row["model_decision_matches_expectation"] is False
+    elif kind == "schema_rejected":
+        assert row["provider_error_code"] == "request_rejected"
+    assert "private-test-key" not in output.read_text(encoding="utf-8")
+    assert "secret-upstream-body" not in output.read_text(encoding="utf-8")
 
 
 def test_budget_exhaustion_skips_remaining_cases_without_request(cases, fixtures, fake_provider):

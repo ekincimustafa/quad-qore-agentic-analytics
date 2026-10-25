@@ -35,6 +35,7 @@ from app.services.economic_question import (
     HousingQuestionData,
     InflationQuestionData,
     ModelCall,
+    ask_economic_plan,
     run_economic_question,
 )
 from app.services.economic_question_files import (
@@ -230,9 +231,7 @@ def get_verified_economic_paths() -> VerifiedHousingQuestionPaths:
 
 
 def get_economic_question_model() -> ModelCall:
-    from app.connectors.llm_client import ask_llm
-
-    return ask_llm
+    return ask_economic_plan
 
 
 def _error(code: str, message: str) -> NoReturn:
