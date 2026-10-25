@@ -303,6 +303,56 @@ def test_safe_outside_clarification_is_accepted_without_forcing_a_ready_plan(cas
     assert report["results"][0]["housing_calls"] == report["results"][0]["inflation_calls"] == 0
 
 
+@pytest.mark.parametrize(("kind", "expected_format", "field"), [
+    ("fence", "code_fence_prefix", None),
+    ("not_json", "invalid_json", None),
+    ("array", "json_non_object", None),
+    ("missing_conditions", "json_object", "conditions"),
+    ("wrong_metric", "json_object", "metric"),
+    ("extra_secret_key", "json_object", None),
+])
+def test_invalid_plan_records_safe_diagnostics_without_repair_or_retry(
+    cases, fixtures, fake_provider, kind, expected_format, field,
+):
+    selected = evaluator.select_cases(cases, ["EQ-038", "EQ-040"])
+    answer = copy.deepcopy(selected[0].offline_response)
+    if kind == "missing_conditions":
+        answer.pop("conditions")
+    elif kind == "wrong_metric":
+        answer["conditions"][0]["metric"] = "secret-upstream-body"
+    elif kind == "extra_secret_key":
+        answer["private-test-key"] = "secret-upstream-body"
+    content = json.dumps(answer)
+    if kind == "fence":
+        content = "```json\n" + content + "\n```"
+    elif kind == "not_json":
+        content = "private-test-key secret-upstream-body"
+    elif kind == "array":
+        content = "[]"
+    requests, _, _ = fake_provider(lambda request: _response(content))
+    report = evaluator.evaluate_cases(
+        selected, fixtures, live=True, model_call=llm_client.ask_llm, max_model_calls=2,
+    )
+    row = report["results"][0]
+    diagnostic = row["invalid_plan_diagnostics"]
+    assert row["reason"] == "invalid_plan"
+    assert diagnostic["format"] == expected_format
+    if field:
+        assert field in diagnostic["error_fields"]
+        assert diagnostic["schema_valid"] is False
+    if kind == "missing_conditions":
+        assert diagnostic["error_fields"] == ["conditions"]
+        assert diagnostic["error_types"] == ["missing"]
+    assert row["actual_model_decision"] is None and row["actual_decision"] is None
+    assert row["filter_calls"] == row["housing_calls"] == 0
+    assert row["inflation_calls"] == row["comparison_calls"] == 0
+    assert len(requests) == report["live_model_call_attempts"] == 1
+    assert report["results"][1]["reason"] == "not_run_after_failure"
+    assert report["results"][1]["invalid_plan_diagnostics"] is None
+    serialized = json.dumps(report)
+    assert "private-test-key" not in serialized and "secret-upstream-body" not in serialized
+
+
 @pytest.mark.parametrize("case_id,reason,analysis_id", [
     ("EQ-020", "period_required", "cpi_inflation_summary"),
     ("EQ-022", "metric_ambiguous", "housing_rate_down_real_credit_not_up"),

@@ -26,6 +26,14 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   günlük `out/verification/20261025T170455Z-2-e2644db7` (Git dışında).
 - Gemini anahtarı bu ortamda yok; önceki 60/120 sn timeout'larının nedeni ve
   parametreli filtrenin canlı kabulü çözülmüş/doğrulanmış sayılmıyor.
+- Aynı dalda ek teşhis: kullanıcının 3.5 Flash-Lite / low EQ-038 denemesi
+  `invalid_plan` döndürdü; filtre çağrısı 0. Önceki evaluator geçersiz yanıtın
+  biçim/alan hatasını saklamadığından o yanıt sonradan geri alınamıyor.
+  `invalid_plan_diagnostics` yalnız kapalı biçim/hata türlerini ve bilinen şema
+  alanlarını kaydeder; metin/değer/bilinmeyen alan adı yazılmaz. Yanıt onarılmaz.
+  Ek odaklı evaluator 81 passed; tek yeni offline doğrulama 1370 passed,
+  1 skipped, Housing 9/9, Economic 45/45, canlı 0
+  (`out/verification/20261025T185657Z-2-5c5798db`).
 - Sonraki adım ayrı bağımsız PR incelemesi ve Mustafa'nın yerel anahtarıyla tek
   kısa kontrol. Uygulayan oturum kendi PR'ını merge etmez; release yapılmaz.
 

@@ -107,6 +107,15 @@ başlangıcında okunan timeout, isteğe bağlı reasoning effort ve retry 0 bil
 tutar; anahtar veya URL içermez. Önceki raporlar değiştirilmez. Offline raporlar
 LLM ayarı okumaz. Mevcut vaka beklentileri, çağrı bütçesi ve ilk hatada durma kuralı korunur.
 
+`invalid_plan` satırlarında `invalid_plan_diagnostics`, kod bloğu öneki
+(`code_fence_prefix`), geçersiz JSON (`invalid_json`), nesne olmayan JSON
+(`json_non_object`), aşırı uzun yanıt veya şema hatasını ayırır. Şema hatasında
+yalnız izinli hata türleri ve sözleşmenin bilinen alan adları kaydedilir;
+model metni, hatalı değerler ve bilinmeyen alan adları saklanmaz. Tanınan karar
+dalı kullanılarak diğer union dallarının ilgisiz hataları ayıklanır. Bu işlem
+yanıtı düzeltmez, kod bloğunu soyup kabul etmez ve analizi çalıştırmaz.
+Önceki raporlara kaydedilmeyen yanıtlar sonradan geri getirilemez.
+
 ## Canlı kabul kaydı — 15 Ekim 2026
 
 Kullanıcının Windows PowerShell / mevcut venv ortamında Gemini API ve

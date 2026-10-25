@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import pandas as pd
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
+from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
 
 from app.api.economic_question import EconomicQuestionRequest, get_economic_question_model
 from app.api.main import create_app
@@ -46,6 +46,64 @@ _SAFE_PROVIDER_ERROR_CODES = frozenset({
     "request_rejected",
     "provider_error",
 })
+_SAFE_PLAN_FIELDS = frozenset({
+    "status", "analysis_id", "reason", "start_period", "end_period",
+    "first_year", "second_year", "conditions", "metric", "operator", "threshold",
+})
+_SAFE_VALIDATION_TYPES = frozenset({
+    "missing", "extra_forbidden", "literal_error", "value_error", "model_type",
+    "float_type", "float_parsing", "finite_number", "int_type", "int_parsing",
+    "string_type", "string_pattern_mismatch", "string_too_short", "string_too_long",
+    "too_short", "too_long", "greater_than_equal", "less_than_equal",
+})
+
+
+def _invalid_plan_diagnostics(text: object) -> dict:
+    """Classify a rejected response using closed labels; never retain its content."""
+    if not isinstance(text, str):
+        return {"format": "non_text"}
+    if len(text) > service.MAX_PLAN_CHARACTERS:
+        return {"format": "too_long"}
+    if text.lstrip().startswith("```"):
+        return {"format": "code_fence_prefix"}
+    try:
+        decoded = json.loads(text)
+    except (ValueError, RecursionError):
+        return {"format": "invalid_json"}
+    if not isinstance(decoded, dict):
+        return {"format": "json_non_object"}
+
+    # Narrow diagnostics to the declared, known branch; union errors from other
+    # branches would otherwise misleadingly list their unrelated required fields.
+    validator = MODEL_DECISION
+    status, analysis_id = decoded.get("status"), decoded.get("analysis_id")
+    if status == "ready":
+        if analysis_id == service.HOUSING_FILTER_ID:
+            validator = TypeAdapter(service.EconomicHousingFilterReadyPlan)
+        elif analysis_id == service.COMPARISON_ID:
+            validator = TypeAdapter(service.EconomicComparisonReadyPlan)
+        elif analysis_id in (service.HOUSING_ID, service.INFLATION_ID):
+            validator = TypeAdapter(service.EconomicReadyPlan)
+    elif status == "clarification_required":
+        validator = TypeAdapter(service.EconomicClarification)
+    elif status == "unsupported":
+        validator = TypeAdapter(service.EconomicUnsupported)
+    try:
+        validator.validate_json(text)
+    except ValidationError as error:
+        errors = error.errors(include_input=False, include_context=False, include_url=False)
+        return {
+            "format": "json_object", "schema_valid": False,
+            "error_types": sorted({
+                item["type"] if item["type"] in _SAFE_VALIDATION_TYPES else "other"
+                for item in errors
+            }),
+            "error_fields": sorted({
+                part for item in errors for part in item["loc"]
+                if isinstance(part, str) and part in _SAFE_PLAN_FIELDS
+            }),
+        }
+    return {"format": "json_object", "schema_valid": True}
 
 
 class ComparisonExpectation(BaseModel):
@@ -330,6 +388,7 @@ def evaluate_cases(
                 "model_call_attempts": 0, "stub_calls": 0, "housing_calls": 0,
                 "filter_calls": 0, "inflation_calls": 0, "comparison_calls": 0,
                 "provider_error_code": None,
+                "invalid_plan_diagnostics": None,
             }
             if live and (stopped or live_calls >= max_model_calls):
                 row["reason"] = stopped or "budget_exhausted"
@@ -388,6 +447,8 @@ def evaluate_cases(
                     )
                 if response.status_code == 502:
                     reason = "invalid_plan" if body["detail"]["code"] == "invalid_question_plan" else "model_call_failed"
+                    if reason == "invalid_plan":
+                        row["invalid_plan_diagnostics"] = _invalid_plan_diagnostics(actual_model_text)
                 elif response.status_code != 200 or body.get("status") != expected_status:
                     reason = "status_mismatch"
                 elif not _normalized_match(body["decision"], expected_json):
