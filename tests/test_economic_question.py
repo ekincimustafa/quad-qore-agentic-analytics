@@ -657,6 +657,44 @@ def test_invalid_or_injected_plan_cannot_reach_analysis(monkeypatch, data, respo
         )
 
 
+@pytest.mark.parametrize("kind", [
+    "missing_envelope_field", "null_conditions", "mixed_years",
+    "extra_null", "bool_threshold", "string_threshold", "null_status",
+])
+def test_fixed_provider_envelope_never_completes_or_discards_invalid_fields(
+    monkeypatch, data, kind,
+):
+    envelope = {key: None for key in service.EconomicModelResponse.model_fields}
+    envelope.update(ready(service.HOUSING_FILTER_ID, conditions=[
+        {"metric": "interest_rate_change_pp", "operator": "lt", "threshold": 0.0},
+        {"metric": "real_housing_loan_change_pct", "operator": "lte", "threshold": 0.0},
+    ]))
+    if kind == "missing_envelope_field":
+        envelope.pop("first_year")  # Even unused null fields must be present.
+    elif kind == "null_conditions":
+        envelope["conditions"] = None
+    elif kind == "mixed_years":
+        envelope.update(first_year=2023, second_year=2024)
+    elif kind == "extra_null":
+        envelope["unexpected_field"] = None
+    elif kind in {"bool_threshold", "string_threshold"}:
+        envelope["conditions"][0]["threshold"] = True if kind == "bool_threshold" else "0"
+    else:
+        envelope["status"] = None
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Invalid provider envelope must not run an analysis")
+
+    for name in ("run_housing_analysis", "run_housing_filter", "build_inflation_evidence", "compare_inflation_years"):
+        monkeypatch.setattr(service, name, forbidden)
+    housing, inflation = data
+    with pytest.raises(service.EconomicPlanValidationError):
+        service.run_economic_question(
+            "2021 Ocak-Mart faiz düşerken reel konut kredisi stoku artmayan ayları göster.",
+            housing=housing, inflation=inflation, model_call=lambda _: json.dumps(envelope),
+        )
+
+
 def test_invalid_cpi_history_is_rejected_before_model(data):
     _, inflation = data
     broken = service.InflationQuestionData(

@@ -300,7 +300,9 @@ def test_economic_api_defaults_send_schema_and_still_validate_every_plan(
         plan["private-test-key"] = "secret-upstream-body"
     elif kind == "wrong_condition":
         plan["conditions"][0]["operator"] = "gt"
-    content = json.dumps(plan)
+    envelope = {key: None for key in service.EconomicModelResponse.model_fields}
+    envelope.update(plan)
+    content = json.dumps(envelope)
     if kind == "fence":
         content = "```json\n" + content + "\n```"
     requests, clients, _ = _mock_provider(monkeypatch, lambda request: _response(content))
@@ -325,7 +327,7 @@ def test_economic_api_defaults_send_schema_and_still_validate_every_plan(
     request_body = json.loads(requests[0].content)
     assert request_body["response_format"]["type"] == "json_schema"
     assert request_body["response_format"]["json_schema"]["schema"] == {
-        "type": "object", **service._MODEL_DECISION.json_schema(),
+        **service.EconomicModelResponse.model_json_schema(),
     }
     assert len(requests) == 1 and clients[0].is_closed()
     assert analysis.call_count == (1 if kind == "valid" else 0)

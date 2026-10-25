@@ -20,7 +20,7 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   yalnız tek kısa üretim isteğidir. Analiz çalışmaz; timeout aşaması yalnız izinli
   türlerden aktarılır. Anahtar/URL/ham hata/yanıt yazdırılmaz; ortam geri yüklenir.
 - Economic canlı raporu timeout/reasoning/retry ve response_format ayarlarını
-  kaydeder. Prompt, hesaplar, guard, vaka beklentileri ve HTTP sözleşmeleri korunur.
+  kaydeder. Hesaplar, guard, vaka beklentileri ve HTTP sözleşmeleri korunur.
 - İlk SDK/CLI/evaluator: **143 passed**. İlk offline `scripts.verify_project`:
   **1364 passed, 1 skipped**, Housing **9/9**, Economic **45/45**, canlı **0**;
   günlük `out/verification/20261025T170455Z-2-e2644db7` (Git dışında).
@@ -34,21 +34,39 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   Ek odaklı evaluator 81 passed; o sürümde offline doğrulama 1370 passed,
   1 skipped, Housing 9/9, Economic 45/45, canlı 0
   (`out/verification/20261025T185657Z-2-5c5798db`).
-- Son yerel kullanıcı teşhisi: EQ-038 / 3.5 Flash-Lite / low, tek deneme,
+- Önceki yerel kullanıcı teşhisi: EQ-038 / 3.5 Flash-Lite / low, tek deneme,
   `invalid_plan_diagnostics.format=code_fence_prefix`, filtre 0. Model yanıtı
   gelmiş, Markdown öneki yüzünden katı JSON doğrulamasında reddedilmiş; içerideki
   planın doğruluğu bu kayıttan bilinmiyor. Eski 3.8 timeout/5xx ayrı hata türüdür.
-- Aynı PR #116: `ask_economic_plan`, mevcut Pydantic karar şemasını JSON nesnesi
-  kökü + anyOf/$defs ile `response_format=json_schema`, strict=true olarak gönderir.
+- Önceki PR #116 kodu b08ba30: `ask_economic_plan`, mevcut Pydantic karar şemasını
+  nesne kökü + anyOf/$defs ile `response_format=json_schema`, strict=true gönderdi.
   Doğrudan servis, iki HTTP yolu ve canlı evaluator CLI bu tek fonksiyonu kullanır.
   Evaluator CLI başlangıçta okunan frozen ayarları isteğe de geçirir. Normal
   `ask_llm`, Housing/anlatım ve kısa probe şemasız eski sözleşmeyi korur.
 - Kod bloğu soyma, alan/koşul onarma, metin modu fallback'i, otomatik retry veya
   model değişimi yok. Şema reddinde tek güvenli hata; planlar ayrıca mevcut
   Python kontrollerinden geçer. Odaklı istemci/servis/iki API/evaluator 423 passed.
-- Son kodda tek `scripts.verify_project`: **4/4**, pytest **1383 passed,
+- b08ba30 kodunda tek `scripts.verify_project`: **4/4**, pytest **1383 passed,
   1 skipped**, Housing **9/9**, Economic **45/45**, canlı **0**; diff-check temiz.
   Kayıt `out/verification/20261025T193553Z-2-44d7c934` (Git dışında).
+- Mustafa'nın b08ba30 üzerindeki tek 3.5/low/60 sn denemesi yine invalid_plan:
+  json_object, missing + extra_forbidden, filtre 0; yerel rapor
+  out/economic-question-eq038-schema-20261025-225915-487.json.
+  Bu kayıt hangi alanın eksik/fazla olduğunu ve başlığı ayırmıyor; ham yanıt
+  saklanmadığından seçilen dal veya sağlayıcının uyumsuzluk nedeni kanıtlanmış değil.
+- Aynı dalda sağlayıcı şeması artık EconomicModelResponse: kökte union içermeyen
+  sekiz zorunlu alan, kullanılmayanlar açık null. Prompt aynı taşıma biçimini ister.
+  Ortak parser taşıma tipini, sonra yalnız bilinen null alanları çıkararak mevcut
+  karar tipini doğrular. Dolu ilgisiz alan atılmaz; eksik alan/koşul tamamlanmaz.
+  Eski yalın kararlar, Python guard'ları ve HTTP yanıtları korunur. Evaluator
+  actual_model_decision alanı aynı parser'ın kararını gösterir; guard sonucu ile
+  değiştirilmez. Teşhis missing_fields/extra_fields ve izinli karar başlığını ayırır.
+- Son odaklı paket 432 passed: gerçek SDK/sahte HTTP ile dört analiz türü,
+  netleştirme/unsupported; düz ve dosya HTTP yolları; eksik/null/karışık alan,
+  bool/metin eşik, yanlış koşul ve güvenli hata regresyonları. Gerçek çağrı 0.
+- Son kodda tek `scripts.verify_project`: **4/4**, pytest **1392 passed,
+  1 skipped**, Housing **9/9**, Economic **45/45**, canlı **0**, diff-check temiz.
+  Kayıt `out/verification/20261025T201037Z-2-d555ade8` (Git dışında).
 - Sonraki adım bağımsız PR incelemesi ve Mustafa'nın yerel anahtarıyla EQ-038'in
   tek şemalı isteği. Sağlayıcının bu şemayı kabul ettiği ve soruyu doğru anladığı
   henüz canlı doğrulanmadı. Uygulayan oturum kendi PR'ını merge etmez; release yok.

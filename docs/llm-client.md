@@ -42,11 +42,21 @@ nedeninin düşünme seviyesi olduğunu kanıtlamaz. Otomatik model/sağlayıcı
 
 Economic soru yolu (`run_economic_question` varsayılanı, iki Economic HTTP
 endpoint'i ve canlı evaluator CLI) aynı `ask_economic_plan` fonksiyonunu kullanır.
-Karar şeması mevcut Pydantic `ModelDecision` tanımlarından üretilir ve
+Sağlayıcı yanıtı `EconomicModelResponse` ile sabit sekiz alanlı JSON nesnesidir ve
 `response_format={"type":"json_schema","json_schema":{"name":"analysis_plan",
-"strict":true,"schema":...}}` olarak sağlayıcıya gönderilir. JSON nesnesi kökü
-altındaki `anyOf` alternatifleri, `$defs`, zorunlu alanlar, koşul sınırları ve
-`additionalProperties=false` korunur; ikinci bir plan/hesap sözleşmesi yoktur.
+"strict":true,"schema":...}}` olarak sağlayıcıya gönderilir. Kök seviyede karar
+union'ı yoktur. `status`, `analysis_id`, `reason`, `start_period`, `end_period`,
+`first_year`, `second_year`, `conditions` alanlarının hepsi zorunludur; seçilen
+karara ait olmayan alanlar açık `null` olmalıdır. Metrik/operatör ve koşul tipi
+mevcut `HousingFilterCondition` ile ortaktır; fazladan alan yasaktır.
+
+`parse_economic_model_decision` önce bu taşıma nesnesini katı biçimde doğrular,
+yalnız bilinen ve açıkça null alanları çıkarıp aynı `ModelDecision` tipini
+doğrular. İlgisiz bir alan doluysa atılmaz, mevcut karar tipi tarafından
+reddedilir; eksik zorunlu alan veya koşul tamamlanmaz. Önceki yalın karar
+JSON'ları da desteklenir; HTTP yanıtları ve offline `model_call` sözleşmesi
+değişmez. Evaluator'ın `actual_model_decision` alanı bu açık dönüşümden sonraki
+model kararını gösterir; anlamı veya değerleri Python guard sonucu ile değiştirilmez.
 Seçilen sağlayıcı/model bu şemayı desteklemelidir. Google'ın yukarıdaki resmî
 belgesi yapılandırılmış çıktıyı gösterir; bu projenin şemasıyla gerçek model
 kabulü ayrıca doğrulanmalıdır. Şema isteği reddedilirse güvenli hata verilir;
@@ -131,8 +141,10 @@ LLM ayarı okumaz. Mevcut vaka beklentileri, çağrı bütçesi ve ilk hatada du
 (`code_fence_prefix`), geçersiz JSON (`invalid_json`), nesne olmayan JSON
 (`json_non_object`), aşırı uzun yanıt veya şema hatasını ayırır. Şema hatasında
 yalnız izinli hata türleri ve sözleşmenin bilinen alan adları kaydedilir;
-model metni, hatalı değerler ve bilinmeyen alan adları saklanmaz. Tanınan karar
-dalı kullanılarak diğer union dallarının ilgisiz hataları ayıklanır. Bu işlem
+`missing_fields` ve `extra_fields` ayrı verilir. `decision_header` yalnız izinli
+status/analysis_id değerlerini, diğer değerler için `unknown` bilgisini taşır;
+model metni, hatalı değerler ve bilinmeyen alan adları saklanmaz. Çalışan servisin
+aynı ayrıştırıcısı kullanılarak diğer union dallarının ilgisiz hataları ayıklanır. Bu işlem
 yanıtı düzeltmez, kod bloğunu soyup kabul etmez ve analizi çalıştırmaz.
 Önceki raporlara kaydedilmeyen yanıtlar sonradan geri getirilemez.
 

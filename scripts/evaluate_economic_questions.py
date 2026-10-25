@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import pandas as pd
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from app.api.economic_question import EconomicQuestionRequest, get_economic_question_model
 from app.api.main import create_app
@@ -34,7 +34,6 @@ FIXTURES = {
     "housing_filter": ROOT / "evals/fixtures/economic-housing-filter.json",
 }
 ENDPOINT = "/analysis/economic/question"
-MODEL_DECISION = TypeAdapter(service.ModelDecision)
 _SAFE_PROVIDER_ERROR_CODES = frozenset({
     "timeout",
     "authentication_failed",
@@ -73,23 +72,9 @@ def _invalid_plan_diagnostics(text: object) -> dict:
     if not isinstance(decoded, dict):
         return {"format": "json_non_object"}
 
-    # Narrow diagnostics to the declared, known branch; union errors from other
-    # branches would otherwise misleadingly list their unrelated required fields.
-    validator = MODEL_DECISION
     status, analysis_id = decoded.get("status"), decoded.get("analysis_id")
-    if status == "ready":
-        if analysis_id == service.HOUSING_FILTER_ID:
-            validator = TypeAdapter(service.EconomicHousingFilterReadyPlan)
-        elif analysis_id == service.COMPARISON_ID:
-            validator = TypeAdapter(service.EconomicComparisonReadyPlan)
-        elif analysis_id in (service.HOUSING_ID, service.INFLATION_ID):
-            validator = TypeAdapter(service.EconomicReadyPlan)
-    elif status == "clarification_required":
-        validator = TypeAdapter(service.EconomicClarification)
-    elif status == "unsupported":
-        validator = TypeAdapter(service.EconomicUnsupported)
     try:
-        validator.validate_json(text)
+        service.parse_economic_model_decision(text)
     except ValidationError as error:
         errors = error.errors(include_input=False, include_context=False, include_url=False)
         return {
@@ -102,6 +87,23 @@ def _invalid_plan_diagnostics(text: object) -> dict:
                 part for item in errors for part in item["loc"]
                 if isinstance(part, str) and part in _SAFE_PLAN_FIELDS
             }),
+            "missing_fields": sorted({
+                part for item in errors if item["type"] == "missing" for part in item["loc"]
+                if isinstance(part, str) and part in _SAFE_PLAN_FIELDS
+            }),
+            "extra_fields": sorted({
+                part for item in errors if item["type"] == "extra_forbidden" for part in item["loc"]
+                if isinstance(part, str) and part in _SAFE_PLAN_FIELDS
+            }),
+            "decision_header": {
+                "status": status if isinstance(status, str) and status in {
+                    "ready", "clarification_required", "unsupported",
+                } else "unknown",
+                "analysis_id": analysis_id if isinstance(analysis_id, str) and analysis_id in {
+                    service.HOUSING_ID, service.HOUSING_FILTER_ID,
+                    service.INFLATION_ID, service.COMPARISON_ID,
+                } else "unknown",
+            },
         }
     return {"format": "json_object", "schema_valid": True}
 
@@ -456,7 +458,7 @@ def evaluate_cases(
                 else:
                     reason = _check_analysis(references.get(case.id), body, case)
                 if response.status_code == 200 and model_calls:
-                    row["actual_model_decision"] = MODEL_DECISION.validate_json(actual_model_text).model_dump()
+                    row["actual_model_decision"] = service.parse_economic_model_decision(actual_model_text).model_dump()
                     row["model_decision_matches_expectation"] = any(
                         _normalized_match(row["actual_model_decision"], accepted)
                         for accepted in row["accepted_model_decisions"]
