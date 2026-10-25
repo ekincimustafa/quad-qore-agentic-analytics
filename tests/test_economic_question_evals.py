@@ -114,7 +114,25 @@ def fake_provider(monkeypatch):
     monkeypatch.setattr(llm_client, "read_llm_settings", REAL_SETTINGS)
     monkeypatch.setattr(llm_client, "load_dotenv", lambda *args, **kwargs: None)
     monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "5")
+    monkeypatch.delenv("LLM_REASONING_EFFORT", raising=False)
     return lambda handler: _mock_provider(monkeypatch, handler)
+
+
+def test_live_report_records_effective_options_without_secrets(tmp_path, monkeypatch, cases, fake_provider):
+    requests, _, _ = fake_provider(answers_for(cases))
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "low")
+    monkeypatch.setattr(evaluator, "ROOT", tmp_path)
+    output = tmp_path / "out/options.json"
+    assert evaluator.main([
+        "--live", "--case", "EQ-043", "--max-model-calls", "1", "--output", str(output),
+    ]) == 0
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["llm_request_settings"] == {
+        "timeout_seconds": 5.0, "reasoning_effort": "low", "max_retries": 0,
+    }
+    assert len(requests) == 1
+    assert json.loads(requests[0].content)["reasoning_effort"] == "low"
+    assert "private-test-key" not in output.read_text(encoding="utf-8")
 
 
 def answers_for(cases):

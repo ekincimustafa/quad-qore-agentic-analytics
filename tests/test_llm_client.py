@@ -12,7 +12,7 @@ from app.connectors import llm_client
 
 @pytest.fixture(autouse=True)
 def isolated_settings(monkeypatch):
-    for name in ("LLM_API_KEY", "LLM_BASE_URL", "LLM_CHAT_MODEL", "LLM_TIMEOUT_SECONDS"):
+    for name in ("LLM_API_KEY", "LLM_BASE_URL", "LLM_CHAT_MODEL", "LLM_TIMEOUT_SECONDS", "LLM_REASONING_EFFORT"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(llm_client, "load_dotenv", lambda *args, **kwargs: None)
 
@@ -93,9 +93,55 @@ def test_sdk_uses_explicit_settings_single_attempt_and_closes(monkeypatch):
     body = json.loads(requests[0].content)
     assert body["model"] == "test-model"
     assert body["messages"] == [{"role": "user", "content": "test prompt"}]
+    assert "reasoning_effort" not in body
     assert options[0]["timeout"] == 8.5
     assert options[0]["max_retries"] == 0
     assert clients[0].is_closed()
+
+
+@pytest.mark.parametrize("effort", ["low", "medium", "high"])
+def test_explicit_reasoning_effort_reaches_provider_once(monkeypatch, effort):
+    requests, clients, _ = _mock_provider(monkeypatch, lambda request: _response())
+    monkeypatch.setenv("LLM_REASONING_EFFORT", effort)
+    assert llm_client.ask_llm("test") == "verified answer"
+    assert len(requests) == 1
+    assert json.loads(requests[0].content)["reasoning_effort"] == effort
+    assert clients[0].is_closed()
+
+
+@pytest.mark.parametrize("effort", ["minimal", "none", "secret-upstream-value"])
+def test_invalid_reasoning_effort_fails_before_client_creation(monkeypatch, effort):
+    requests, clients, _ = _mock_provider(monkeypatch, lambda request: _response())
+    monkeypatch.setenv("LLM_REASONING_EFFORT", effort)
+    with pytest.raises(llm_client.LLMConfigurationError, match="LLM_REASONING_EFFORT") as error:
+        llm_client.ask_llm("test")
+    assert effort not in str(error.value)
+    assert requests == [] and clients == []
+
+
+def test_blank_reasoning_effort_preserves_provider_default(monkeypatch):
+    requests, _, _ = _mock_provider(monkeypatch, lambda request: _response())
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "  ")
+    llm_client.ask_llm("test")
+    assert "reasoning_effort" not in json.loads(requests[0].content)
+
+
+def test_explicit_settings_do_not_reread_or_modify_environment(monkeypatch):
+    from dataclasses import replace
+    import os
+
+    requests, _, options = _mock_provider(monkeypatch, lambda request: _response())
+    original = llm_client.read_llm_settings()
+    temporary = replace(original, reasoning_effort="low", timeout_seconds=60)
+    before = os.environ.copy()
+    def forbidden():
+        raise AssertionError("Explicit settings must not be reread")
+    monkeypatch.setattr(llm_client, "read_llm_settings", forbidden)
+    assert llm_client.ask_llm("test", settings=temporary) == "verified answer"
+    assert original.reasoning_effort is None and original.timeout_seconds == 30
+    assert options[0]["timeout"] == 60
+    assert json.loads(requests[0].content)["reasoning_effort"] == "low"
+    assert os.environ == before
 
 
 @pytest.mark.parametrize(("status", "code"), [
@@ -163,17 +209,19 @@ def test_dotenv_is_repo_local_and_does_not_override_process_env(monkeypatch):
     monkeypatch.setenv("LLM_API_KEY", "private-test-key")
     monkeypatch.setenv("LLM_BASE_URL", "https://llm.invalid/v1")
     monkeypatch.setenv("LLM_CHAT_MODEL", "process-model")
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "low")
 
     def record(path, *, override):
         paths.append(Path(path))
         assert override is False
         # Test precedence with in-memory content; do not read the user's .env.
         from io import StringIO
-        real_load_dotenv(stream=StringIO("LLM_CHAT_MODEL=file-model"), override=override)
+        real_load_dotenv(stream=StringIO("LLM_CHAT_MODEL=file-model\nLLM_REASONING_EFFORT=high"), override=override)
 
     monkeypatch.setattr(llm_client, "load_dotenv", record)
     settings = llm_client.read_llm_settings()
     assert settings.chat_model == "process-model"
+    assert settings.reasoning_effort == "low"
     assert paths == [Path(llm_client.__file__).resolve().parents[2] / ".env"]
     assert "private-test-key" not in repr(settings)
 

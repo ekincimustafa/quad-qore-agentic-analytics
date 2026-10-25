@@ -494,6 +494,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.live:
             settings = llm_client.read_llm_settings()
             model_name = settings.chat_model.replace(settings.api_key, "[REDACTED]")
+            metadata["llm_request_settings"] = {
+                "timeout_seconds": settings.timeout_seconds,
+                "reasoning_effort": settings.reasoning_effort,
+                "max_retries": 0,
+            }
         output.parent.mkdir(parents=True, exist_ok=True)
         # Reserve the output before spending calls; live reports are never overwritten.
         with output.open("x" if args.live else "w", encoding="utf-8") as stream:

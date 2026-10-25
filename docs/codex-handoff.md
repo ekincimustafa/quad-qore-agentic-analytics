@@ -11,6 +11,24 @@ etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğre
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
 
+## LLM kısa üretim teşhisi ve isteğe bağlı thinking ayarı — 25 Ekim 2026
+
+- Dal `fix/llm-thinking-and-probe`, başlangıç `main` `a57c65a`.
+- İstemci `LLM_REASONING_EFFORT` boşken eski isteği korur; low/medium/high açıkça
+  seçilebilir. `ask_llm` geçici frozen ayarları da kabul eder; retry hâlâ 0.
+- `python -m scripts.smoke_test_llm --probe --reasoning-effort low --timeout-seconds 60`
+  yalnız tek kısa üretim isteğidir. Analiz çalışmaz; timeout aşaması yalnız izinli
+  türlerden aktarılır. Anahtar/URL/ham hata/yanıt yazdırılmaz; ortam geri yüklenir.
+- Economic canlı raporu artık timeout/reasoning/retry ayarlarını da kaydeder.
+  Prompt, hesaplar, guard, vaka beklentileri ve HTTP sözleşmeleri değiştirilmedi.
+- Odaklı SDK/CLI/evaluator: **143 passed**. Tek offline `scripts.verify_project`:
+  **1364 passed, 1 skipped**, Housing **9/9**, Economic **45/45**, canlı **0**;
+  günlük `out/verification/20261025T170455Z-2-e2644db7` (Git dışında).
+- Gemini anahtarı bu ortamda yok; önceki 60/120 sn timeout'larının nedeni ve
+  parametreli filtrenin canlı kabulü çözülmüş/doğrulanmış sayılmıyor.
+- Sonraki adım ayrı bağımsız PR incelemesi ve Mustafa'nın yerel anahtarıyla tek
+  kısa kontrol. Uygulayan oturum kendi PR'ını merge etmez; release yapılmaz.
+
 ## #110 TÜFE karşılaştırma grafik ve offline HTML — 25 Ekim 2026
 
 - Branch: feat/inflation-comparison-report; başlangıç main b82b653.

@@ -14,6 +14,7 @@ LLM_API_KEY=
 LLM_BASE_URL=
 LLM_CHAT_MODEL=
 LLM_TIMEOUT_SECONDS=30
+LLM_REASONING_EFFORT=
 ```
 
 Anahtar, tam API base URL ve model zorunludur; otomatik sağlayıcı/model varsayılanı
@@ -26,6 +27,15 @@ tüm uçtan uca analiz için kesin toplam süre garantisi değildir. SDK retry s
 sıfırdır: bir istek için yalnızca bir deneme yapılır. 429/5xx otomatik denenmez.
 Her çağrı sonunda istemci kapanır. Connection pooling ileride ölçüm gerektirirse
 ayrı değerlendirilir; şu an uygulama çapında istemci yaşam döngüsü eklenmedi.
+
+`LLM_REASONING_EFFORT` isteğe bağlıdır: boşsa istekten tamamen çıkarılır ve
+sağlayıcının mevcut varsayılanı korunur; yalnız `low`, `medium`, `high` kabul
+edilir. Doluysa seçilen sağlayıcı/model bu parametreyi desteklemelidir.
+Google'ın [OpenAI uyumluluk belgesi](https://ai.google.dev/gemini-api/docs/openai)
+`gemini-3.8-flash` için `reasoning_effort="low"` örneği verir. Bu modelde
+`minimal` desteklenmediğinden düşük gecikme denemesi için `low` kullanılır.
+Bu seçenek daha kısa yanıt süresini garanti etmez ve önceki timeout'ların
+nedeninin düşünme seviyesi olduğunu kanıtlamaz. Otomatik model/sağlayıcı geçişi yoktur.
 
 ## Hata ve anlatım sınırı
 
@@ -48,6 +58,31 @@ yapılandırmaz; erişiminiz varsa aynı adres/model/anahtarı `LLM_*` ile açı
 
 ## Kontrol komutları
 
+### Tek kısa üretim isteği
+
+Anahtarınız yerel `.env` içindeyken, ayrı onaylı canlı teşhis için:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.smoke_test_llm --probe --reasoning-effort low --timeout-seconds 60
+```
+
+Komut mevcut model/endpoint ile yalnız `Reply with exactly OK.` mesajını gönderir;
+konut/TÜFE servisi, veri dosyası, evaluator veya anlatım sözleşmesini çalıştırmaz.
+Toplam bir istemci çağrı denemesi vardır; SDK retry 0, hata sonrası ikinci istek yoktur.
+Geçici seçenekler bellekteki frozen ayarlara uygulanır; `.env` yazılmaz ve süreç
+ortamı başarı/hata sonunda eski haline getirilir. Seçenekler yalnız `--probe` ile
+kullanılabilir. Seçenekler verilmezse mevcut yerel ayarlar kullanılır.
+
+Çıktı başarıyı veya izinli güvenli hata kodunu, istemci çağrı sayısını ve istemci
+süresini gösterir; bu süre saf model çıkarım süresi değildir. Timeout varsa SDK'nın
+türlü istisna zincirinden `connect`, `read`, `write`, `pool` veya `unknown` aktarılır.
+Ham hata, yanıt, anahtar, URL veya traceback yazdırılmaz. `read` tek başına
+sağlayıcının düşündüğünü ya da proxy'nin hatalı olduğunu kanıtlamaz.
+`OK` başarısı ekonomik sorunun doğru planlandığı, ücretsiz kota garantisi veya
+EQ-038 kabulünün geçtiği anlamına gelmez. Canlı komutu otomatik testler çalıştırmaz.
+
+### Mevcut anlatım kontrolü
+
 Anahtarsız/offline kontroller:
 
 ```bash
@@ -66,6 +101,11 @@ tek istek gönderir ve gerçek narrator doğrulamasını çalıştırır. Beklen
 üç ay ve yalnızca 2021-02 eşleşmesidir. Çıktı ham model metni değil, evidence'den
 üretilen Türkçe anlatımdır. Offline mock testler canlı sağlayıcı/model uyumunu
 ölçmez.
+
+Economic evaluator'ın yeni canlı raporlarında `llm_request_settings`, koşu
+başlangıcında okunan timeout, isteğe bağlı reasoning effort ve retry 0 bilgisini
+tutar; anahtar veya URL içermez. Önceki raporlar değiştirilmez. Offline raporlar
+LLM ayarı okumaz. Mevcut vaka beklentileri, çağrı bütçesi ve ilk hatada durma kuralı korunur.
 
 ## Canlı kabul kaydı — 15 Ekim 2026
 
