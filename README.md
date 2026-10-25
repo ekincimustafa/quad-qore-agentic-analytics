@@ -44,6 +44,7 @@ See [Local question screen — offline preview](#local-question-screen--offline-
 | File demo CLI | Physical EVDS manifest checks, source/output protection, evidence/chart/summary and optional offline HTML | [Demo guide](docs/housing-demo.md) |
 | Verified question files | Server-controlled local BDDK/EVDS files verified before question planning; Python wrapper only | [File question guide](docs/housing-question-files.md) |
 | Local setup diagnosis CLI | Offline Python 3.12, runtime package, verified BDDK/EVDS data-package and local LLM-config check | [scripts/check_local_setup.py](scripts/check_local_setup.py) |
+| Local app launcher CLI | Pre-checked single-command launcher for `preview` or `model` mode on `127.0.0.1` | [scripts/run_local_app.py](scripts/run_local_app.py) |
 | CI | Offline pytest suite on pull requests and pushes to main, using Python 3.12 | [Workflow](.github/workflows/tests.yml) |
 
 The key-free sample below uses **synthetic data**. Manifest production,
@@ -268,6 +269,48 @@ repairs files.
 | `llm_configured_untested` | `llm_config` | Local LLM settings are present; live provider access was not tested (`exit 0` if data and runtime are ready) |
 | `llm_not_configured` | `llm_config` | Warning: `LLM_API_KEY`, `LLM_BASE_URL` or `LLM_CHAT_MODEL` is not set (`exit 0` for offline preview; configure `.env` for normal mode) |
 | `llm_config_invalid` | `llm_config` | Warning: local LLM setting syntax (such as URL or timeout) is invalid (`exit 0` for offline preview; fix `.env` before normal mode) |
+
+### Single-command local app launcher
+
+Use `scripts.run_local_app` to run the offline setup/data-package pre-checks and start
+either the key-free offline preview (`--mode preview`, default) or normal model mode
+(`--mode model`) on `127.0.0.1` in a single command. The real BDDK/EVDS data package is
+delivered separately and is not included in Git; point `--data-root` (or
+`ANALYTICS_DATA_ROOT` in the process environment / local `.env`) to the directory
+containing `data/` (for example `out/question data/inputs`). This launcher is a local
+startup convenience and does **not** replace `python -m scripts.verify_project`.
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.run_local_app --mode preview --data-root "out/question data/inputs"
+.\.venv\Scripts\python.exe -m scripts.run_local_app --mode model --data-root "out/question data/inputs" --port 8001
+.\.venv\Scripts\python.exe -m scripts.run_local_app --mode preview --data-root "out/question data/inputs" --check-only
+```
+
+Linux:
+
+```bash
+.venv/bin/python -m scripts.run_local_app --mode preview --data-root "out/question data/inputs"
+.venv/bin/python -m scripts.run_local_app --mode model --data-root "out/question data/inputs" --port 8001
+.venv/bin/python -m scripts.run_local_app --mode preview --data-root "out/question data/inputs" --check-only
+```
+
+- **`--mode preview` (default):** Starts `scripts.preview_question_ui.create_preview_app`
+  when Python 3.12, runtime dependencies, and the physical data package pass verification,
+  even if no LLM key is configured. Runs fixed plans for only the three example questions.
+- **`--mode model`:** Starts `app.api.main.create_app` only when the runtime, physical
+  data package, and local LLM settings (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_CHAT_MODEL`,
+  `LLM_TIMEOUT_SECONDS`) are valid. Does not make automatic provider calls on startup;
+  live model calls occur only when a question is submitted in the UI.
+- **`--check-only`:** Runs the pre-checks and reports readiness for the selected mode
+  without starting the server, binding a port, opening a browser, or calling a provider.
+- **Error and exit behavior:** Invalid CLI flags (`--mode` outside `preview`/`model` or
+  `--port` outside `1..65535`) exit with code `2`. Failed environment/data pre-checks,
+  missing/invalid LLM settings in `--mode model`, or an already occupied `127.0.0.1:<port>`
+  exit with code `1` without starting the server, killing other processes, or switching
+  ports. `ANALYTICS_DATA_ROOT` is applied in-process for the server's lifetime and
+  restored on exit or Ctrl+C without modifying `.env`.
 
 ### Question-only API with verified server files
 
