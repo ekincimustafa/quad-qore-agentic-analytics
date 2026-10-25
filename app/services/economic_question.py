@@ -416,7 +416,8 @@ Yalnız housing_condition_filter için conditions zorunlu; diğer kararlarda nul
 - {INFLATION_ID}: genel TÜFE endeksinin aylık, geçen yılın aynı ayına göre
   yıllık ve seçilen ilk-son ay değişimlerini özetle. Yıllık oran 12 aylık ortalama değildir.
 - {COMPARISON_ID}: iki tam takvim yılının Ocak–Aralık TÜFE değişimlerini ve Aralık
-  yıllık oran farkını karşılaştır. Yalnız first_year ve second_year alanlarını kullan.
+  yıllık oran farkını karşılaştır. Dönem değerlerini first_year ve second_year'a yaz;
+  start_period, end_period ve conditions alanlarını null bırak.
 
 Kurallar:
 - Yalnızca analiz ve istenen dönemin anlamı açıksa ready üret.

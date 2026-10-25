@@ -66,7 +66,9 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   bool/metin eşik, yanlış koşul ve güvenli hata regresyonları. Gerçek çağrı 0.
 - Son kodda tek `scripts.verify_project`: **4/4**, pytest **1392 passed,
   1 skipped**, Housing **9/9**, Economic **45/45**, canlı **0**, diff-check temiz.
-  Kayıt `out/verification/20261025T201037Z-2-d555ade8` (Git dışında).
+  Kayıt `out/verification/20261025T201631Z-2-033595aa` (Git dışında).
+  Son prompt kontrolünde karşılaştırmanın diğer alanları da açık null yazması
+  netleştirildi; taşıma şeması ile eski "yalnız iki alan" ifadesi ayrıştırıldı.
 - Sonraki adım bağımsız PR incelemesi ve Mustafa'nın yerel anahtarıyla EQ-038'in
   tek şemalı isteği. Sağlayıcının bu şemayı kabul ettiği ve soruyu doğru anladığı
   henüz canlı doğrulanmadı. Uygulayan oturum kendi PR'ını merge etmez; release yok.
