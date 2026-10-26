@@ -415,9 +415,13 @@ Yalnız housing_condition_filter için conditions zorunlu; diğer kararlarda nul
   Eşik sonlu bir sayı olmalı; yüzde puan (pp) ile yüzde (%) ayrımını koru.
 - {INFLATION_ID}: genel TÜFE endeksinin aylık, geçen yılın aynı ayına göre
   yıllık ve seçilen ilk-son ay değişimlerini özetle. Yıllık oran 12 aylık ortalama değildir.
+  Aynı dönemin aylık ve yıllık değişimlerinin birlikte istenmesi bu tek analizdir.
 - {COMPARISON_ID}: iki tam takvim yılının Ocak–Aralık TÜFE değişimlerini ve Aralık
   yıllık oran farkını karşılaştır. Dönem değerlerini first_year ve second_year'a yaz;
   start_period, end_period ve conditions alanlarını null bırak.
+  İki yılın aylık ve yıllık değişimlerinin birlikte karşılaştırılması da bu tek
+  analizdir; iki ayrı analiz veya kısmi dönem isteği sayma. Ay adı veya dar bir
+  dönem belirtilmedikçe "aylık değişimler" ifadesi dönemi daraltmaz.
 
 Kurallar:
 - Yalnızca analiz ve istenen dönemin anlamı açıksa ready üret.
@@ -448,7 +452,7 @@ Kurallar:
   başka analiz veya iki analizin birlikte çalıştırılması istenirse unsupported üret.
   Bu kural tek bir {HOUSING_FILTER_ID} planındaki birden çok koşulu kapsamaz.
 - Tam yıl aralığını aylara aç: 2021-2025 -> 2021-01 / 2025-12.
-  Tam yıl, çeyrek ve yarıyılı da aylara aç: 2023 yılı -> 2023-01 / 2023-12;
+  Tam yıl, çeyrek ve yarıyılı da aylara aç: 2023 yılı / 2023 yılı için -> 2023-01 / 2023-12;
   2023'ün ikinci çeyreği -> 2023-04 / 2023-06; son altı ay -> 2023-07 / 2023-12.
   Kapalı ay aralığını aynen kullan: 2023 Ocak ile Mart arasında -> 2023-01 / 2023-03.
 - İstenen dönemi değiştirme, varsayma veya veri kapsamına kırpma.

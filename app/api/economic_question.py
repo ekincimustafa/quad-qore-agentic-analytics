@@ -3,6 +3,7 @@
 from collections.abc import Callable, Coroutine
 import os
 from pathlib import Path
+from time import perf_counter
 from typing import Annotated, Any, Literal, NoReturn, Union
 
 import pandas as pd
@@ -10,7 +11,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -21,6 +22,7 @@ from app.services.economic_question import (
     HOUSING_ID,
     INFLATION_ID,
     MAX_QUESTION_CHARACTERS,
+    MAX_PLAN_CHARACTERS,
     EconomicClarification,
     EconomicComparisonReadyPlan,
     EconomicCoverage,
@@ -36,6 +38,7 @@ from app.services.economic_question import (
     InflationQuestionData,
     ModelCall,
     ask_economic_plan,
+    parse_economic_model_decision,
     run_economic_question,
 )
 from app.services.economic_question_files import (
@@ -67,13 +70,34 @@ class EconomicQuestionRoute(APIRoute):
         original = super().get_route_handler()
 
         async def handler(request: Request) -> Response:
+            started = perf_counter()
             try:
-                return await original(request)
+                response = await original(request)
             except RequestValidationError:
                 # Avoid echoing request content, including JSON NaN/Infinity.
-                raise _invalid_input() from None
+                error = _invalid_input()
+                error.headers = _diagnostic_headers(request, started)
+                raise error from None
+            except HTTPException as error:
+                error.headers = {**(error.headers or {}), **_diagnostic_headers(request, started)}
+                raise
+            response.headers.update(_diagnostic_headers(request, started))
+            return response
 
         return handler
+
+
+def _diagnostic_headers(request: Request, started: float) -> dict[str, str]:
+    """Expose timings and enum-only model decisions, never questions or raw responses."""
+    timings = [f"total;dur={(perf_counter() - started) * 1000:.3f}"]
+    plan_ms = getattr(request.state, "economic_plan_ms", None)
+    if plan_ms is not None:
+        timings.append(f"plan;dur={plan_ms:.3f}")
+    headers = {"Server-Timing": ", ".join(timings)}
+    decision = getattr(request.state, "economic_model_decision", None)
+    if decision is not None:
+        headers["X-Analytics-Model-Decision"] = decision
+    return headers
 
 
 router = APIRouter(prefix="/analysis", tags=["analysis"], route_class=EconomicQuestionRoute)
@@ -234,6 +258,30 @@ def get_economic_question_model() -> ModelCall:
     return ask_economic_plan
 
 
+def _observed_question_model(
+    request: Request,
+    model_call: ModelCall = Depends(get_economic_question_model),
+) -> ModelCall:
+    def observed(prompt: str) -> str:
+        started = perf_counter()
+        try:
+            response = model_call(prompt)
+        finally:
+            # Includes the whole client call, not just provider generation time.
+            request.state.economic_plan_ms = (perf_counter() - started) * 1000
+        if isinstance(response, str) and len(response) <= MAX_PLAN_CHARACTERS:
+            try:
+                decision = parse_economic_model_decision(response)
+            except ValidationError:
+                pass  # The service still rejects the original response unchanged.
+            else:
+                detail = getattr(decision, "analysis_id", None) or decision.reason
+                request.state.economic_model_decision = f"{decision.status}/{detail}"
+        return response
+
+    return observed
+
+
 def _error(code: str, message: str) -> NoReturn:
     raise HTTPException(
         status_code=status.HTTP_502_BAD_GATEWAY, detail={"code": code, "message": message},
@@ -247,7 +295,7 @@ def _error(code: str, message: str) -> NoReturn:
 )
 def analyze_economic_question(
     request: EconomicQuestionRequest,
-    model_call: ModelCall = Depends(get_economic_question_model),
+    model_call: ModelCall = Depends(_observed_question_model),
 ) -> EconomicQuestionResponse:
     housing = None if request.housing is None else HousingQuestionData(
         bddk_monthly=pd.DataFrame([row.model_dump() for row in request.housing.bddk_monthly]),
@@ -283,7 +331,7 @@ def analyze_economic_question(
 def analyze_verified_economic_question(
     request: EconomicQuestionText,
     paths: VerifiedHousingQuestionPaths = Depends(get_verified_economic_paths),
-    model_call: ModelCall = Depends(get_economic_question_model),
+    model_call: ModelCall = Depends(_observed_question_model),
 ) -> EconomicQuestionResponse:
     try:
         result = run_verified_economic_question(request.question, paths, model_call=model_call)

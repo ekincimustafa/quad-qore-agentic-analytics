@@ -150,6 +150,7 @@ def test_explicit_period_and_real_metric_reach_existing_analysis(data, question,
 
 
 @pytest.mark.parametrize("question,start,end", [
+    ("2023 yılı için TÜFE endeksinin aylık ve yıllık değişimlerini göster.", "2023-01", "2023-12"),
     ("2023 yılında genel TÜFE değişimlerini göster.", "2023-01", "2023-12"),
     ("2023 yılı boyunca genel TÜFE değişimlerini göster.", "2023-01", "2023-12"),
     ("2023 yılının tamamında genel TÜFE değişimlerini göster.", "2023-01", "2023-12"),

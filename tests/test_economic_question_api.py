@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api import economic_question as api
 from app.api.economic_question import get_economic_question_model
 from app.api.main import create_app
 from app.connectors import llm_client
@@ -47,6 +48,69 @@ def client_with_model(model):
     app = create_app()
     app.dependency_overrides[get_economic_question_model] = lambda: model
     return TestClient(app)
+
+
+@pytest.mark.parametrize("model_plan,application_decision", [
+    (ready(), {"status": "clarification_required", "reason": "metric_ambiguous"}),
+    ({"status": "unsupported", "reason": "unsupported_analysis"},
+     {"status": "unsupported", "reason": "unsupported_analysis"}),
+])
+def test_headers_separate_model_decision_from_guard_and_measure_one_call(
+    monkeypatch, payload, model_plan, application_decision,
+):
+    payload["question"] = "2021 Ocak-Mart faiz düşerken konut kredisi stoku artmayan aylar"
+    clock = iter((10.0, 10.2, 11.2, 12.5))
+    monkeypatch.setattr(api, "perf_counter", lambda: next(clock))
+    attempts = []
+
+    def model(prompt):
+        attempts.append(prompt)
+        return json.dumps(model_plan)
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("A non-ready application decision must not calculate")
+
+    monkeypatch.setattr(service, "run_housing_analysis", forbidden)
+    monkeypatch.setattr(service, "run_housing_filter", forbidden)
+    with client_with_model(model) as client:
+        response = client.post(ENDPOINT, json=payload)
+    assert response.status_code == 200 and len(attempts) == 1
+    assert response.json()["decision"] == application_decision
+    assert response.headers["server-timing"] == "total;dur=2500.000, plan;dur=1000.000"
+    expected_header = "ready/housing_rate_down_real_credit_not_up" if model_plan["status"] == "ready" else "unsupported/unsupported_analysis"
+    assert response.headers["x-analytics-model-decision"] == expected_header
+
+
+@pytest.mark.parametrize("failure", ["exception", "invalid_json", "invalid_enum", "extra_field"])
+def test_failed_plans_have_timing_without_untrusted_response_headers(monkeypatch, payload, failure):
+    secret = "DO-NOT-EXPOSE-PRIVATE-RESPONSE"
+    attempts = []
+
+    def model(_):
+        attempts.append(1)
+        if failure == "exception":
+            raise RuntimeError(secret)
+        if failure == "invalid_json":
+            return secret
+        if failure == "invalid_enum":
+            return json.dumps({"status": secret, "reason": "unsupported_analysis"})
+        return json.dumps({"status": "unsupported", "reason": "unsupported_analysis", "private": secret})
+
+    with client_with_model(model) as client:
+        response = client.post(ENDPOINT, json=payload)
+    assert response.status_code == 502 and attempts == [1]
+    assert "plan;dur=" in response.headers["server-timing"]
+    assert "x-analytics-model-decision" not in response.headers
+    assert secret not in str(response.headers) + response.text
+
+
+def test_diagnostic_headers_do_not_reuse_a_previous_requests_model_decision(payload):
+    plans = iter((json.dumps({"status": "unsupported", "reason": "unsupported_analysis"}), "not-json"))
+    with client_with_model(lambda _: next(plans)) as client:
+        first = client.post(ENDPOINT, json=payload)
+        second = client.post(ENDPOINT, json=payload)
+    assert first.headers["x-analytics-model-decision"] == "unsupported/unsupported_analysis"
+    assert second.status_code == 502 and "x-analytics-model-decision" not in second.headers
 
 
 def test_filter_endpoint_matches_direct_core_and_exposes_typed_evidence(monkeypatch, payload):
@@ -196,6 +260,7 @@ def test_documented_requests_call_one_service_and_equal_direct_api(monkeypatch, 
 
 
 @pytest.mark.parametrize("question,start,end", [
+    ("2023 yılı için TÜFE endeksinin aylık ve yıllık değişimlerini göster.", "2023-01", "2023-12"),
     ("2023 yılında genel TÜFE değişimlerini göster.", "2023-01", "2023-12"),
     ("2023 yılının tamamında genel TÜFE değişimlerini göster.", "2023-01", "2023-12"),
     ("2023'ün ikinci çeyreğinde genel TÜFE değişimlerini göster.", "2023-04", "2023-06"),
@@ -291,7 +356,11 @@ def comparison_ready(first=2023, second=2024):
             "first_year": first, "second_year": second}
 
 
-def test_comparison_endpoint_matches_existing_core_and_exposes_typed_evidence(monkeypatch):
+@pytest.mark.parametrize("question,first,second", [
+    ("2024 ile 2023 Aralık yıllık TÜFE enflasyonunu karşılaştır.", 2024, 2023),
+    ("2023 ve 2024 yıllarının TÜFE aylık ve yıllık değişimlerini karşılaştır.", 2023, 2024),
+])
+def test_comparison_endpoint_matches_existing_core_and_exposes_typed_evidence(monkeypatch, question, first, second):
     calls = []
     original = service.compare_inflation_years
 
@@ -300,24 +369,24 @@ def test_comparison_endpoint_matches_existing_core_and_exposes_typed_evidence(mo
         return original(*args, **kwargs)
 
     monkeypatch.setattr(service, "compare_inflation_years", comparison)
-    with client_with_model(lambda _: json.dumps(comparison_ready(2024, 2023))) as client:
+    with client_with_model(lambda _: json.dumps(comparison_ready(first, second))) as client:
         response = client.post(
             ENDPOINT,
-            json=comparison_payload("2024 ile 2023 Aralık yıllık TÜFE enflasyonunu karşılaştır."),
+            json=comparison_payload(question),
         )
     assert response.status_code == 200
     body = response.json()
     direct = compare_inflation_years(
         pd.DataFrame({"period": COMPARISON_PERIODS, "cpi_index": COMPARISON_INDEX}),
-        first_year=2024, second_year=2023, source_ref="synthetic://comparison",
+        first_year=first, second_year=second, source_ref="synthetic://comparison",
     )
-    assert calls == [{"first_year": 2024, "second_year": 2023, "source_ref": "synthetic://comparison"}]
+    assert calls == [{"first_year": first, "second_year": second, "source_ref": "synthetic://comparison"}]
     assert body["status"] == "ok"
-    assert body["decision"] == comparison_ready(2024, 2023)
+    assert body["decision"] == comparison_ready(first, second)
     assert body["analysis"] == {
         "analysis_id": service.COMPARISON_ID, "evidence": direct.model_dump(mode="json"),
     }
-    assert body["analysis"]["evidence"]["second_minus_first_december_annual_inflation_pp"] == pytest.approx(-5.0)
+    assert body["analysis"]["evidence"]["second_minus_first_december_annual_inflation_pp"] == pytest.approx(-5.0 if first == 2024 else 5.0)
     assert [year["evidence"]["observed_month_count"] for year in body["analysis"]["evidence"]["years"]] == [12, 12]
     assert body["available_periods"]["inflation"] == {"start_period": "2022-12", "end_period": "2024-12"}
 
