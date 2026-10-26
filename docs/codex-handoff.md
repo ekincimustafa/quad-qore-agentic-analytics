@@ -11,7 +11,7 @@ etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğre
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
 
-## LLM şemalı planlama ve güvenli teşhis — 25 Ekim 2026
+## LLM şemalı planlama ve güvenli teşhis — 26 Ekim 2026
 
 - Dal `fix/llm-thinking-and-probe`, başlangıç `main` `a57c65a`.
 - İstemci `LLM_REASONING_EFFORT` boşken eski isteği korur; low/medium/high açıkça
@@ -24,8 +24,8 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
 - İlk SDK/CLI/evaluator: **143 passed**. İlk offline `scripts.verify_project`:
   **1364 passed, 1 skipped**, Housing **9/9**, Economic **45/45**, canlı **0**;
   günlük `out/verification/20261025T170455Z-2-e2644db7` (Git dışında).
-- Gemini anahtarı bu ortamda yok; önceki 60/120 sn timeout'larının nedeni ve
-  parametreli filtrenin canlı kabulü çözülmüş/doğrulanmış sayılmıyor.
+- Gemini anahtarı bu ortamda yok; önceki 3.8 / 60–120 sn timeout'larının
+  kök nedeni çözülmüş sayılmıyor.
 - Aynı dalda ek teşhis: kullanıcının 3.5 Flash-Lite / low EQ-038 denemesi
   `invalid_plan` döndürdü; filtre çağrısı 0. Önceki evaluator geçersiz yanıtın
   biçim/alan hatasını saklamadığından o yanıt sonradan geri alınamıyor.
@@ -69,9 +69,26 @@ ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV
   Kayıt `out/verification/20261025T201631Z-2-033595aa` (Git dışında).
   Son prompt kontrolünde karşılaştırmanın diğer alanları da açık null yazması
   netleştirildi; taşıma şeması ile eski "yalnız iki alan" ifadesi ayrıştırıldı.
-- Sonraki adım bağımsız PR incelemesi ve Mustafa'nın yerel anahtarıyla EQ-038'in
-  tek şemalı isteği. Sağlayıcının bu şemayı kabul ettiği ve soruyu doğru anladığı
-  henüz canlı doğrulanmadı. Uygulayan oturum kendi PR'ını merge etmez; release yok.
+- 26 Ekim yerel canlı kanıtı (uygulama kaynağı 51a736a): 3.5 Flash-Lite, low,
+  timeout 60 sn, retry 0. Önce EQ-038 tek denemede passed, filtre 1; rapor
+  out/economic-question-eq038-flat-20261026-091820-323.json. Sonra toplam 3
+  denemede EQ-040 passed (yalnız 2021-06), EQ-041 passed (2021-02 ve 2021-06),
+  EQ-043 failed/model_decision_mismatch; rapor
+  out/economic-question-filter-final-20261026-100033-771.json, exit 1.
+- EQ-043 model kararı yanlış ready/housing_rate_down_real_credit_not_up /
+  2021-01–2021-06; uygulama doğru clarification_required/metric_ambiguous,
+  filter_calls 0. Kodun guard akışı bu kararı analizden önce döndürür. Model
+  başarısı olarak işaretlenmez: dört seçili vakada model 3 doğru/1 hatalı;
+  uygulama kararları beklentiye uydu, katı dört-model-kararı kabulü tamamlanmadı.
+  Genel başarı oranı değildir. Mevcut EQ-022 regresyonu aynı nominal/reel
+  varsayımı hata türünü kapsar; test veya prompt değişikliği yapılmadı.
+- Kanıt kullanıcının terminal çıktısıdır; yerel JSON/hash burada bağımsız
+  açılmadı/doğrulanmadı. Eski raporlar ve vaka beklentileri korunur. Bu oturumda
+  canlı çağrı 0; yalnız bu devir kaydı güncellendi, tam test paketi tekrarlanmadı.
+- Önerilen sonraki adım: bu bilinen model sınırlamasıyla bağımsız PR incelemesi;
+  uygulama davranışı ve ham model doğruluğu ayrı değerlendirilmeli. Yeni model
+  çağrısı veya dört-model-kararı kabulünün tamamlandığı iddiası yok. Uygulayan
+  oturum kendi PR'ını merge etmez; release yapılmadı.
 
 ## #110 TÜFE karşılaştırma grafik ve offline HTML — 25 Ekim 2026
 
