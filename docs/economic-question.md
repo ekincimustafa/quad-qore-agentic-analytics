@@ -20,6 +20,28 @@ ve Python guard'lardan geçer; Markdown kod bloğu soyulmaz, eksik alan veya
 koşul uydurulmaz. Offline sabit planlar ve enjekte edilen `model_call` arayüzü
 değişmedi. Ayrıntı: [LLM istemcisi](llm-client.md#hata-ve-anlatım-sınırı).
 
+Plan prompt'u JSON şemasını tekrar içermez; aynı katı şema yalnız
+`response_format` içinde gönderilir. Metin, sekiz alanın dolu/null kurallarını,
+dört analiz arasındaki seçimi, açık dönem ve konut metrik kurallarını açıklar.
+TÜFE'de iki tam yılın aylık **ve** yıllık değişimleri tek karşılaştırma analizidir;
+bir aralığın değişim özeti ve tek ay/çeyrek gibi kısmi dönem karşılaştırmaları
+ayrı tutulur. Prompt kısaltması Python guard'larını veya hesapları değiştirmez.
+
+26 Ekim'de aynı soru ve iki veri grubunda `2021-01`–`2026-06` kapsamıyla ölçülen
+prompt uzunluğu **7.148 → 3.668 karakter** (%48,68 azalma). Bu karakter ölçümüdür;
+token, toplam API girdi boyutu, maliyet, hız veya doğruluk artışı ölçümü değildir.
+İki yılın uzun ifadeli ve ters sıralı soruları sahte SDK yanıtlarıyla mevcut
+bağımsız hesap kontrollerinden geçer. Gözlenen yanlış
+`clarification_required/question_ambiguous` yeniden oynatıldığında değerlendirme
+başarısız kalır, analiz çalışmaz ve ilk hatada koşu durur. Model çıktısı
+Python'da başarılı plana çevrilmez; 45 eski vakanın beklentileri korunur.
+
+Canlı tekrar kontrolü için önerilen üç soru: önce iki tam yılın aylık+yıllık
+karşılaştırması, ardından ters yıl sırası, son olarak tek yıl TÜFE özeti.
+Aynı model/low/60 sn/retry 0 ile en çok üç deneme ve ilk hatada durma;
+`Server-Timing`, model kararı ve uygulama sonucu birlikte incelenmeli.
+Bu öneri henüz çalıştırılmış veya tamamlanmış canlı kabul değildir.
+
 İzinli `analysis_id` değerleri:
 
 - `housing_rate_down_real_credit_not_up`: faiz düşerken reel konut kredisi

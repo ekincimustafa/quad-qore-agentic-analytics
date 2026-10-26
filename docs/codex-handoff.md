@@ -11,6 +11,34 @@ etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğre
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
 
+## Economic plan prompt'unu sadeleştirme — 26 Ekim 2026
+
+- PR #117 bağımsız incelemeden sonra `a25ffef` olarak main'e alındı; main CI
+  success. Önceki bölümdeki inceleme beklentisi tarihli kayıttır. Bu dal
+  `fix/compact-economic-planner`, taban `a25ffef`.
+- Son kullanıcı ekran/header kanıtı: 2023 TÜFE ready/cpi_inflation_summary,
+  12 ay ve ilk-son %54,5003; total 21732.182 ms, plan 20942.280 ms.
+  İki tam yılın aylık+yıllık TÜFE karşılaştırması yanlış
+  clarification_required/question_ambiguous; total 25675.635 ms,
+  plan 25367.104 ms. Kullanıcı sorusu açıktır; bu model kararı kabul başarısı
+  değildir. Plan, tüm istemci çağrısı süresidir; saf model üretim süresi değildir.
+- Yalnız build_economic_question_prompt metni sadeleştirildi. Aynı katı sekiz
+  alanlı şema response_format'ta kalır; metindeki JSON şeması kaldırıldı.
+  Hesaplar, parser, dönem/metrik/koşul guard'ları, HTTP, teşhis başlıkları,
+  hash denetimleri, model/timeout/retry ayarları ve 45+9 vaka korunur.
+- Aynı karşılaştırma sorusu ve 2021-01–2026-06 kapsamıyla prompt 7148'den
+  3668 karaktere indi (%48,68). Token/maliyet/hız veya doğruluk kazancı değildir.
+- Sahte SDK ile uzun ve ters sıralı iki yıl soruları mevcut bağımsız hesapla
+  karşılaştırılıyor. Gözlenen yanlış model netleştirmesi hâlâ başarısızdır;
+  analiz 0 ve ilk hatada durma korunur. Canlı çağrı yapılmadı.
+- Odaklı 385 passed; evaluator 89 passed. Son kodda tek scripts.verify_project:
+  4/4, pytest 1415 passed, 1 skipped; Housing 9/9, Economic 45/45, canlı 0;
+  diff-check temiz. Günlük out/verification/20261026T170424Z-2-17f81904.
+  Prompt dışındaki runtime AST ve evals girdileri tabanla aynı; beş ilgili
+  yerel belge bağlantısı çözüldü. Son testten sonra yalnız bu sonuç kaydı eklendi.
+- Sonraki adım: bağımsız PR incelemesi, ardından ayrıca onaylı en çok üç canlı
+  UI denemesiyle karar ve süre kontrolü. Uygulayan oturum merge/release yapmaz.
+
 ## Normal ekran denemesinden TÜFE düzeltmesi — 26 Ekim 2026
 
 - PR #116 bağımsız incelemeden sonra `e33f89d` olarak main'e alındı;
