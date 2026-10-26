@@ -6,6 +6,7 @@ import math
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any, Literal
 from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
@@ -40,6 +41,7 @@ class LLMSettings:
     base_url: str
     chat_model: str
     timeout_seconds: float = 30.0
+    reasoning_effort: Literal["low", "medium", "high"] | None = None
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -76,6 +78,13 @@ class LLMSettings:
             raise LLMConfigurationError(
                 "LLM_TIMEOUT_SECONDS, 0'dan büyük ve en fazla 120 olmalıdır."
             )
+        if self.reasoning_effort is not None and (
+            not isinstance(self.reasoning_effort, str)
+            or self.reasoning_effort not in ("low", "medium", "high")
+        ):
+            raise LLMConfigurationError(
+                "LLM_REASONING_EFFORT boş, low, medium veya high olmalıdır."
+            )
 
 
 def read_llm_settings() -> LLMSettings:
@@ -90,6 +99,7 @@ def read_llm_settings() -> LLMSettings:
         base_url=os.getenv("LLM_BASE_URL", "").strip(),
         chat_model=os.getenv("LLM_CHAT_MODEL", "").strip(),
         timeout_seconds=timeout,
+        reasoning_effort=os.getenv("LLM_REASONING_EFFORT", "").strip() or None,
     )
 
 
@@ -123,17 +133,35 @@ def _safe_provider_error(exc: OpenAIError) -> LLMRequestError:
     return LLMRequestError("provider_error", "LLM isteği tamamlanamadı.")
 
 
-def ask_llm(prompt: str) -> str:
+def ask_llm(
+    prompt: str, *, settings: LLMSettings | None = None,
+    response_schema: dict[str, Any] | None = None,
+) -> str:
     """Return one complete text response, without exposing provider errors."""
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("LLM modeline gönderilecek mesaj boş olmayan metin olmalıdır.")
-    settings = read_llm_settings()
+    if response_schema is not None and (
+        not isinstance(response_schema, dict) or not response_schema
+    ):
+        raise ValueError("Yanıt şeması boş olmayan bir JSON Schema nesnesi olmalıdır.")
+    settings = settings if settings is not None else read_llm_settings()
+    request: dict[str, Any] = {
+        "model": settings.chat_model,
+        "messages": [{"role": "user", "content": prompt.strip()}],
+    }
+    # Omit the option entirely for existing configurations/providers.
+    if settings.reasoning_effort is not None:
+        request["reasoning_effort"] = settings.reasoning_effort
+    if response_schema is not None:
+        request["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "analysis_plan", "strict": True, "schema": response_schema,
+            },
+        }
     try:
         with create_llm_client(settings) as client:
-            response = client.chat.completions.create(
-                model=settings.chat_model,
-                messages=[{"role": "user", "content": prompt.strip()}],
-            )
+            response = client.chat.completions.create(**request)
     except OpenAIError as exc:
         raise _safe_provider_error(exc) from None
 

@@ -114,7 +114,27 @@ def fake_provider(monkeypatch):
     monkeypatch.setattr(llm_client, "read_llm_settings", REAL_SETTINGS)
     monkeypatch.setattr(llm_client, "load_dotenv", lambda *args, **kwargs: None)
     monkeypatch.setenv("LLM_TIMEOUT_SECONDS", "5")
+    monkeypatch.delenv("LLM_REASONING_EFFORT", raising=False)
     return lambda handler: _mock_provider(monkeypatch, handler)
+
+
+def test_live_report_records_effective_options_without_secrets(tmp_path, monkeypatch, cases, fake_provider):
+    requests, _, _ = fake_provider(answers_for(cases))
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "low")
+    monkeypatch.setattr(evaluator, "ROOT", tmp_path)
+    output = tmp_path / "out/options.json"
+    assert evaluator.main([
+        "--live", "--case", "EQ-043", "--max-model-calls", "1", "--output", str(output),
+    ]) == 0
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["llm_request_settings"] == {
+        "timeout_seconds": 5.0, "reasoning_effort": "low", "max_retries": 0,
+        "response_format": "json_schema",
+    }
+    assert len(requests) == 1
+    assert json.loads(requests[0].content)["reasoning_effort"] == "low"
+    assert json.loads(requests[0].content)["response_format"]["type"] == "json_schema"
+    assert "private-test-key" not in output.read_text(encoding="utf-8")
 
 
 def answers_for(cases):
@@ -123,7 +143,9 @@ def answers_for(cases):
     def handler(request):
         prompt = json.loads(request.content)["messages"][0]["content"]
         question = json.loads(prompt.split("İSTEK_VERİSİ:\n", 1)[1])["question"]
-        return _response(json.dumps(answers[question], ensure_ascii=False))
+        answer = {key: None for key in evaluator.service.EconomicModelResponse.model_fields}
+        answer.update(answers[question])
+        return _response(json.dumps(answer, ensure_ascii=False))
     return handler
 
 
@@ -164,10 +186,10 @@ def _mutated_filter_response(response, kind):
 def test_live_cli_with_fake_sdk_provider_selects_cases_in_order_and_records_attempts(
     tmp_path, monkeypatch, cases, fake_provider,
 ):
-    selected = evaluator.select_cases(cases, ["EQ-016", "EQ-013", "EQ-020", "EQ-025"])
+    selected = evaluator.select_cases(cases, ["EQ-016", "EQ-013", "EQ-020", "EQ-025", "EQ-029", "EQ-038", "EQ-010"])
     requests, clients, options = fake_provider(answers_for(selected))
     monkeypatch.setattr(evaluator, "ROOT", tmp_path)
-    args = ["--live", "--max-model-calls", "4"]
+    args = ["--live", "--max-model-calls", "7"]
     for case in selected:
         args.extend(["--case", case.id])
     assert evaluator.main(args) == 0
@@ -175,10 +197,11 @@ def test_live_cli_with_fake_sdk_provider_selects_cases_in_order_and_records_atte
     assert report["mode"] == "live_model" and report["measurement"] == "selected_live_cases"
     assert report["synthetic_data"] and report["model"] == "test-model"
     assert report["selected_case_ids"] == [case.id for case in selected]
-    assert len(requests) == report["live_model_call_attempts"] == 4
+    assert len(requests) == report["live_model_call_attempts"] == 7
     assert all(option["max_retries"] == 0 for option in options)
     assert all(client.is_closed() for client in clients)
-    assert report["passed_cases"] == 4 and report["failed_cases"] == report["skipped_cases"] == 0
+    assert report["passed_cases"] == 7 and report["failed_cases"] == report["skipped_cases"] == 0
+    assert all("anyOf" not in json.loads(req.content)["response_format"]["json_schema"]["schema"] for req in requests)
     assert all(row["model_call_attempts"] == 1 and row["stub_calls"] == 0 for row in report["results"])
     assert all(row["provider_error_code"] is None for row in report["results"])
     assert all(row["actual_model_decision"] in row["accepted_model_decisions"] for row in report["results"])
@@ -187,6 +210,63 @@ def test_live_cli_with_fake_sdk_provider_selects_cases_in_order_and_records_atte
                and row["python_blocked_ready_plan"] is False for row in report["results"])
     assert "private-test-key" not in json.dumps(report)
     assert not (tmp_path / "out/economic-question-eval-offline.json").exists()
+
+
+@pytest.mark.parametrize("kind", ["valid", "fence", "wrong_condition", "schema_rejected"])
+def test_cli_filter_uses_structured_planner_and_preserves_failure_boundaries(
+    tmp_path, monkeypatch, cases, fake_provider, kind,
+):
+    selected = evaluator.select_cases(cases, ["EQ-038", "EQ-040"])
+    answer = copy.deepcopy(selected[0].offline_response)
+    if kind == "wrong_condition":
+        answer["conditions"][0]["operator"] = "lt"
+    envelope = {key: None for key in evaluator.service.EconomicModelResponse.model_fields}
+    envelope.update(answer)
+    content = json.dumps(envelope)
+    if kind == "fence":
+        content = "```json\n" + content + "\n```"
+    requests, clients, options = fake_provider(lambda request: (
+        httpx.Response(400, json={"error": {"message": "private-test-key secret-upstream-body"}})
+        if kind == "schema_rejected" else _response(content)
+    ))
+    monkeypatch.setattr(evaluator, "ROOT", tmp_path)
+    output = tmp_path / "out/structured.json"
+    # One permitted request: a successful first case leaves the second budget-
+    # skipped; every failure stops before it, without a text-mode fallback.
+    assert evaluator.main([
+        "--live", "--case", "EQ-038", "--case", "EQ-040",
+        "--max-model-calls", "1", "--output", str(output),
+    ]) == 1
+    report = json.loads(output.read_text(encoding="utf-8"))
+    row = report["results"][0]
+    body = json.loads(requests[0].content)
+    schema = body["response_format"]["json_schema"]["schema"]
+    assert body["response_format"]["type"] == "json_schema"
+    assert schema["type"] == "object" and "anyOf" not in schema
+    assert set(schema["required"]) == set(schema["properties"])
+    assert schema["$defs"]["HousingFilterCondition"]["properties"]["operator"]["enum"] == ["lt", "lte", "gt", "gte"]
+    assert schema["properties"]["conditions"]["anyOf"][0]["maxItems"] == 3
+    assert report["live_model_call_attempts"] == len(requests) == 1
+    assert options[0]["max_retries"] == 0 and clients[0].is_closed()
+    assert row["filter_calls"] == (1 if kind == "valid" else 0)
+    assert row["housing_calls"] == row["inflation_calls"] == row["comparison_calls"] == 0
+    if kind == "valid":
+        assert row["outcome"] == "passed"  # Includes the independent April oracle.
+        assert row["actual_model_decision"] == answer
+        assert report["results"][1]["reason"] == "budget_exhausted"
+    else:
+        assert row["outcome"] == "failed"
+        assert report["results"][1]["reason"] == "not_run_after_failure"
+    if kind == "fence":
+        assert row["reason"] == "invalid_plan"
+        assert row["invalid_plan_diagnostics"] == {"format": "code_fence_prefix"}
+    elif kind == "wrong_condition":
+        assert row["python_blocked_ready_plan"] is True
+        assert row["model_decision_matches_expectation"] is False
+    elif kind == "schema_rejected":
+        assert row["provider_error_code"] == "request_rejected"
+    assert "private-test-key" not in output.read_text(encoding="utf-8")
+    assert "secret-upstream-body" not in output.read_text(encoding="utf-8")
 
 
 def test_budget_exhaustion_skips_remaining_cases_without_request(cases, fixtures, fake_provider):
@@ -283,6 +363,83 @@ def test_safe_outside_clarification_is_accepted_without_forcing_a_ready_plan(cas
         model_call=lambda _: json.dumps({"status": "clarification_required", "reason": "outside_coverage"}))
     assert report["all_selected_cases_passed"]
     assert report["results"][0]["housing_calls"] == report["results"][0]["inflation_calls"] == 0
+
+
+@pytest.mark.parametrize("analysis_id,fields,missing,extra", [
+    (
+        "housing_condition_filter", {"first_year": 2023, "second_year": 2024},
+        ["conditions", "end_period", "start_period"], ["first_year", "second_year"],
+    ),
+    (
+        "cpi_two_year_comparison", {"start_period": "2021-01", "end_period": "2021-06", "conditions": []},
+        ["first_year", "second_year"], ["conditions", "end_period", "start_period"],
+    ),
+])
+def test_diagnostics_distinguish_which_plan_has_missing_and_extra_fields(
+    analysis_id, fields, missing, extra,
+):
+    diagnostic = evaluator._invalid_plan_diagnostics(json.dumps({
+        "status": "ready", "analysis_id": analysis_id, **fields,
+    }))
+    assert diagnostic["missing_fields"] == missing
+    assert diagnostic["extra_fields"] == extra
+    assert diagnostic["decision_header"] == {"status": "ready", "analysis_id": analysis_id}
+    assert diagnostic["schema_valid"] is False
+
+
+@pytest.mark.parametrize(("kind", "expected_format", "field"), [
+    ("fence", "code_fence_prefix", None),
+    ("not_json", "invalid_json", None),
+    ("array", "json_non_object", None),
+    ("missing_conditions", "json_object", "conditions"),
+    ("wrong_metric", "json_object", "metric"),
+    ("extra_secret_key", "json_object", None),
+])
+def test_invalid_plan_records_safe_diagnostics_without_repair_or_retry(
+    cases, fixtures, fake_provider, kind, expected_format, field,
+):
+    selected = evaluator.select_cases(cases, ["EQ-038", "EQ-040"])
+    answer = copy.deepcopy(selected[0].offline_response)
+    if kind == "missing_conditions":
+        answer.pop("conditions")
+    elif kind == "wrong_metric":
+        answer["conditions"][0]["metric"] = "secret-upstream-body"
+    elif kind == "extra_secret_key":
+        answer["private-test-key"] = "secret-upstream-body"
+    content = json.dumps(answer)
+    if kind == "fence":
+        content = "```json\n" + content + "\n```"
+    elif kind == "not_json":
+        content = "private-test-key secret-upstream-body"
+    elif kind == "array":
+        content = "[]"
+    requests, _, _ = fake_provider(lambda request: _response(content))
+    report = evaluator.evaluate_cases(
+        selected, fixtures, live=True, model_call=llm_client.ask_llm, max_model_calls=2,
+    )
+    row = report["results"][0]
+    diagnostic = row["invalid_plan_diagnostics"]
+    assert row["reason"] == "invalid_plan"
+    assert diagnostic["format"] == expected_format
+    if field:
+        assert field in diagnostic["error_fields"]
+        assert diagnostic["schema_valid"] is False
+    if kind == "missing_conditions":
+        assert diagnostic["error_fields"] == ["conditions"]
+        assert diagnostic["error_types"] == ["missing"]
+        assert diagnostic["missing_fields"] == ["conditions"]
+        assert diagnostic["extra_fields"] == []
+        assert diagnostic["decision_header"] == {
+            "status": "ready", "analysis_id": "housing_condition_filter",
+        }
+    assert row["actual_model_decision"] is None and row["actual_decision"] is None
+    assert row["filter_calls"] == row["housing_calls"] == 0
+    assert row["inflation_calls"] == row["comparison_calls"] == 0
+    assert len(requests) == report["live_model_call_attempts"] == 1
+    assert report["results"][1]["reason"] == "not_run_after_failure"
+    assert report["results"][1]["invalid_plan_diagnostics"] is None
+    serialized = json.dumps(report)
+    assert "private-test-key" not in serialized and "secret-upstream-body" not in serialized
 
 
 @pytest.mark.parametrize("case_id,reason,analysis_id", [

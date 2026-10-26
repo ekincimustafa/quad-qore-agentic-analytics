@@ -454,6 +454,18 @@ access. There is no default provider/model or automatic MIA fallback.
 `LLM_TIMEOUT_SECONDS` defaults to 30; retries are disabled. See the
 [LLM guide](docs/llm-client.md) for configuration and controlled errors.
 
+For a single short live generation probe, separate from the Housing contract:
+
+```bash
+python -m scripts.smoke_test_llm --probe --reasoning-effort low --timeout-seconds 60
+```
+
+This uses the configured model with temporary options, sends one `OK` request,
+and reports safe timeout-phase information without running an analysis. Set the
+optional `LLM_REASONING_EFFORT=low` only for a provider/model that supports it;
+leaving it blank preserves the provider default. A successful probe is not a
+question-planning acceptance result. See the guide before making a live call.
+
 With the virtual environment activated:
 
 ```bash

@@ -11,6 +11,85 @@ etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğre
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
 
+## LLM şemalı planlama ve güvenli teşhis — 26 Ekim 2026
+
+- Dal `fix/llm-thinking-and-probe`, başlangıç `main` `a57c65a`.
+- İstemci `LLM_REASONING_EFFORT` boşken eski isteği korur; low/medium/high açıkça
+  seçilebilir. `ask_llm` geçici frozen ayarları da kabul eder; retry hâlâ 0.
+- `python -m scripts.smoke_test_llm --probe --reasoning-effort low --timeout-seconds 60`
+  yalnız tek kısa üretim isteğidir. Analiz çalışmaz; timeout aşaması yalnız izinli
+  türlerden aktarılır. Anahtar/URL/ham hata/yanıt yazdırılmaz; ortam geri yüklenir.
+- Economic canlı raporu timeout/reasoning/retry ve response_format ayarlarını
+  kaydeder. Hesaplar, guard, vaka beklentileri ve HTTP sözleşmeleri korunur.
+- İlk SDK/CLI/evaluator: **143 passed**. İlk offline `scripts.verify_project`:
+  **1364 passed, 1 skipped**, Housing **9/9**, Economic **45/45**, canlı **0**;
+  günlük `out/verification/20261025T170455Z-2-e2644db7` (Git dışında).
+- Gemini anahtarı bu ortamda yok; önceki 3.8 / 60–120 sn timeout'larının
+  kök nedeni çözülmüş sayılmıyor.
+- Aynı dalda ek teşhis: kullanıcının 3.5 Flash-Lite / low EQ-038 denemesi
+  `invalid_plan` döndürdü; filtre çağrısı 0. Önceki evaluator geçersiz yanıtın
+  biçim/alan hatasını saklamadığından o yanıt sonradan geri alınamıyor.
+  `invalid_plan_diagnostics` yalnız kapalı biçim/hata türlerini ve bilinen şema
+  alanlarını kaydeder; metin/değer/bilinmeyen alan adı yazılmaz. Yanıt onarılmaz.
+  Ek odaklı evaluator 81 passed; o sürümde offline doğrulama 1370 passed,
+  1 skipped, Housing 9/9, Economic 45/45, canlı 0
+  (`out/verification/20261025T185657Z-2-5c5798db`).
+- Önceki yerel kullanıcı teşhisi: EQ-038 / 3.5 Flash-Lite / low, tek deneme,
+  `invalid_plan_diagnostics.format=code_fence_prefix`, filtre 0. Model yanıtı
+  gelmiş, Markdown öneki yüzünden katı JSON doğrulamasında reddedilmiş; içerideki
+  planın doğruluğu bu kayıttan bilinmiyor. Eski 3.8 timeout/5xx ayrı hata türüdür.
+- Önceki PR #116 kodu b08ba30: `ask_economic_plan`, mevcut Pydantic karar şemasını
+  nesne kökü + anyOf/$defs ile `response_format=json_schema`, strict=true gönderdi.
+  Doğrudan servis, iki HTTP yolu ve canlı evaluator CLI bu tek fonksiyonu kullanır.
+  Evaluator CLI başlangıçta okunan frozen ayarları isteğe de geçirir. Normal
+  `ask_llm`, Housing/anlatım ve kısa probe şemasız eski sözleşmeyi korur.
+- Kod bloğu soyma, alan/koşul onarma, metin modu fallback'i, otomatik retry veya
+  model değişimi yok. Şema reddinde tek güvenli hata; planlar ayrıca mevcut
+  Python kontrollerinden geçer. Odaklı istemci/servis/iki API/evaluator 423 passed.
+- b08ba30 kodunda tek `scripts.verify_project`: **4/4**, pytest **1383 passed,
+  1 skipped**, Housing **9/9**, Economic **45/45**, canlı **0**; diff-check temiz.
+  Kayıt `out/verification/20261025T193553Z-2-44d7c934` (Git dışında).
+- Mustafa'nın b08ba30 üzerindeki tek 3.5/low/60 sn denemesi yine invalid_plan:
+  json_object, missing + extra_forbidden, filtre 0; yerel rapor
+  out/economic-question-eq038-schema-20261025-225915-487.json.
+  Bu kayıt hangi alanın eksik/fazla olduğunu ve başlığı ayırmıyor; ham yanıt
+  saklanmadığından seçilen dal veya sağlayıcının uyumsuzluk nedeni kanıtlanmış değil.
+- Aynı dalda sağlayıcı şeması artık EconomicModelResponse: kökte union içermeyen
+  sekiz zorunlu alan, kullanılmayanlar açık null. Prompt aynı taşıma biçimini ister.
+  Ortak parser taşıma tipini, sonra yalnız bilinen null alanları çıkararak mevcut
+  karar tipini doğrular. Dolu ilgisiz alan atılmaz; eksik alan/koşul tamamlanmaz.
+  Eski yalın kararlar, Python guard'ları ve HTTP yanıtları korunur. Evaluator
+  actual_model_decision alanı aynı parser'ın kararını gösterir; guard sonucu ile
+  değiştirilmez. Teşhis missing_fields/extra_fields ve izinli karar başlığını ayırır.
+- Son odaklı paket 432 passed: gerçek SDK/sahte HTTP ile dört analiz türü,
+  netleştirme/unsupported; düz ve dosya HTTP yolları; eksik/null/karışık alan,
+  bool/metin eşik, yanlış koşul ve güvenli hata regresyonları. Gerçek çağrı 0.
+- Son kodda tek `scripts.verify_project`: **4/4**, pytest **1392 passed,
+  1 skipped**, Housing **9/9**, Economic **45/45**, canlı **0**, diff-check temiz.
+  Kayıt `out/verification/20261025T201631Z-2-033595aa` (Git dışında).
+  Son prompt kontrolünde karşılaştırmanın diğer alanları da açık null yazması
+  netleştirildi; taşıma şeması ile eski "yalnız iki alan" ifadesi ayrıştırıldı.
+- 26 Ekim yerel canlı kanıtı (uygulama kaynağı 51a736a): 3.5 Flash-Lite, low,
+  timeout 60 sn, retry 0. Önce EQ-038 tek denemede passed, filtre 1; rapor
+  out/economic-question-eq038-flat-20261026-091820-323.json. Sonra toplam 3
+  denemede EQ-040 passed (yalnız 2021-06), EQ-041 passed (2021-02 ve 2021-06),
+  EQ-043 failed/model_decision_mismatch; rapor
+  out/economic-question-filter-final-20261026-100033-771.json, exit 1.
+- EQ-043 model kararı yanlış ready/housing_rate_down_real_credit_not_up /
+  2021-01–2021-06; uygulama doğru clarification_required/metric_ambiguous,
+  filter_calls 0. Kodun guard akışı bu kararı analizden önce döndürür. Model
+  başarısı olarak işaretlenmez: dört seçili vakada model 3 doğru/1 hatalı;
+  uygulama kararları beklentiye uydu, katı dört-model-kararı kabulü tamamlanmadı.
+  Genel başarı oranı değildir. Mevcut EQ-022 regresyonu aynı nominal/reel
+  varsayımı hata türünü kapsar; test veya prompt değişikliği yapılmadı.
+- Kanıt kullanıcının terminal çıktısıdır; yerel JSON/hash burada bağımsız
+  açılmadı/doğrulanmadı. Eski raporlar ve vaka beklentileri korunur. Bu oturumda
+  canlı çağrı 0; yalnız bu devir kaydı güncellendi, tam test paketi tekrarlanmadı.
+- Önerilen sonraki adım: bu bilinen model sınırlamasıyla bağımsız PR incelemesi;
+  uygulama davranışı ve ham model doğruluğu ayrı değerlendirilmeli. Yeni model
+  çağrısı veya dört-model-kararı kabulünün tamamlandığı iddiası yok. Uygulayan
+  oturum kendi PR'ını merge etmez; release yapılmadı.
+
 ## #110 TÜFE karşılaştırma grafik ve offline HTML — 25 Ekim 2026
 
 - Branch: feat/inflation-comparison-report; başlangıç main b82b653.

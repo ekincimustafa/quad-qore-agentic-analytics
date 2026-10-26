@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import pandas as pd
 from fastapi.testclient import TestClient
-from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from app.api.economic_question import EconomicQuestionRequest, get_economic_question_model
 from app.api.main import create_app
@@ -34,7 +34,6 @@ FIXTURES = {
     "housing_filter": ROOT / "evals/fixtures/economic-housing-filter.json",
 }
 ENDPOINT = "/analysis/economic/question"
-MODEL_DECISION = TypeAdapter(service.ModelDecision)
 _SAFE_PROVIDER_ERROR_CODES = frozenset({
     "timeout",
     "authentication_failed",
@@ -46,6 +45,67 @@ _SAFE_PROVIDER_ERROR_CODES = frozenset({
     "request_rejected",
     "provider_error",
 })
+_SAFE_PLAN_FIELDS = frozenset({
+    "status", "analysis_id", "reason", "start_period", "end_period",
+    "first_year", "second_year", "conditions", "metric", "operator", "threshold",
+})
+_SAFE_VALIDATION_TYPES = frozenset({
+    "missing", "extra_forbidden", "literal_error", "value_error", "model_type",
+    "float_type", "float_parsing", "finite_number", "int_type", "int_parsing",
+    "string_type", "string_pattern_mismatch", "string_too_short", "string_too_long",
+    "too_short", "too_long", "greater_than_equal", "less_than_equal",
+})
+
+
+def _invalid_plan_diagnostics(text: object) -> dict:
+    """Classify a rejected response using closed labels; never retain its content."""
+    if not isinstance(text, str):
+        return {"format": "non_text"}
+    if len(text) > service.MAX_PLAN_CHARACTERS:
+        return {"format": "too_long"}
+    if text.lstrip().startswith("```"):
+        return {"format": "code_fence_prefix"}
+    try:
+        decoded = json.loads(text)
+    except (ValueError, RecursionError):
+        return {"format": "invalid_json"}
+    if not isinstance(decoded, dict):
+        return {"format": "json_non_object"}
+
+    status, analysis_id = decoded.get("status"), decoded.get("analysis_id")
+    try:
+        service.parse_economic_model_decision(text)
+    except ValidationError as error:
+        errors = error.errors(include_input=False, include_context=False, include_url=False)
+        return {
+            "format": "json_object", "schema_valid": False,
+            "error_types": sorted({
+                item["type"] if item["type"] in _SAFE_VALIDATION_TYPES else "other"
+                for item in errors
+            }),
+            "error_fields": sorted({
+                part for item in errors for part in item["loc"]
+                if isinstance(part, str) and part in _SAFE_PLAN_FIELDS
+            }),
+            "missing_fields": sorted({
+                part for item in errors if item["type"] == "missing" for part in item["loc"]
+                if isinstance(part, str) and part in _SAFE_PLAN_FIELDS
+            }),
+            "extra_fields": sorted({
+                part for item in errors if item["type"] == "extra_forbidden" for part in item["loc"]
+                if isinstance(part, str) and part in _SAFE_PLAN_FIELDS
+            }),
+            "decision_header": {
+                "status": status if isinstance(status, str) and status in {
+                    "ready", "clarification_required", "unsupported",
+                } else "unknown",
+                "analysis_id": analysis_id if isinstance(analysis_id, str) and analysis_id in {
+                    service.HOUSING_ID, service.HOUSING_FILTER_ID,
+                    service.INFLATION_ID, service.COMPARISON_ID,
+                } else "unknown",
+            },
+        }
+    return {"format": "json_object", "schema_valid": True}
 
 
 class ComparisonExpectation(BaseModel):
@@ -330,6 +390,7 @@ def evaluate_cases(
                 "model_call_attempts": 0, "stub_calls": 0, "housing_calls": 0,
                 "filter_calls": 0, "inflation_calls": 0, "comparison_calls": 0,
                 "provider_error_code": None,
+                "invalid_plan_diagnostics": None,
             }
             if live and (stopped or live_calls >= max_model_calls):
                 row["reason"] = stopped or "budget_exhausted"
@@ -388,6 +449,8 @@ def evaluate_cases(
                     )
                 if response.status_code == 502:
                     reason = "invalid_plan" if body["detail"]["code"] == "invalid_question_plan" else "model_call_failed"
+                    if reason == "invalid_plan":
+                        row["invalid_plan_diagnostics"] = _invalid_plan_diagnostics(actual_model_text)
                 elif response.status_code != 200 or body.get("status") != expected_status:
                     reason = "status_mismatch"
                 elif not _normalized_match(body["decision"], expected_json):
@@ -395,7 +458,7 @@ def evaluate_cases(
                 else:
                     reason = _check_analysis(references.get(case.id), body, case)
                 if response.status_code == 200 and model_calls:
-                    row["actual_model_decision"] = MODEL_DECISION.validate_json(actual_model_text).model_dump()
+                    row["actual_model_decision"] = service.parse_economic_model_decision(actual_model_text).model_dump()
                     row["model_decision_matches_expectation"] = any(
                         _normalized_match(row["actual_model_decision"], accepted)
                         for accepted in row["accepted_model_decisions"]
@@ -494,11 +557,19 @@ def main(argv: list[str] | None = None) -> int:
         if args.live:
             settings = llm_client.read_llm_settings()
             model_name = settings.chat_model.replace(settings.api_key, "[REDACTED]")
+            metadata["llm_request_settings"] = {
+                "timeout_seconds": settings.timeout_seconds,
+                "reasoning_effort": settings.reasoning_effort,
+                "max_retries": 0,
+                "response_format": "json_schema",
+            }
         output.parent.mkdir(parents=True, exist_ok=True)
         # Reserve the output before spending calls; live reports are never overwritten.
         with output.open("x" if args.live else "w", encoding="utf-8") as stream:
             report = evaluate_cases(cases, {key: json.loads(raw) for key, raw in fixture_bytes.items()},
-                live=args.live, model_call=llm_client.ask_llm if args.live else None,
+                live=args.live,
+                model_call=(lambda prompt: service.ask_economic_plan(prompt, settings=settings))
+                if args.live else None,
                 max_model_calls=args.max_model_calls, model_name=model_name)
             report.update(metadata)
             stream.write(json.dumps(report, ensure_ascii=False, indent=2) + "\n")

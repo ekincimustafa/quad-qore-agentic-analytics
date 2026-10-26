@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import Annotated, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Literal, Union
 
 import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError, model_validator
@@ -41,6 +41,9 @@ from app.services.question_periods import (
     normalize_question_text as _question_text,
     year_tokens as _year_tokens,
 )
+
+if TYPE_CHECKING:
+    from app.connectors.llm_client import LLMSettings
 
 
 HOUSING_ID = "housing_rate_down_real_credit_not_up"
@@ -154,6 +157,75 @@ ModelDecision = Annotated[
 ]
 EconomicDecision = ModelDecision | EconomicDataUnavailable
 _MODEL_DECISION = TypeAdapter(ModelDecision)
+
+
+class EconomicModelResponse(BaseModel):
+    """Fixed provider envelope; unused fields are explicit null, never inferred."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+    status: Literal["ready", "clarification_required", "unsupported"]
+    analysis_id: Literal[
+        "housing_rate_down_real_credit_not_up", "housing_condition_filter",
+        "cpi_inflation_summary", "cpi_two_year_comparison",
+    ] | None
+    reason: Literal[
+        "period_required", "metric_ambiguous", "question_ambiguous",
+        "outside_coverage", "unsupported_analysis",
+    ] | None
+    start_period: Month | None
+    end_period: Month | None
+    first_year: Annotated[int, Field(ge=1, le=9999)] | None
+    second_year: Annotated[int, Field(ge=1, le=9999)] | None
+    conditions: Annotated[
+        tuple[HousingFilterCondition, ...], Field(min_length=1, max_length=3)
+    ] | None
+
+
+def parse_economic_model_decision(response: str) -> ModelDecision:
+    """Validate either the fixed provider envelope or the existing decision JSON."""
+    try:
+        decoded = json.loads(response)
+    except (ValueError, TypeError, RecursionError):
+        # Preserve the existing Pydantic error type for invalid JSON/non-text.
+        return _MODEL_DECISION.validate_json(response)
+    fields = EconomicModelResponse.model_fields
+    if isinstance(decoded, dict) and (
+        fields.keys() <= decoded.keys()
+        or any(key in decoded and decoded[key] is None for key in fields if key != "status")
+    ):
+        envelope = EconomicModelResponse.model_validate_json(response)
+        # Only explicitly unused null fields are removed. Non-null fields from
+        # another decision branch remain and are rejected by the original model.
+        decoded = envelope.model_dump(mode="json", exclude_none=True)
+        response = json.dumps(decoded)
+    validator = _MODEL_DECISION
+    if isinstance(decoded, dict):
+        if decoded.get("status") == "ready":
+            models = {
+                HOUSING_ID: EconomicReadyPlan,
+                INFLATION_ID: EconomicReadyPlan,
+                COMPARISON_ID: EconomicComparisonReadyPlan,
+                HOUSING_FILTER_ID: EconomicHousingFilterReadyPlan,
+            }
+            analysis_id = decoded.get("analysis_id")
+            model = models.get(analysis_id) if isinstance(analysis_id, str) else None
+            if model is not None:
+                validator = TypeAdapter(model)
+        elif decoded.get("status") == "clarification_required":
+            validator = TypeAdapter(EconomicClarification)
+        elif decoded.get("status") == "unsupported":
+            validator = TypeAdapter(EconomicUnsupported)
+    return validator.validate_json(response)
+
+
+def ask_economic_plan(prompt: str, *, settings: LLMSettings | None = None) -> str:
+    """Request the fixed provider object; validate the returned text separately."""
+    from app.connectors.llm_client import ask_llm
+
+    schema = EconomicModelResponse.model_json_schema()
+    return ask_llm(prompt, settings=settings, response_schema=schema)
+
 
 _COMPARISON_INTENT = re.compile(r"\b(?:karşılaştır\w*|kıyasla\w*)\b")
 _COMPARISON_OUT_OF_SCOPE = re.compile(r"\b(?:ortalama\w*|tahmin\w*|öngör\w*|yıllıklandır\w*|neden\w*|nedensellik\w*)\b")
@@ -321,9 +393,15 @@ def build_economic_question_prompt(question: str, coverage: EconomicCoverage) ->
     request = json.dumps({
         "question": question.strip(), "available_periods": coverage.model_dump(),
     }, ensure_ascii=False)
-    schema = json.dumps(_MODEL_DECISION.json_schema(), ensure_ascii=False)
+    schema = json.dumps(EconomicModelResponse.model_json_schema(), ensure_ascii=False)
     return f"""Türkçe soruyu yalnızca aşağıdaki karar şemasına dönüştür. Tek JSON nesnesi döndür.
 Hesaplanmış sayı, yorum, Markdown veya ek alan üretme.
+Şemadaki sekiz alanın hepsini yaz. Seçilen karara ait olmayan alanları null yaz;
+bir analizin alanlarını başka bir analizde doldurma. ready için reason null,
+netleştirme/desteklenmeyen kararda analysis_id/dönem/yıl/conditions null olmalı.
+Konut ve TÜFE özetinde start_period/end_period zorunlu, first_year/second_year null.
+İki yıl TÜFE karşılaştırmasında first_year/second_year zorunlu, dönem/conditions null.
+Yalnız housing_condition_filter için conditions zorunlu; diğer kararlarda null.
 
 İzinli analizler:
 - {HOUSING_ID}: faiz düşerken reel konut kredisi stokunun artmadığı ayları bul.
@@ -338,7 +416,8 @@ Hesaplanmış sayı, yorum, Markdown veya ek alan üretme.
 - {INFLATION_ID}: genel TÜFE endeksinin aylık, geçen yılın aynı ayına göre
   yıllık ve seçilen ilk-son ay değişimlerini özetle. Yıllık oran 12 aylık ortalama değildir.
 - {COMPARISON_ID}: iki tam takvim yılının Ocak–Aralık TÜFE değişimlerini ve Aralık
-  yıllık oran farkını karşılaştır. Yalnız first_year ve second_year alanlarını kullan.
+  yıllık oran farkını karşılaştır. Dönem değerlerini first_year ve second_year'a yaz;
+  start_period, end_period ve conditions alanlarını null bırak.
 
 Kurallar:
 - Yalnızca analiz ve istenen dönemin anlamı açıksa ready üret.
@@ -392,7 +471,7 @@ def validate_economic_question_plan(
     if not isinstance(response, str) or not response.strip() or len(response) > MAX_PLAN_CHARACTERS:
         raise EconomicPlanValidationError("Model planı boş veya izin verilen uzunluğu aşıyor.")
     try:
-        decision = _MODEL_DECISION.validate_json(response)
+        decision = parse_economic_model_decision(response)
     except ValidationError:
         raise EconomicPlanValidationError("Model planı izin verilen karar şemasına uymuyor.") from None
     if isinstance(
@@ -439,9 +518,7 @@ def run_economic_question(
             coverage=coverage, analysis=None,
         )
     if model_call is None:
-        from app.connectors.llm_client import ask_llm
-
-        model_call = ask_llm
+        model_call = ask_economic_plan
     if not callable(model_call):
         raise TypeError("model_call must be callable.")
     try:
