@@ -212,6 +212,68 @@ def test_live_cli_with_fake_sdk_provider_selects_cases_in_order_and_records_atte
     assert not (tmp_path / "out/economic-question-eval-offline.json").exists()
 
 
+@pytest.mark.parametrize("provider_decision", ["ready", "observed_clarification"])
+def test_compact_comparison_prompt_keeps_wire_schema_and_honest_failure_reporting(
+    cases, fixtures, fake_provider, provider_decision,
+):
+    # Existing independent oracles, different natural wording. Stub responses
+    # check the harness, never model understanding.
+    questions = [
+        "2023 ve 2024 yıllarının TÜFE aylık ve yıllık değişimlerini karşılaştır.",
+        "2024 ile 2023 tam takvim yıllarındaki aylık ve yıllık TÜFE değişimlerini kıyasla.",
+    ]
+    selected = [
+        case.model_copy(update={"question": question})
+        for case, question in zip(evaluator.select_cases(cases, ["EQ-029", "EQ-030"]), questions)
+    ]
+    plans = {case.question: case.offline_response for case in selected}
+    observed = {"status": "clarification_required", "reason": "question_ambiguous"}
+
+    def provider(request):
+        message = json.loads(request.content)["messages"][0]["content"]
+        question = json.loads(message.split("İSTEK_VERİSİ:\n", 1)[1])["question"]
+        envelope = {key: None for key in evaluator.service.EconomicModelResponse.model_fields}
+        envelope.update(observed if provider_decision == "observed_clarification" else plans[question])
+        return _response(json.dumps(envelope))
+
+    requests, clients, options = fake_provider(provider)
+    report = evaluator.evaluate_cases(
+        selected, fixtures, live=True,
+        model_call=evaluator.service.ask_economic_plan, max_model_calls=2,
+    )
+    expected_calls = 2 if provider_decision == "ready" else 1
+    assert len(requests) == report["live_model_call_attempts"] == expected_calls
+    assert all(option["max_retries"] == 0 for option in options)
+    assert all(client.is_closed() for client in clients)
+    for request in requests:
+        body = json.loads(request.content)
+        contract = body["response_format"]["json_schema"]
+        assert body["response_format"]["type"] == "json_schema" and contract["strict"] is True
+        assert contract["schema"] == evaluator.service.EconomicModelResponse.model_json_schema()
+        instructions, payload = body["messages"][0]["content"].split("İSTEK_VERİSİ:\n", 1)
+        assert json.loads(payload)["question"] in questions
+        # The full schema stays in response_format, without a second schema in
+        # the message. Human-readable field and analysis instructions remain.
+        assert '"$defs"' not in instructions and '"properties"' not in instructions
+        assert all(field in instructions for field in contract["schema"]["required"])
+        assert all(analysis in instructions for analysis in (
+            evaluator.service.HOUSING_ID, evaluator.service.HOUSING_FILTER_ID,
+            evaluator.service.INFLATION_ID, evaluator.service.COMPARISON_ID,
+        ))
+    if provider_decision == "ready":
+        assert report["passed_cases"] == 2
+        assert all(row["comparison_calls"] == 1 for row in report["results"])
+        assert all(row["actual_model_decision"] == row["actual_decision"] for row in report["results"])
+    else:
+        row = report["results"][0]
+        assert row["outcome"] == "failed" and row["reason"] == "status_mismatch"
+        assert row["actual_model_decision"] == row["actual_decision"] == observed
+        assert row["model_decision_matches_expectation"] is False
+        assert row["application_decision_matches_expectation"] is False
+        assert row["housing_calls"] == row["filter_calls"] == row["inflation_calls"] == row["comparison_calls"] == 0
+        assert report["results"][1]["reason"] == "not_run_after_failure"
+
+
 @pytest.mark.parametrize("kind", ["valid", "fence", "wrong_condition", "schema_rejected"])
 def test_cli_filter_uses_structured_planner_and_preserves_failure_boundaries(
     tmp_path, monkeypatch, cases, fake_provider, kind,
