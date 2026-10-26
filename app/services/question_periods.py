@@ -32,7 +32,7 @@ _DAY_DATE = re.compile(
 )
 _YEAR_SPAN = re.compile(rf"(?<!\d)({_YEAR})\s*[-–—]\s*({_YEAR})(?!\d)")
 _YEAR_FIRST_SPAN = re.compile(
-    rf"(?<!\d)(?P<year1>{_YEAR}){_POSSESSIVE}?\s+(?:yıl\w*\s+)?(?P<month1>{_MONTH_NAME})"
+    rf"(?<!\d)(?P<year1>{_YEAR}){_POSSESSIVE}?\s+(?:yıl\w*\s+(?:için\s+)?)?(?P<month1>{_MONTH_NAME})"
     rf"{_SPAN_SEPARATOR}(?:(?P<year2>{_YEAR}){_POSSESSIVE}?\s+)?(?P<month2>{_MONTH_NAME})\b"
 )
 _YEAR_LAST_SPAN = re.compile(
@@ -40,11 +40,11 @@ _YEAR_LAST_SPAN = re.compile(
     rf"{_POSSESSIVE}?\s+(?P<year>{_YEAR})\b"
 )
 _QUARTER = re.compile(
-    rf"(?<!\d)(?P<year>{_YEAR}){_POSSESSIVE}?\s+(?:yıl\w*\s+)?"
+    rf"(?<!\d)(?P<year>{_YEAR}){_POSSESSIVE}?\s+(?:yıl\w*\s+(?:için\s+)?)?"
     rf"(?P<ordinal>{_QUARTER_ORDINAL})\s+{_QUARTER_NOUN}\b"
 )
 _HALF_YEAR = re.compile(
-    rf"(?<!\d)(?P<year>{_YEAR}){_POSSESSIVE}?\s+(?:yıl\w*\s+)?"
+    rf"(?<!\d)(?P<year>{_YEAR}){_POSSESSIVE}?\s+(?:yıl\w*\s+(?:için\s+)?)?"
     rf"(?P<ordinal>{_HALF_ORDINAL})\s+{_HALF_NOUN}\b"
 )
 _QUARTER_PHRASE = re.compile(rf"\b{_QUARTER_ORDINAL}\s+{_QUARTER_NOUN}\b")
@@ -52,14 +52,15 @@ _HALF_PHRASE = re.compile(rf"\b{_HALF_ORDINAL}\s+{_HALF_NOUN}\b")
 _WHOLE_YEAR = re.compile(
     rf"(?<!\d)(?P<year>{_YEAR}){_POSSESSIVE}?\s+"
     rf"(?:yılında(?:ki)?|yılı\s+boyunca|yılının\s+tamamında|yılının\s+tamamı|"
-    rf"yıl\s+boyunca|yılın\s+tamamında|yılı\s+içinde|yılı\s+genelinde)\b"
+    rf"yıl\s+boyunca|yılın\s+tamamında|yılı\s+içinde|yılı\s+genelinde|"
+    rf"yılı(?:\s+için)?(?!\s+(?:için\s+)?{_MONTH_NAME}\b))\b"
     rf"(?!\s+(?:ilk|birinci|ikinci|üçüncü|dördüncü|son|[1-4]\s*\.)\s+)"
 )
 _ANY_NAMED_SPAN = re.compile(rf"\b{_MONTH_NAME}{_SPAN_SEPARATOR}{_MONTH_NAME}\b")
 _MONTH_POINT_PATTERNS = (
     (re.compile(rf"(?<!\d)({_YEAR})-(0[1-9]|1[0-2])(?![-/\d])"), (1, 2)),
     (re.compile(rf"(?<!\d)(0?[1-9]|1[0-2])/({_YEAR})(?!\d)"), (2, 1)),
-    (re.compile(rf"(?<!\d)({_YEAR})\s+({_MONTH_NAME})\b"), (1, 2)),
+    (re.compile(rf"(?<!\d)({_YEAR})\s+(?:yıl\w*\s+(?:için\s+)?)?({_MONTH_NAME})\b"), (1, 2)),
     (re.compile(rf"\b({_MONTH_NAME})\s+({_YEAR})\b"), (2, 1)),
 )
 _OPEN_ENDED_PERIOD = re.compile(
@@ -166,7 +167,7 @@ def _span_is_closed(text: str, match: re.Match[str]) -> bool:
 
 
 def _whole_year_kind(phrase: str) -> str:
-    if phrase.endswith(("yılında", "yılındaki")):
+    if phrase.endswith(("yılında", "yılındaki", "yılı", "yılı için")):
         return "whole_year_context"
     return "whole_year_explicit"
 

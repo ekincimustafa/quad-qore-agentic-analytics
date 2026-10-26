@@ -77,6 +77,14 @@ kredi koşulları birlikte açıkça istenirse iki koşul da korunur. Doğal dil
 genel bir Türkçe ayrıştırıcısı değildir ve modelin niyeti doğru anladığını
 kanıtlamaz.
 
+`2023 yılı için TÜFE endeksinin aylık ve yıllık değişimlerini göster.` açık bir
+tam yıl isteğidir; `2023-01`–`2023-12` olarak denetlenir. `yılı için` ardından
+Ocak–Mart, tek ay, çeyrek veya yarıyıl gelirse dar dönem korunur. Eksik yıl,
+açık uç, çelişki veya kısmi gün sınırları bu eklemeden dolayı tamamlanmaz.
+İki tam yılın **aylık ve yıllık** TÜFE değişimleri birlikte istendiğinde de tek
+`cpi_two_year_comparison` analizi kullanılır. Bu ayrım prompt'ta açıktır; modelin
+her serbest ifadeyi doğru sınıflandıracağı anlamına gelmez.
+
 Çağıran, normalize edilmiş `HousingQuestionData` ve/veya
 `InflationQuestionData` sağlar. Servis konut kapsamını ortak, kesintisiz
 BDDK/EVDS aylarından; TÜFE kapsamını sayısal değerleri ve tüm geçmişi
@@ -294,6 +302,29 @@ Kullanım/başlatma komutu [README'dedir](../README.md#question-only-api-with-ve
 Bu endpoint anlatım modeli çağırmaz. Ekran #70, sınırlı canlı kabul #71'dir;
 canlı Gemini çağrısı öncesinde vaka listesi ve azami çağrı sayısı ayrıca onaylanır.
 Offline stub sonuçları modelin Türkçe anlama başarısı değildir.
+
+### Ret ve bekleme süresi teşhisi
+
+İki Economic HTTP yolu, JSON gövdesini değiştirmeden şu yanıt başlıklarını verir:
+
+- `Server-Timing`: `total;dur=...` sunucu route süresidir; `plan;dur=...` yalnız
+  plan fonksiyonu çağrıldıysa eklenir. Birim milisaniyedir. Plan süresi istemci
+  çağrısının tamamıdır; saf model üretim süresi değildir. Toplam süreye veri
+  doğrulama, Python hesapları ve yanıt hazırlığı da dahildir; tarayıcıya aktarım
+  ve Plotly çizimi dahil değildir. Offline preview'de plan süresi sabit plan
+  fonksiyonunu ölçer, canlı model çağrısı yapıldığını göstermez.
+- `X-Analytics-Model-Decision`: yalnız şeması doğrulanan model kararının izinli
+  `status/analysis_id` veya `status/reason` değerleridir. Örneğin
+  `unsupported/unsupported_analysis` modelin ret kararıdır. `ready/...` başlığı
+  ile JSON'daki netleştirme/ret birlikte görülürse Python guard'ı planı
+  engellemiştir. Geçersiz yanıtta veya plan çağrılmadan bu başlık bulunmaz.
+
+Başlıklarda soru, ham model metni, anahtar, yol veya sağlayıcı hata gövdesi yoktur.
+Ek çağrı, retry veya plan onarımı yapılmaz. Tarayıcı geliştirici araçlarının
+Network bölümünde ilgili `/analysis/economic/question/files` isteğinin Response
+Headers ve JSON `decision` alanı birlikte incelenebilir. Mevcut bir isteği
+incelemek yeniden model çağrısı gerektirmez. Bu ölçümler olmadan yavaşlık modele,
+dosya doğrulamasına veya tarayıcıya kesin olarak atfedilmemelidir.
 
 ## Offline değerlendirme
 

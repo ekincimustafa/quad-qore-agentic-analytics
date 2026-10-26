@@ -9,6 +9,12 @@ from app.services.question_periods import (
 
 
 @pytest.mark.parametrize("question,expected", [
+    ("2023 yılı için TÜFE endeksinin aylık ve yıllık değişimlerini göster.", ("2023-01", "2023-12")),
+    ("2023 yılı TÜFE değişimlerini göster.", ("2023-01", "2023-12")),
+    ("2023 yılı için Ocak-Mart TÜFE değişimlerini göster.", ("2023-01", "2023-03")),
+    ("2023 yılı Ocak TÜFE değişimini göster.", ("2023-01", "2023-01")),
+    ("2023 yılı için ikinci çeyrek TÜFE değişimlerini göster.", ("2023-04", "2023-06")),
+    ("2023 yılı son altı ay TÜFE değişimlerini göster.", ("2023-07", "2023-12")),
     ("2023 yılında TÜFE değişimlerini göster.", ("2023-01", "2023-12")),
     ("2023 yılı boyunca TÜFE değişimlerini göster.", ("2023-01", "2023-12")),
     ("2023 yılının tamamında TÜFE değişimlerini göster.", ("2023-01", "2023-12")),
@@ -48,6 +54,10 @@ def test_supported_explicit_periods_resolve_to_closed_months(question, expected)
 
 
 @pytest.mark.parametrize("question", [
+    "2023 yılı için 2024 Ocak-Mart TÜFE değişimlerini göster.",
+    "2023 yılı için 2023-02-15 ile 2023-03-15 TÜFE değişimlerini göster.",
+    "2023 yılı için Ocak ve Mart TÜFE değişimlerini göster.",
+    "2023 yılı için Ocak'tan itibaren TÜFE değişimlerini göster.",
     "Ocak-Mart TÜFE aylık ve yıllık oranlarını göster.",
     "2023 Ocak'tan itibaren TÜFE değişimlerini göster.",
     "2023 yılından itibaren TÜFE değişimlerini göster.",

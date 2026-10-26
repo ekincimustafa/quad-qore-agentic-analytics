@@ -11,6 +11,32 @@ etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğre
 ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
 
 
+## Normal ekran denemesinden TÜFE düzeltmesi — 26 Ekim 2026
+
+- PR #116 bağımsız incelemeden sonra `e33f89d` olarak main'e alındı;
+  önceki bölümdeki inceleme beklentisi tarihli kayıttır. Bu dal
+  `fix/cpi-question-periods`, taban `e33f89d`.
+- Mustafa'nın normal model modu ekranları: konut 60 ay/22 eşleşme; açık
+  `2023 yılı için` sorusunda gereksiz period_required; iki tam yılın aylık ve
+  yıllık TÜFE karşılaştırmasında unsupported; nominal/reel belirtilmeyen
+  konut sorusunda beklenen metric_ambiguous. Kullanıcı ayrıca yavaşlık bildirdi;
+  ekran görüntüleri süre veya ham model planı kanıtı değildir.
+- Tarih hatası doğru ready planıyla yeniden üretildi. `yılı` / `yılı için`
+  bağlamı tam yıl veya açık dar dönem olarak denetleniyor; eksik/çelişkili/açık
+  uçlu tarihler tamamlanmıyor. Aynı TÜFE analizinin aylık+yıllık çıktılarının
+  birlikte istenebildiği prompt'ta netleştirildi. İki yıl sorusu doğru planla
+  eski Python karşılaştırmasına eşit; canlı model düzeltmesi kanıtlanmadı.
+- İki Economic HTTP yolunda Server-Timing toplam/plan istemci sürelerini,
+  X-Analytics-Model-Decision yalnız izinli model karar başlığını gösteriyor.
+  JSON sözleşmesi, model/uygulama ayrımı, hesaplar, hash denetimleri, tek çağrı
+  ve retry 0 korunuyor; ham yanıt/soru/anahtar/yol başlıklara eklenmiyor.
+- Odaklı testler 508 passed. Son kodda tek `scripts.verify_project`: 4/4,
+  pytest 1413 passed, 1 skipped; Housing 9/9, Economic 45/45, canlı 0;
+  diff-check temiz. Günlük out/verification/20261026T153938Z-2-5aaf8bbd.
+- Sonraki adım: bağımsız PR incelemesi. Gerçek ekran reddinin kaynağı ve
+  yavaşlığın aşaması başlıklarla görülebilir; yeni canlı deneme yapılmadı.
+  Bu kayıt canlı başarı veya hız artışı iddiası değildir.
+
 ## LLM şemalı planlama ve güvenli teşhis — 26 Ekim 2026
 
 - Dal `fix/llm-thinking-and-probe`, başlangıç `main` `a57c65a`.

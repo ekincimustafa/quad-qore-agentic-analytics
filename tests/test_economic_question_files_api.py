@@ -362,7 +362,7 @@ def test_files_comparison_matches_core_and_marks_nested_verified_provenance(
         cpi_source_ref="verified://cpi-receipt",
     )
     monkeypatch.setattr(files_service, "load_verified_question_inputs", lambda _: inputs)
-    question = "2023 ve 2024 TÜFE değişimlerini karşılaştır."
+    question = "2023 ve 2024 yıllarının TÜFE aylık ve yıllık değişimlerini karşılaştır."
     plan = {"status": "ready", "analysis_id": core.COMPARISON_ID,
             "first_year": 2023, "second_year": 2024}
     with client_with_model(package, lambda _: json.dumps(plan)) as client:
@@ -374,6 +374,8 @@ def test_files_comparison_matches_core_and_marks_nested_verified_provenance(
     )
     assert body["status"] == "ok" and body["decision"] == plan
     assert body["analysis"]["analysis_id"] == core.COMPARISON_ID
+    assert response.headers["x-analytics-model-decision"] == "ready/cpi_two_year_comparison"
+    assert "plan;dur=" in response.headers["server-timing"]
     evidence = body["analysis"]["evidence"]
     assert evidence["source_ref"] == "verified://cpi-receipt"
     assert evidence["second_minus_first_december_annual_inflation_pp"] == pytest.approx(5.0)
@@ -387,6 +389,35 @@ def test_files_comparison_matches_core_and_marks_nested_verified_provenance(
         assert {key: value for key, value in nested.items() if key not in {"input_origin", "limitations"}} == (
             direct_year.evidence.model_dump(mode="json", exclude={"input_origin", "limitations"})
         )
+
+
+def test_whole_year_for_cpi_question_reaches_verified_file_analysis(package, monkeypatch):
+    periods = pd.period_range("2022-12", "2023-12", freq="M").astype(str).tolist()
+    cpi = pd.DataFrame({"period": periods, "cpi_index": [100.0 + i for i in range(len(periods))]})
+    inputs = VerifiedQuestionInputs(
+        bddk_monthly=pd.DataFrame({"period": periods}), evds_monthly=cpi,
+        housing_coverage=HousingDataCoverage(start_period="2022-12", end_period="2023-12"),
+        evds_source_refs="synthetic://evds", cpi_source_ref="verified://cpi-receipt",
+    )
+    monkeypatch.setattr(files_service, "load_verified_question_inputs", lambda _: inputs)
+    plan = ready(core.INFLATION_ID, start_period="2023-01", end_period="2023-12")
+    calls = []
+
+    def model(_):
+        calls.append(1)
+        return json.dumps(plan)
+
+    with client_with_model(package, model) as client:
+        response = client.post(ENDPOINT, json={
+            "question": "2023 yılı için TÜFE endeksinin aylık ve yıllık değişimlerini göster.",
+        })
+    assert response.status_code == 200 and calls == [1]
+    body = response.json()
+    assert body["status"] == "ok" and body["decision"] == plan
+    direct = build_inflation_evidence(cpi, start_period="2023-01", end_period="2023-12", source_ref="verified://cpi-receipt")
+    assert body["analysis"]["evidence"]["observations"] == direct.model_dump(mode="json")["observations"]
+    assert len(body["analysis"]["chart"]["data"]) == 3
+    assert response.headers["x-analytics-model-decision"] == "ready/cpi_inflation_summary"
 
 
 @pytest.mark.parametrize("plan,expected_status,http_status", [
