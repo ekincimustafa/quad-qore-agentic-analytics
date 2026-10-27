@@ -1,10 +1,97 @@
-# İlk sürüm kabul kaydı — ara durum
+# İlk sürüm ve sonraki kullanım kontrolleri
 
-İlk kayıt: 12 Ekim 2026. Güncelleme: 18 Ekim 2026. Takip: [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
+İlk kayıt: 12 Ekim 2026. Belge güncellemesi: 27 Ekim 2026.
+İlk gerçek veri sürümünün takibi: [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
 Durum: Gerçek BDDK+EVDS teknik kabulü ve sabit planlı dosya sorusu doğrulandı;
 Mustafa yeniden üretilen HTML'nin görsel kabulünü 18 Ekim'de teyit etti.
-#40 tamamlandı; `v0.1.0-rc.1` prerelease yayımlandı. 19 Ekim kararıyla #46 ekran
-kaydı isteğe bağlı portföy işidir; kaydedilmedi ve yeni ürünün kabulünü bloke etmez.
+#40 tamamlandı; `v0.1.0-rc.1` prerelease yayımlandı. #46 video kaydı yapılmadan
+`closed/not_planned` kapatıldı; video kabul veya portföy teslim şartı değildir.
+
+## Güncel kapsam ve kanıt sınırı — 27 Ekim 2026
+
+İncelenen güncel runtime `7d2f2949d950b46660c15bbf90cd734c74211841`
+(PR #118 merge). [Main CI](https://github.com/ekincimustafa/quad-qore-agentic-analytics/actions/runs/40367989049)
+completed/success. Önceki yerel kod doğrulaması `64e8063` kaynağında
+1415 passed, 1 skipped; Housing 9/9, Economic 45/45, canlı 0 olarak kaydedildi.
+Bu belge güncellemesinde o tam test paketi veya gerçek veri audit'i tekrarlanmadı.
+
+Yerel prototip dört analiz türünü destekler: sabit Housing kuralı, parametreli
+Housing filtresi, TÜFE özeti ve iki tam yıl TÜFE karşılaştırması. Soru ekranı
+tek istekte tek plan/analiz çalıştırır; kısa takip cevapları için sohbet belleği
+yoktur. Kaynak/hash denetimleri ve Python hesapları model kararından ayrıdır.
+Eski `v0.1.0-rc.1` etiketi `abea431` offline Housing sürümüdür; güncel soru
+ekranının sürümü veya yeni bir release yapılmış gibi sunulmaz.
+
+### Normal model ekranı — 26 Ekim 2026
+
+Mustafa'nın paylaştığı üç ekran görüntüsü ve yanıt başlıkları incelendi. Kontrol
+talimatı güncel main `7d2f294`, mevcut gemini-3.5-flash-lite, low, timeout 60 sn,
+retry 0 idi. Görüntüler git HEAD, model adı veya girdi hash'lerini ayrıca göstermez;
+bu ayarlar kullanıcıya verilen başlatma komutuna dayanır. Üç UI gönderimi,
+sağlayıcıya ait ayrı bir istek/usage günlüğü veya genel başarı oranı değildir.
+
+| Soru / görünen sonuç | Model karar başlığı | Toplam / plan istemci süresi (ms) |
+| --- | --- | --- |
+| 2023 ve 2024 yıllarının TÜFE aylık ve yıllık değişimlerini karşılaştır. Aralık yıllık oranları %64,7729 ve %44,3788; fark −20,3941 yüzde puan | ready/cpi_two_year_comparison | 36728.105 / 36422.340 |
+| 2024 ile 2023 tam takvim yıllarındaki aylık ve yıllık TÜFE değişimlerini kıyasla. Sıra 2024→2023; fark +20,3941 yüzde puan | ready/cpi_two_year_comparison | 29257.201 / 28958.745 |
+| 2023 yılı için TÜFE endeksinin aylık ve yıllık değişimlerini göster. 2023-01–2023-12, 12 ay; ilk-son değişim %54,5003 | ready/cpi_inflation_summary | 24982.138 / 24211.436 |
+
+Yerel ekran dosyaları image(20261026-181633).png, image(20261026-181717).png ve
+image(20261026-181849).png bu sohbetten incelendi; repo eki olarak yayımlanmadı.
+Görünen özetler önceki bağımsız hesap değerleriyle uyumlu; bütün tablo satırları,
+grafik etkileşimleri, tam JSON veya 145 dosyanın hash'i yeniden doğrulanmadı.
+Bu sınırlarla üç seçili istekte beklenen analiz/özet görüldü. Önceki
+[#107](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/107)
+model hatası ve ham model/uygulama ayrımı korunur; bir genel model kabulü ilan edilmez.
+
+Plan istemci süresi bağlantı/sağlayıcı beklemesi dahil tüm çağrıdır; saf üretim
+süresi değildir. Toplam 24,98–36,73 saniyenin yaklaşık %97–99'u bu çağrıda;
+sunucunun diğer işleri 0,30–0,77 saniye. Prompt'un %48,68 karakter kısalması
+bu koşuda hız kazanımı kanıtlamadı. Hız/niyet güvenilirliği, takip cevapları ve
+kullanıcı pilotu sonraki ürün geliştirmeleridir; eski veri teslim engelleri değildir.
+
+## Anahtarsız temiz Linux kullanım kontrolü — 27 Ekim 2026
+
+Herkese açık repo yeni dizine `git clone --depth 1 --branch main` ile alındı;
+HEAD `7d2f294`. Yeni `.venv` Python 3.12.14 ile oluşturuldu,
+`pip install -r requirements.txt` başarılı ve `pip check` temiz. Yerel `.env`
+yoktu. Clone ve bağımlılık kurulumu internet kullandı; aşağıdaki kontroller
+model/EVDS çağrısı veya gerçek veri indirmesi yapmadı.
+
+README'deki üç modül doğrudan Python `-m` komutlarıyla çalıştırıldı:
+
+| Komut | Oluşan çıktı / içerik |
+| --- | --- |
+| `scripts.render_housing_sample` | `out/housing-sample.html`; sentetik 60 ay / 55 eşleşme, 4.371.805 bayt |
+| `scripts.render_inflation_report` | `out/inflation-report/synthetic-2023.html`; sentetik 12 ay, ilk-son %13,5732, 4.313.275 bayt |
+| `scripts.render_inflation_comparison_sample` | `out/inflation-comparison/sample.html`; sentetik 2023→2024, +5 yüzde puan, 4.327.656 bayt |
+
+Üç HTML'de sentetik uyarı ve dış script/stylesheet referansı bulunmadığı HTML
+içeriğinden kontrol edildi. Bu oturumda tarayıcı render/hover/zoom yapılmadı;
+dosyaların oluşması grafik etkileşim kabulü olarak sunulmaz. Çıktılar Git dışında.
+
+Yeni ortamda gerçek yerel TCP sunucusu aynı üst süreçte başlatılıp durduruldu:
+`/health`, `/`, `/docs` ve üç yerel UI asset'i HTTP 200; README'nin Housing JSON'u
+3 ay / tek `2021-02` eşleşmesi, TÜFE JSON'u 3 ay / ilk-son yaklaşık −%1 ile
+HTTP 200 döndü. Ayrı araç oturumundan yapılan ilk TCP denemesi connection refused
+verdi; başarılı kontrol sunucu ve istemci aynı üst süreçteyken yapıldı. Bu sonuç
+Windows veya tarayıcı testi değildir. Kontrol sunucuları kapatıldı.
+
+Gerçek veri paketi olmayan clone'da `/analysis/economic/question/files` güvenli
+503/economic_data_unavailable verdi. `scripts.run_local_app --mode preview
+--data-root out/missing-inputs --check-only` beklenen exit 1/data_root_missing
+ile sunucuyu başlatmadı; eksik paketi indirmedi veya onarmadı.
+
+Belge kontrolleri: değişen üç dosyadaki ve diğer belgelerden bunlara gelen
+74 yerel link/fragment (5 dışarıdan gelen link) çözüldü; README'nin 10 bash bloğu
+`bash -n` ile geçti ve atıf yapılan Python modülleri mevcut. PowerShell bu ortamda
+yok; PowerShell/Windows komutları burada çalıştırılmış veya parser'dan geçirilmiş
+sayılmaz. Tam yerel pytest tekrar edilmedi; belge PR'ının zorunlu CI'si ayrı izlenir.
+
+## Tarihli ilk sürüm kayıtları
+
+Aşağıdaki kontroller kendi tarih ve commit'lerine aittir. Eski açık-kapı
+ifadeleri bu tarihsel koşuların durumudur; güncel engel olarak okunmamalıdır.
 
 İlk kontrollerin kod temeli: `f9d02099b2fc97a7a8588a022e4c0c04ce07b652` (PR #48 sonrası main).
 13 Ekim temiz Windows kontrolü: `8943608b807f791ea6af92436724d9db4dcc7115`
@@ -359,7 +446,7 @@ PR #67 önceden onayla merge edildi. Bu oturumdaki ayrı onay yalnızca
 `v0.1.0-rc.1` prerelease yayınını kapsar; kararlı release veya başka tag için
 yeni onay gerekir. Yukarıdaki anlatım sunulmuş/kaydedilmiş demo değildir.
 
-## Açık kabul kapıları
+## İlk gerçek veri sürümünün kabul listesi
 
 - [x] Windows'ta yeni Python 3.12 ortamında README sentetik hızlı başlangıcını doğrula (13 Ekim: clone, kurulum, rapor ve testler).
 - [x] BDDK/EVDS gerçek girdilerinin yollarını, boyutlarını ve SHA-256 özetlerini kaydet.
@@ -373,7 +460,7 @@ yeni onay gerekir. Yukarıdaki anlatım sunulmuş/kaydedilmiş demo değildir.
 - [x] Sürüm notu, önerilen tag ve 60–90 saniyelik demo anlatımını incelemeye hazırla.
 - [x] `v0.1.0-rc.1` tag/prerelease için Mustafa'nın ayrı yayın onayını al.
 - [x] Başarılı main commit'ini tag'le ve notlarla GitHub prerelease yayımla; veri/audit eki yükleme.
-- [ ] İsteğe bağlı portföy: 60–90 saniyelik ekran kaydı; ürün kabul şartı değildir, henüz kaydedilmedi.
+- Kapsam dışı bırakıldı: 60–90 saniyelik ekran kaydı. Video çekilmedi; #46 `not_planned` kapalıdır, eksik kabul maddesi değildir.
 
 Yapılandırılabilir LLM istemcisi #41 ile tamamlandı; önceki sınırlı canlı kontrol
 [LLM kabul kaydındadır](llm-client.md). Legacy `scripts.smoke_test_mia` yalnızca
@@ -392,19 +479,19 @@ Gerçek veri teknik kabul kaydı:
 | 66→60 ay ve üç örnek ay karşılaştırması | EVDS, BDDK ve birleşik teknik kontroller geçti |
 | Evidence/chart/run summary/HTML dosyaları | `reproduced/` altında dört çıktı; yukarıdaki hash'lerle teslimle bayt eşit |
 
-## Katkı kanıtları ve aktif iş paylaşımı
+## Katkı kanıtları ve mevcut durum
 
-Bu tablo seçilmiş PR örneklerini ve mevcut görev sahiplerini gösterir.
+Bu tablo seçilmiş PR örneklerini ve tamamlanan kapsamları gösterir.
 Kişisel katkılar ilgili PR'ların kod farklarıyla değerlendirilir.
 
-| PR sahibi | Birleşmiş katkı örnekleri | Açık teslimat |
+| PR sahibi | Birleşmiş katkı örnekleri | Mevcut durum |
 | --- | --- | --- |
-| Mustafa / ekincimustafa | [#27 Gold](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/27), [#30 API](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/30), [#47 anlatım doğrulaması](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/47), [#48 HTML raporu](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/48), [#62](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/62)/[#66 soru yönlendirmesi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/66), [#64 dosya wrapper'ı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/64) | #46 ekran kaydı ve kısa demo teslimi; gerçek HTML kabulü ve rc.1 yayını tamam |
-| Osman / OsmanerdemDutar | [#36 BDDK Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/36), [#43 kaynak zinciri ve offline demo CLI](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/43) | #40 teslim, bağımsız teknik tekrar koşu ve Mustafa'nın görsel kabulü tamam |
-| Afra / afratopcu | [#23 EVDS Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/23), [#35 EVDS ingestion](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/35), [#38 ilk araç sözleşmesi katkısı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/38), [#58 manifest üretimi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/58) | #39 teslim ve iki alıcı kabulü tamam; bu kapsamda açık veri teslimi yok |
+| Mustafa / ekincimustafa | [#27 Gold](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/27), [#30 API](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/30), [#47 anlatım](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/47), [#48 HTML](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/48), [#62](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/62)/[#66 soru](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/66), [#64 dosya wrapper'ı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/64), [#116 şemalı plan](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/116), [#117 dönem/teşhis](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/117), [#118 prompt](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/118) | Gerçek HTML kabulü, eski rc.1 yayını ve yerel soru prototipi mevcut; video yapılmayacak |
+| Osman / OsmanerdemDutar | [#36 BDDK Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/36), [#43 kaynak zinciri/CLI](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/43), [#113 yerel başlatıcı](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/113) | #40 teslim ve gerçek veri kabulü tamam; başlatıcı ana dalda |
+| Afra / afratopcu | [#23 EVDS Silver](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/23), [#35 ingestion](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/35), [#38 ilk araç sözleşmesi](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/38), [#58 manifest](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/58), [#115 TÜFE karşılaştırma grafik/rapor](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/115) | #39 veri teslimi ve iki alıcı kabulü tamam; karşılaştırma raporu ana dalda |
 
-Açık görevler tamamlanmış katkı olarak raporlanmaz. Sürüm adayı yayını ekran
-kaydını tamamlamaz; #46 isteğe bağlı portföy işi olarak açık kalır. 19 Ekim'de
+Açık görevler tamamlanmış katkı olarak raporlanmaz. Kişisel CV ifadeleri bu
+seçilmiş örneklerin gerçek kod farklarıyla sınırlandırılır. 19 Ekim'de
 yetkilendirilen yerel soru ürününün backend/ekran/kabul işleri #69/#70/#71
 tamamlandı; #71'in dört canlı çağrısı yalnız o koşuya aittir ve genel doğruluk
 metriği değildir.
