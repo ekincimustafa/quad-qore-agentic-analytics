@@ -263,6 +263,15 @@ tablosunu gösterir. Tek dönem TÜFE özetinde aynı evidence'dan üretilen mev
 iki nested evidence'ın kaynak referansı ve `input_origin` bilgisi korunur.
 Endpoint anlatım çağrısı yapmaz ve sohbet geçmişi tutmaz.
 
+Normal model modunda ekran, `period_required` için kısa yıl girişi ve
+`metric_ambiguous` için Reel/Nominal seçimi gösterir. “Soruyu tamamla” yalnız ana
+soru metnini düzenler; HTTP veya model çağrısı yapmaz, analiz yalnız “Analiz et”
+ile başlar. Yıl eklenirken mevcut ay/çeyrek/yarıyıl ifadesi korunur; soruda zaten
+tarih varsa veya ifade güvenle tamamlanamıyorsa kullanıcıdan ana soruyu düzenlemesi
+istenir. Reel/Nominal seçimi ilgili kredi stoku/bakiyesi ifadesine uygulanır.
+Netleştirme bağlamı yalnız sekme belleğinde tutulur; yeni soru, örnek seçimi veya
+elle düzenleme eski bağlamı kapatır.
+
 ### Sentetik istek örnekleri
 
 [İki veri gruplu Housing örneği](economic-question-api-example.json) 3 ay ve

@@ -12,6 +12,31 @@ etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğre
 ekip Mustafa, Osman ve Afra'dan oluşur. Gerçek verili yerel prototip mevcut;
 şimdiki hedef mevcut soru planlama gecikmesini doğrulukla birlikte ölçmektir.
 
+## Soru ekranında netleştirme tamamlama — 27 Ekim 2026
+
+- Dal `feat/question-clarification-ui`, taban güncel `main` `457d58a`. Yalnız
+  `app/static/question.{html,css,js}`, ilgili UI testleri ve iki belge değişti;
+  prompt, parser, guard, hesaplar, endpoint'ler ve hash kontrolleri değişmedi.
+- Normal model modunda `period_required` için kısa yıl, `metric_ambiguous` için
+  Reel/Nominal seçimi gösteriliyor. “Soruyu tamamla” yalnız ana soru metnini
+  düzenliyor; HTTP/model çağrısı yapmıyor. Yıl eklenirken ay/çeyrek/yarıyıl
+  ifadesi korunuyor; mevcut veya çelişkili tarihte ya da güvenle
+  tamamlanamayan metrikte ana soruyu düzenleme isteniyor. Reel/Nominal seçimi
+  kredi stoku/bakiyesi ifadesine ekleniyor. Netleştirme bağlamı yalnız sekme
+  belleğinde; yeni soru, örnek veya elle düzenleme onu kapatıyor. 2000 karakter,
+  çift gönderim ve üç sabit offline örnek sözleşmesi korunuyor.
+- Odaklı `tests/test_question_ui.py`: **5 passed** (gerçek tarayıcıda yıl/çeyrek
+  koruma, doğru TÜFE dönemi, Reel legacy ve Nominal filtre guard'ları, çelişkili
+  tamamlama, eski bağlam, tek istek). Period/economic odaklı paket **266 passed**.
+- Son kodda tek `scripts.verify_project` denendi: pytest **1425 passed,
+  2 skipped, 2 failed**; iki hata yalnız Windows symlink yetkisi olmayan
+  `test_render_inflation_comparison_sample.py` vakalarında (`WinError 1314`) ve
+  kodla ilgisiz. Doğrulama ilk hatada durduğu için kalan adımlar ayrıca çalıştırıldı:
+  Housing **9/9**, Economic **45/45**, canlı **0**, `git diff --check` temiz.
+  Günlük `out/verification/20261027T195453Z-26980-8750e47e`.
+- Canlı LLM/EVDS çağrısı, yeni veri, endpoint veya bağımlılık yok. Sonraki adım
+  bağımsız PR incelemesi; uygulayan oturum merge/release yapmaz.
+
 ## İsteğe bağlı minimal planlama ve süre kaydı — 27 Ekim 2026
 
 - PR #119 bağımsız incelemeden sonra `8e38593` olarak merge edildi; exact main

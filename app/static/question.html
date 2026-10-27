@@ -23,6 +23,24 @@
       <textarea id="question" name="question" rows="3" required maxlength="2000" placeholder="Örneğin: 2021-2025 faiz düşerken reel konut kredisi stokunun artmadığı aylar hangileri?"></textarea>
       <div class="form-footer"><span>Bir soruda bir analiz. Tahmin ve nedensellik bu kapsamda değil.</span><button id="submit" type="submit">Analiz et <span aria-hidden="true">↗</span></button></div>
     </form>
+    <section id="clarification" class="clarification" aria-labelledby="clarification-title" hidden>
+      <h3 id="clarification-title">Soruyu netleştir</h3>
+      <p id="clarification-message"></p>
+      <div id="clarification-year-field" hidden>
+        <label for="clarification-year">Yıl</label>
+        <input id="clarification-year" inputmode="numeric" autocomplete="off" maxlength="20" placeholder="Örneğin 2023">
+      </div>
+      <fieldset id="clarification-metric-field" hidden>
+        <legend>Kredi ölçüsü</legend>
+        <label><input type="radio" name="clarification-metric" value="reel"> Reel</label>
+        <label><input type="radio" name="clarification-metric" value="nominal"> Nominal</label>
+      </fieldset>
+      <p id="clarification-error" role="alert" hidden></p>
+      <div class="clarification-actions">
+        <button id="clarification-complete" type="button">Soruyu tamamla</button>
+        <button id="clarification-dismiss" type="button" class="secondary">Vazgeç</button>
+      </div>
+    </section>
     <div class="examples" aria-label="Örnek sorular">
       <button type="button" data-example="2021-2025 faiz düşerken reel konut kredisi stokunun artmadığı aylar hangileri?">Konut · 2021–2025</button>
       <button type="button" data-example="2023 Ocak-Aralık TÜFE aylık ve yıllık değişimlerini özetle.">TÜFE · 2023</button>

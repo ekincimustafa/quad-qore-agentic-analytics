@@ -118,7 +118,6 @@ def test_browser_question_flow_with_offline_plans(tmp_path, monkeypatch):
     shutil.copytree(Path(__file__).parent / "fixtures/evds_manifest_v1", root)
     write_bddk(root, ["2021-01", "2021-02"])
     app = create_app()
-    app.state.offline_preview = True
     app.dependency_overrides[get_verified_economic_paths] = lambda: VerifiedHousingQuestionPaths(root)
     model_calls = []
 
@@ -131,6 +130,25 @@ def test_browser_question_flow_with_offline_plans(tmp_path, monkeypatch):
             return json.dumps({"status": "unsupported", "reason": "unsupported_analysis"})
         if question.startswith("<img"):
             return json.dumps({"status": "clarification_required", "reason": "period_required"})
+        if "Ocak-Şubat TÜFE" in question:
+            if len(re.findall(r"(?<!\d)(?:19|20)\d{2}(?!\d)", question)) != 1:
+                return json.dumps({"status": "clarification_required", "reason": "period_required"})
+            return json.dumps({"status": "ready", "analysis_id": "cpi_inflation_summary", "start_period": "2021-01", "end_period": "2021-02"})
+        if "kredi bakiyesinin" in question:
+            if "reel kredi bakiyesinin" in question:
+                return json.dumps({"status": "ready", "analysis_id": "housing_rate_down_real_credit_not_up", "start_period": "2021-01", "end_period": "2021-02"})
+            return json.dumps({"status": "clarification_required", "reason": "metric_ambiguous"})
+        if "kredi stoku artmayan" in question:
+            if "nominal kredi stoku artmayan" in question:
+                return json.dumps({
+                    "status": "ready", "analysis_id": "housing_condition_filter",
+                    "start_period": "2021-01", "end_period": "2021-02",
+                    "conditions": [
+                        {"metric": "interest_rate_change_pp", "operator": "lt", "threshold": 0.0},
+                        {"metric": "nominal_housing_loan_change_pct", "operator": "lte", "threshold": 0.0},
+                    ],
+                })
+            return json.dumps({"status": "clarification_required", "reason": "metric_ambiguous"})
         return json.dumps({"status": "ready", "analysis_id": "cpi_inflation_summary" if "TÜFE" in question else "housing_rate_down_real_credit_not_up", "start_period": "2021-01", "end_period": "2021-02"})
 
     app.dependency_overrides[get_economic_question_model] = lambda: model
@@ -224,11 +242,11 @@ def test_browser_question_flow_with_offline_plans(tmp_path, monkeypatch):
         command = [chrome, "--headless", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
                    "--disable-background-networking", "--disable-extensions", "--disable-sync", "--no-proxy-server",
                    "--user-data-dir=" + str(tmp_path / "browser-profile"), "--window-size=1360,1100",
-                   "--virtual-time-budget=15000", "--dump-dom", f"http://127.0.0.1:{port}/"]
+                   "--virtual-time-budget=30000", "--dump-dom", f"http://127.0.0.1:{port}/"]
         browser_env = {key: value for key, value in os.environ.items()
                        if not key.startswith(("LLM_", "MIA_", "EVDS_"))
                        and key not in {"GITHUB_TOKEN", "GH_TOKEN", "ANALYTICS_DATA_ROOT"}}
-        completed = subprocess.run(command, capture_output=True, timeout=50, env=browser_env)
+        completed = subprocess.run(command, capture_output=True, timeout=70, env=browser_env)
         dom = completed.stdout.decode("utf-8", errors="replace")
         match = re.search(r'<pre id="ui-test-result">(.*?)</pre>', dom, re.S)
         if not match:
@@ -237,7 +255,7 @@ def test_browser_question_flow_with_offline_plans(tmp_path, monkeypatch):
         assert match, "Browser did not finish UI checks (no result marker)."
         result = json.loads(html.unescape(match.group(1)))
         assert result["ok"], result
-        assert len(model_calls) == 5
+        assert len(model_calls) == 15
     finally:
         server.should_exit = True
         thread.join(timeout=10)
