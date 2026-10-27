@@ -30,11 +30,16 @@ Her çağrı sonunda istemci kapanır. Connection pooling ileride ölçüm gerek
 ayrı değerlendirilir; şu an uygulama çapında istemci yaşam döngüsü eklenmedi.
 
 `LLM_REASONING_EFFORT` isteğe bağlıdır: boşsa istekten tamamen çıkarılır ve
-sağlayıcının mevcut varsayılanı korunur; yalnız `low`, `medium`, `high` kabul
+sağlayıcının mevcut varsayılanı korunur; `minimal`, `low`, `medium`, `high` kabul
 edilir. Doluysa seçilen sağlayıcı/model bu parametreyi desteklemelidir.
 Google'ın [OpenAI uyumluluk belgesi](https://ai.google.dev/gemini-api/docs/openai)
-`gemini-3.8-flash` için `reasoning_effort="low"` örneği verir. Bu modelde
-`minimal` desteklenmediğinden düşük gecikme denemesi için `low` kullanılır.
+`reasoning_effort="minimal"` eşlemesini desteklenen modeller için açıklar.
+27 Ekim 2026 kontrolünde [modelin resmî rehberi](https://ai.google.dev/gemini-api/docs/generate-content/whats-new-gemini-3.6)
+`gemini-3.5-flash-lite` varsayılanını `minimal` olarak listeler. Açık `low`
+ayarı bu varsayılanı korumaz. [Düşünme düzeyi tablosu](https://ai.google.dev/gemini-api/docs/generate-content/thinking?hl=en)
+aynı modelde `minimal` desteğini, `gemini-3.8-flash` için ise desteklenmediğini
+belirtir. İstemci model adına bakarak ayar değiştirmez; desteklenmeyen seçim
+sağlayıcı tarafından reddedilirse mevcut güvenli hata ve tek deneme sınırı kalır.
 Bu seçenek daha kısa yanıt süresini garanti etmez ve önceki timeout'ların
 nedeninin düşünme seviyesi olduğunu kanıtlamaz. Otomatik model/sağlayıcı geçişi yoktur.
 
@@ -136,6 +141,22 @@ başlangıcında okunan timeout, isteğe bağlı reasoning effort, retry 0 ve
 `response_format=json_schema` bilgisini
 tutar; anahtar veya URL içermez. Önceki raporlar değiştirilmez. Offline raporlar
 LLM ayarı okumaz. Mevcut vaka beklentileri, çağrı bütçesi ve ilk hatada durma kuralı korunur.
+
+Evaluator `--reasoning-effort` ve `--timeout-seconds` seçeneklerini yalnız `--live`
+ile kabul eder. Seçenekler o koşunun frozen ayar kopyasına uygulanır; `.env` veya
+process environment'a yazılmaz. Bayraklar verilmezse mevcut ayarlar korunur.
+Her sonuçta `model_call_duration_ms` tek canlı plan fonksiyonunun tamamını,
+`request_duration_ms` aynı vakanın in-process HTTP isteğini ölçer. İlki SDK
+kurulumu, ağ/sağlayıcı beklemesi ve yanıt okumasını da içerir; saf üretim süresi
+değildir. İkincisi referans hesap hazırlığını, gerçek TCP veya tarayıcı çizimini
+ölçmez. Başarısız denemenin süresi tutulur; atlanan vakalarda iki alan da `null`,
+offline stub'da model süresi `null` olur. Bu alanlar token/maliyet ölçümü değildir.
+
+`minimal` eklenmesi varsayılanı değiştirmez ve canlı hız/doğruluk kazancı
+kanıtlamaz. Karşılaştırma aynı commit, model, sorular, fixture ve timeout ile
+yapılmalı; yalnız reasoning effort değişmelidir. Doğru uygulama kararı modelin
+yanlış kararını başarıya çevirmemeli; hız değerlendirmesi geçerli hesap/kararla
+birlikte okunmalıdır. Küçük bir seçilmiş koşu genel benchmark sayılmaz.
 
 `invalid_plan` satırlarında `invalid_plan_diagnostics`, kod bloğu öneki
 (`code_fence_prefix`), geçersiz JSON (`invalid_json`), nesne olmayan JSON

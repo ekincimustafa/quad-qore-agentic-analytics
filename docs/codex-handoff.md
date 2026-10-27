@@ -2,15 +2,38 @@
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Güncel runtime temeli `7d2f294` (PR #118
-sonrası main); aşağıdaki ilk bölüm bugünkü belge işini ve sonraki adımı belirtir.
+için bir sürüm garantisi değildir. Bu dalın main tabanı `8e38593` (PR #119
+sonrası); aşağıdaki ilk bölüm bugünkü değişikliği ve sonraki adımı belirtir.
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
 güncel durumu belirtir. Tarihli bölümlerdeki dal/CI/onay bekleme ifadeleri yalnız
 o tarihin kanıtıdır ve güncel engel değildir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. Gerçek verili yerel prototip mevcut;
-şimdiki hedef kapsamını doğru anlatarak CV/gösterim için toparlamaktır.
+şimdiki hedef mevcut soru planlama gecikmesini doğrulukla birlikte ölçmektir.
+
+## İsteğe bağlı minimal planlama ve süre kaydı — 27 Ekim 2026
+
+- PR #119 bağımsız incelemeden sonra `8e38593` olarak merge edildi; exact main
+  CI completed/success. Portföy belgeleri tamamlandı. Bu dal
+  `perf/planner-minimal-effort`, taban `8e38593`.
+- İstemci ve kısa probe artık açık `minimal` seçimini de kabul eder. Google'ın
+  resmî rehberi mevcut `gemini-3.5-flash-lite` için minimal desteği/varsayılanını
+  doğrular; `gemini-3.8-flash` için desteklenmez. Bağlantılar llm-client.md'de.
+  Model, sağlayıcı veya boş reasoning ayarının varsayılanı değiştirilmedi.
+- Mevcut Economic evaluator'a yalnız `--live` ile geçici reasoning/timeout
+  seçenekleri ve vaka başına model/HTTP süreleri eklendi. Başarısız denemenin
+  süresi tutulur; atlanan vakalar null. Süreler saf model üretim süresi değildir.
+  Şema/prompt, guard, hesaplar, HTTP/UI, fiziksel hash ve eval girdileri değişmedi.
+- Önce 10 yeni davranış başarısız oldu; uygulama sonrası odaklı 179 passed.
+  Son kodda tek scripts.verify_project: 4/4, Linux 1428 passed/1 skipped,
+  Housing 9/9, Economic 45/45, canlı 0, diff-check temiz. Günlük
+  out/verification/20261027T121253Z-2-dbac3ff7. Yedi yerel belge hedefi çözüldü;
+  PowerShell parser/Windows kontrolü yapılmadı. Sonrasında yalnız bu kayıt eklendi.
+- Hız veya canlı model doğruluğu artışı kanıtlanmadı. Sonraki adım bağımsız PR
+  incelemesi; ardından aynı commit/model/fixture/timeout ve seçilmiş sorularda
+  ayrıca onaylı low/minimal karşılaştırması. Örnek komut yeni çağrı yetkisi değildir.
+  Canlı LLM/EVDS çağrısı, gerçek veri indirmesi, merge veya release yapılmadı.
 
 
 ## Portföy kapsamı ve güncel kullanım kanıtı — 27 Ekim 2026

@@ -83,7 +83,7 @@ def _probe(args: argparse.Namespace) -> None:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--probe", action="store_true", help="Analiz olmadan tek kısa canlı üretim isteği")
-    parser.add_argument("--reasoning-effort", choices=("low", "medium", "high"))
+    parser.add_argument("--reasoning-effort", choices=("minimal", "low", "medium", "high"))
     parser.add_argument("--timeout-seconds", type=float)
     args = parser.parse_args([] if argv is None else argv)
     if not args.probe and (args.reasoning_effort is not None or args.timeout_seconds is not None):
