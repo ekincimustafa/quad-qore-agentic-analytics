@@ -1,15 +1,51 @@
-# Codex devir notu — 21 Ekim 2026
+# Codex devir notu — 27 Ekim 2026
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Kod temeli `dcd5814` (PR #104 sonrası main).
+için bir sürüm garantisi değildir. Güncel runtime temeli `7d2f294` (PR #118
+sonrası main); aşağıdaki ilk bölüm bugünkü belge işini ve sonraki adımı belirtir.
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
 güncel durumu belirtir. Tarihli bölümlerdeki dal/CI/onay bekleme ifadeleri yalnız
 o tarihin kanıtıdır ve güncel engel değildir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
-ekip Mustafa, Osman ve Afra'dan oluşur. İlk hedef çalıştırılabilir bir CV demosudur.
+ekip Mustafa, Osman ve Afra'dan oluşur. Gerçek verili yerel prototip mevcut;
+şimdiki hedef kapsamını doğru anlatarak CV/gösterim için toparlamaktır.
 
+
+## Portföy kapsamı ve güncel kullanım kanıtı — 27 Ekim 2026
+
+- Dal `docs/portfolio-ready-scope`, taban `main` `7d2f294`. Yalnız README,
+  bu not ve mevcut kabul kaydı güncelleniyor; runtime/fixture/CI kodu değişmiyor.
+- README dört analiz türünü, tek soru/tek analiz sözleşmesini ve üç başlangıç
+  yolunu ayırıyor: anahtarsız sentetik HTML, doğrulanmış paketle sabit preview,
+  aynı paket+model ayarıyla normal soru ekranı. Clone gerçek paketi içermez.
+- PR #118 bağımsız incelenip `7d2f294` olarak merge edildi; main CI success.
+  Önceki bölümlerdeki inceleme beklentileri tarihli kayıttır. 26 Ekim kullanıcının
+  üç ekranında beklenen karşılaştırma/ters sıra/TÜFE özeti görüldü; görünen özetler
+  önceki değerlerle uyumlu. Tam tablolar/grafik etkileşimleri/hash'ler yeniden
+  doğrulanmadı. Ayrıntı ve kaynak sınırı mevcut release-acceptance.md kaydında.
+- Süreler toplam 36.728/29.257/24.982 sn; plan istemcisi
+  36.422/28.959/24.211 sn. Genel model doğruluk veya hız kazancı iddiası yok.
+  Bu belge işi yeni canlı LLM/EVDS çağrısı veya yeni veri kabulü değildir.
+- #46 closed/not_planned; video çekilmeyecek ve kabul kapısı değildir.
+  Eski rc.1 etiketi `abea431` offline Housing sürümünde kalır; güncel soru
+  ekranıyla karıştırılmaz. Yeni tag/release yayımlanmıyor.
+- Afra'nın #115 karşılaştırma grafik/raporu, Osman'ın #113 yerel başlatıcısı
+  seçilmiş katkı kanıtlarına eklendi. Ekip katkıları Mustafa'ya topluca yazılmaz.
+- Yeni public clone/venv (Linux, Python 3.12.14, `7d2f294`), requirements kurulumu
+  ve pip check başarılı. Üç sentetik HTML oluştu; görünür uyarılar ve dış
+  script/stylesheet bulunmadığı içerikten kontrol edildi. Gerçek TCP'de health,
+  kök ekran, docs, UI asset'leri ve iki deterministik API örneği 200; eksik paket
+  dosya API'si 503 ve başlatıcı check-only exit 1 ile güvenli durdu. İlk ayrı
+  araç oturumunun TCP bağlantısı reddedildi; başarılı koşu aynı üst süreçteydi.
+  Sunucular kapatıldı; tarayıcı render/Windows/gerçek veri kabulü yapılmadı.
+- 74 yerel link/fragment ve 10 bash bloğu geçti; PowerShell bu ortamda yok.
+  Runtime değişmediği için tam yerel test paketi tekrarlanmadı; CI ayrıca izlenir.
+- Sonraki adım bağımsız belge PR incelemesi. Sonraki ürün önceliği mevcut plan
+  gecikmesi/niyet güvenilirliğini ölçmek; yeni özellik veya canlı koşu bu PR'a
+  eklenmez. Güncel kullanıcı makinesinde yeni Windows kurulum kontrolü yapılmış
+  sayılmamalı; yalnız gerçekten yapılan kontroller kaydedilecek.
 
 ## Economic plan prompt'unu sadeleştirme — 26 Ekim 2026
 

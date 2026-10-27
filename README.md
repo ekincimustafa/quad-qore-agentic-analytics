@@ -1,26 +1,76 @@
 # Quad-Qore Agentic Analytics
 
-A small, runnable analytics demo built for KKB Hackathon 2026 and CV/portfolio use.
-You ask an economic question in natural language; a bounded LLM plan selects one of
-the allowed analyses, and Python performs every calculation. A FastAPI web screen
-serves the result: housing-loan analysis, a parameterized housing condition filter,
-a CPI summary, or a comparison of two full calendar years. Results include evidence,
-a Plotly chart where available, and optional guarded narration.
+A local economic-analysis prototype built by three students for KKB Hackathon 2026
+and continued for CV/portfolio use. Ask a supported question in Turkish; an LLM
+selects a bounded plan, Python validates the plan and calculates the result, and a
+FastAPI screen displays evidence, tables, sources and charts where available.
+The model does not calculate the reported economic figures or execute arbitrary
+code, SQL or tools. The question screen formats its summaries from Python evidence;
+guarded Housing narration is a separate optional API feature.
 
-The housing scenario identifies months when housing-loan interest rates decreased
-but the inflation-adjusted housing-loan stock did not increase. The default analysis
-window is January 2021 to December 2025: 60 months. A key-free synthetic HTML example
-can be generated from the included sample script; the real BDDK/EVDS data package is
-delivered separately and is not stored in Git.
+**Start here:** [key-free synthetic report](#quick-start-synthetic-offline-report)
+requires only Python 3.12 and the installed dependencies. The
+[question screen](#single-command-local-app-launcher) additionally requires the
+separately delivered, verified BDDK/EVDS data package. Normal question planning also
+needs a configured model API; a Git clone alone does not include those files or a key.
+
+## Supported scope
+
+| Analysis | Example request in normal model mode | Calculation |
+| --- | --- | --- |
+| Fixed Housing condition | `2021-2025 faiz düşerken reel konut kredisi stokunun artmadığı aylar hangileri?` | Months with falling rates and non-increasing real loan stock |
+| Parameterized Housing filter | `2021 Ocak-Mart faiz artarken reel konut kredisi stoku artan aylar hangileri?` | 1–3 AND conditions over four approved rate/loan-change metrics |
+| CPI summary | `2023 yılı için TÜFE endeksinin aylık ve yıllık değişimlerini göster.` | Monthly, same-month-last-year and first-to-last index changes |
+| Two-year CPI comparison | `2023 ve 2024 yıllarının TÜFE aylık ve yıllık değişimlerini karşılaştır.` | Two full calendar years and the difference in December annual rates |
+
+One question selects at most one analysis. These are analysis types, not an
+exact-question list in normal model mode; requested dates must be explicit and
+within the verified data coverage. The offline preview has a separate fixed-example
+contract described below.
+
+## Status and recorded evidence
+
+Runtime snapshot: [`7d2f294`](https://github.com/ekincimustafa/quad-qore-agentic-analytics/commit/7d2f2949d950b46660c15bbf90cd734c74211841)
+(PR #118), with successful main CI. Its last recorded local offline verification
+was **1415 passed, 1 skipped**, Housing **9/9**, Economic **45/45**; these are code
+and stub-harness checks, not model-accuracy measurements.
+
+| Recorded real-data result | Evidence boundary |
+| --- | --- |
+| Housing, 2021-01–2025-12: **60 months / 22 matches** | Delivered BDDK/EVDS package, physical source/hash checks, CLI/wrapper comparison and Mustafa's browser acceptance |
+| 2023 CPI: **12 months**, January-to-December index change **54.5003%** | Visible summary in Mustafa's 26 October model-mode screenshot |
+| December annual CPI: 2023 **64.7729%**, 2024 **44.3788%**; difference **−20.3941 percentage points** | Visible 2023→2024 comparison summary; reverse order correctly showed **+20.3941** |
+| Three selected UI requests: **24.98–36.73 seconds total**, **24.21–36.42 seconds in the plan call** | Server-Timing headers from that run; not a latency benchmark or proof of a speed improvement |
+
+The [acceptance record](docs/release-acceptance.md) separates source-code checks,
+real-data acceptance, user screenshots and historical runs. Screenshots do not
+independently revalidate every table row, graph interaction or file hash.
+
+**Known limits:** model understanding can fail; there is no general accuracy
+claim. Each question is independent, so follow-up replies do not retain previous
+question context. Forecasting, causal claims, arbitrary economic commentary,
+OR/top-N/averages and unsupported metrics are outside the current question scope.
+Weekly publication coverage remains `unverified` without an official calendar.
+It runs locally; hosted multi-user access and operational cost management are
+outside this version's scope. See [team contributions](#team-contributions)
+for individual ownership.
+
+The published [v0.1.0-rc.1 prerelease](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
+is the **older offline Housing snapshot at `abea431`**, not the current question
+screen. Video recording was declined; [#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46)
+is closed as not planned and is not a remaining acceptance gate.
 
 ## Normal model mode vs offline preview
 
 The same local screen has two modes:
 
-- **Normal mode** (`uvicorn app.api.main:app`) plans free-form Turkish questions with
+- **Normal mode** (`scripts.run_local_app --mode model`) plans free-form Turkish questions with
   the configured model, then Python runs at most one allowed analysis.
-- **Offline preview** (`scripts.preview_question_ui`) needs no model key and only runs
+- **Offline preview** (`scripts.run_local_app --mode preview`) needs no model key and only runs
   fixed plans for the three example questions; other questions ask for clarification.
+
+Both screen modes require the verified local data package. Synthetic standalone
+HTML reports use included fixtures and need neither that package nor a model key.
 
 See [Local question screen — offline preview](#local-question-screen--offline-preview).
 
@@ -33,6 +83,8 @@ See [Local question screen — offline preview](#local-question-screen--offline-
 | EVDS manifest | Verified raw/receipt references, series metadata and weekly-coverage policy; normal CLI checks existing Silver against selected Bronze | [Manifest producer](app/lakehouse/evds_manifest_producer.py), [CLI](scripts/build_evds_manifest.py) |
 | Gold analysis | Period alignment, real loan stock, monthly changes and deterministic matching rule | [gold.py](app/lakehouse/gold.py) |
 | CPI analysis | Monthly and same-month-last-year CPI changes from normalized rows; missing history stays null, no model call | [Inflation guide](docs/inflation-analysis.md) |
+| CPI report | Three-panel CPI chart and offline HTML from existing evidence | [CPI report guide](docs/inflation-report.md) |
+| Two-year CPI report | Six-trace comparison chart and embedded offline HTML | [Comparison report guide](docs/inflation-comparison-report.md) |
 | Evidence and chart | Typed evidence and a six-trace, three-panel Plotly chart | [Evidence](app/tools/housing_evidence.py), [chart](app/tools/housing_chart.py) |
 | FastAPI | Health, normalized-row analysis, and server-side Silver analysis endpoints | [housing.py](app/api/housing.py) |
 | Guarded narration | Model JSON checked against the same month/metric; Turkish text rendered from evidence | [Narration contract](docs/housing-narration.md) |
@@ -47,41 +99,14 @@ See [Local question screen — offline preview](#local-question-screen--offline-
 | Local app launcher CLI | Pre-checked single-command launcher for `preview` or `model` mode on `127.0.0.1` | [scripts/run_local_app.py](scripts/run_local_app.py) |
 | CI | Offline pytest suite on pull requests and pushes to main, using Python 3.12 | [Workflow](.github/workflows/tests.yml) |
 
-The key-free sample below uses **synthetic data**. Manifest production,
-physical consumer checks and the file-to-report CLI are implemented and tested
-with shared synthetic fixtures. Real-data delivery and acceptance of the complete
-Bronze-to-report source chain were independently checked on the delivered real
-data (60 months, 22 matching months). EVDS delivery [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39)
-and the real-data demo [#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40)
-are complete, including Mustafa's browser acceptance on 18 October 2026.
-The [v0.1.0-rc.1 prerelease](https://github.com/ekincimustafa/quad-qore-agentic-analytics/releases/tag/v0.1.0-rc.1)
-is published from `abea431`. The optional portfolio screen recording remains open in
-[#46](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/46).
-The local question product (#69 backend, #70 screen, #71 end-to-end acceptance)
-is complete; the offline and bounded live acceptance recorded four calls for that
-run only and is not a general model-accuracy metric.
-Weekly publication coverage is explicitly unverified without an official calendar;
-the timestamp and coverage policy is documented in the [EVDS guide](docs/evds-ingestion.md).
-See the [acceptance record](docs/release-acceptance.md) for verified checks and the
-remaining optional portfolio item.
-The [real-data delivery guide](docs/real-demo-delivery.md) records verified
-packages, historical request drafts and offline demo steps.
-The [tool contracts](docs/tool-contracts.md) map current code to the planned and
-disabled generic tools; those generic adapters are not implemented runtime tools.
-
-Question routing has a bounded Python service and HTTP endpoint with offline
-behavior tests. A separate server-side Python wrapper verifies local files before
-planning; its fixed-plan evidence/chart result was checked against the same real
-CLI inputs in [#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42).
-This offline acceptance does not measure live model understanding.
-A general agent/tool registry, data catalog, general web/anomaly/causality tools
-and deployment are planned work. A live Gemini narration contract check passed;
-see the [LLM acceptance record](docs/llm-client.md#canlı-kabul-kaydı--15-ekim-2026).
-The draft golden cases currently have schema checks; they are not a measured
-end-to-end model-accuracy benchmark.
-A separate [Housing question set](evals/housing_question_cases.json) has an
-[executable evaluator](docs/housing-question-evals.md). Offline stub results
-verify harness behavior; they do not measure model understanding.
+Real-data delivery and technical acceptance in [#39](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/39),
+[#40](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/40) and
+[#42](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/42) are complete.
+The [delivery guide](docs/real-demo-delivery.md) preserves the package instructions
+and dated request history. The [EVDS guide](docs/evds-ingestion.md) explains the
+weekly-coverage policy. Generic registry, web, anomaly and causality designs in
+[tool contracts](docs/tool-contracts.md) are outside this prototype's implemented
+scope; they are not unfinished requirements for its current portfolio version.
 
 ## Quick start: synthetic offline report
 
@@ -100,7 +125,6 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m scripts.render_housing_sample
 Start-Process .\out\housing-sample.html
-.\.venv\Scripts\python.exe -m pytest -q
 ```
 
 If the Windows `py` launcher is unavailable, use `python -m venv .venv` after
@@ -114,13 +138,37 @@ cd quad-qore-agentic-analytics
 python3.12 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m scripts.render_housing_sample
-.venv/bin/python -m pytest -q
 ```
 
 Open `out/housing-sample.html` in a browser. The HTML embeds the chart library,
 so no CDN or web server is needed. The file is several MB and generated `out/`
-content is ignored by Git. Its 60 observations, including weekly counts, are
-artificial and must not be presented as real economic findings.
+content is ignored by Git. Its **60 months / 55 matches**, including weekly counts,
+are artificial; they are different from the verified real-data result of 60 months /
+22 matches and must not be presented as economic findings.
+
+After the same installation, the other two report types also have key-free,
+synthetic examples. Run once per output path; the comparison command refuses to
+overwrite an existing file unless `--overwrite` is explicitly supplied.
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.render_inflation_report
+.\.venv\Scripts\python.exe -m scripts.render_inflation_comparison_sample
+```
+
+Linux:
+
+```bash
+.venv/bin/python -m scripts.render_inflation_report
+.venv/bin/python -m scripts.render_inflation_comparison_sample
+```
+
+Open `out/inflation-report/synthetic-2023.html` or
+`out/inflation-comparison/sample.html`. The synthetic CPI summary has **12 months**
+and **13.5732%** first-to-last index change. Synthetic comparison rates are **20%**
+and **25%** with a **+5 percentage-point** difference. These are not the real-data
+values listed above. Verification is a separate optional step below.
 
 ### Single offline verification
 
@@ -282,6 +330,9 @@ startup convenience and does **not** replace `python -m scripts.verify_project`.
 
 Windows PowerShell:
 
+Choose one launcher command; each server command blocks until Ctrl+C. The model
+example uses port 8001, so open the URL printed by that command.
+
 ```powershell
 .\.venv\Scripts\python.exe -m scripts.run_local_app --mode preview --data-root "out/question data/inputs"
 .\.venv\Scripts\python.exe -m scripts.run_local_app --mode model --data-root "out/question data/inputs" --port 8001
@@ -371,8 +422,11 @@ analysis, the parameterized Housing condition filter, the CPI summary and the
 two-year CPI comparison. The CPI summary
 reuses the existing three-panel index/monthly/annual chart before its table; the
 two-year comparison remains table-based. The offline preview below fixes plans
-for only the three example questions. No live-model success is claimed for the
-condition filter or the two-year comparison.
+for only the three example questions. Selected live filter results and their
+known model failure are preserved in [#107](https://github.com/ekincimustafa/quad-qore-agentic-analytics/issues/107).
+The 26 October comparison and CPI UI results are in the
+[acceptance record](docs/release-acceptance.md); none of these small runs is a
+general accuracy benchmark.
 
 ### Local question screen — offline preview
 
@@ -453,6 +507,12 @@ and `LLM_CHAT_MODEL` for a Chat Completions-compatible endpoint/model you can
 access. There is no default provider/model or automatic MIA fallback.
 `LLM_TIMEOUT_SECONDS` defaults to 30; retries are disabled. See the
 [LLM guide](docs/llm-client.md) for configuration and controlled errors.
+These same settings configure normal question mode. The recorded 26 October
+Gemini UI run was launched with timeout 60 seconds and reasoning effort `low`.
+To reproduce those options, set `LLM_TIMEOUT_SECONDS=60` and, only for a compatible
+model/provider, `LLM_REASONING_EFFORT=low`. The default 30-second timeout can fail
+on a request that took 36.73 seconds in that run. Startup pre-checks validate local
+configuration, not provider access or free-tier availability.
 
 For a single short live generation probe, separate from the Housing contract:
 
@@ -490,8 +550,10 @@ match = interest_rate_change_pp < 0 AND real_housing_loan_change_pct <= 0
 ```
 
 Weekly interest observations are aggregated by monthly arithmetic mean.
-The first month's change fields and match flag are null because no preceding
-month exists inside the analysis window. The result does not establish causality.
+For the fixed Housing rule, the first month's change fields and match flag are
+null because no preceding month exists inside the analysis window. Change-based
+filters cannot match that month; a filter using only the interest-rate level can.
+The result does not establish causality.
 KFE is displayed for context; CPI is used to deflate the loan stock.
 
 ## Team contributions
@@ -504,17 +566,23 @@ table in the [acceptance record](docs/release-acceptance.md) hold the dated evid
   summary/chart/report and two-year comparison integrations; release and acceptance
   records.
 - **Afra Topcu:** secure EVDS ingestion and Silver validation, receipt/coverage checks,
-  EVDS manifest producer and demo fixtures, and the initial tool-contract contribution.
+  EVDS manifest producer and demo fixtures, the initial tool-contract contribution,
+  and the later [two-year CPI chart/offline report (#115)](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/115).
 - **Osman Erdem Dutar:** BDDK ingestion and Bronze provenance, BDDK Silver pipeline,
-  offline housing demo CLI, and the real-data delivery/acceptance work.
+  offline housing demo CLI, real-data delivery/acceptance, and the
+  [pre-checked local launcher (#113)](https://github.com/ekincimustafa/quad-qore-agentic-analytics/pull/113).
+
+The team used AI coding tools for implementation support. Contributions above
+are grouped by delivered scope; linked PRs and acceptance records support
+individual portfolio claims.
 
 ## Project guides and security
 
-- [Architecture](docs/architecture.md) and [scenario/design contract](docs/first-demo-scenario.md): design documents; some agent workflow is planned.
+- [Architecture](docs/architecture.md) and [scenario/design contract](docs/first-demo-scenario.md): design documents; conceptual agent workflows are separate from the implemented scope above.
 - [HTML report](docs/housing-report.md), [narration](docs/housing-narration.md), [acceptance record](docs/release-acceptance.md).
 - Runtime calculations use pandas; Parquet I/O uses pyarrow; presentation uses Plotly. Full dependencies are in [requirements.txt](requirements.txt).
 - Keep credentials in local configuration. Never commit keys, raw data, generated reports or secret-bearing logs.
-- Tests cover deterministic calculations, integrity/error boundaries, API, narration and report behavior. CI is test automation; deployment is future work.
+- Tests cover deterministic calculations, integrity/error boundaries, API, narration and report behavior. CI automates offline verification; public deployment is outside this local prototype's current scope.
 
 
 ## Two-year CPI comparison — offline HTML
