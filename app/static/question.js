@@ -6,6 +6,25 @@
   const notice = document.getElementById("notice");
   const result = document.getElementById("result");
   const examples = [...document.querySelectorAll("[data-example]")];
+  const clarification = document.getElementById("clarification");
+  const clarificationMessage = document.getElementById("clarification-message");
+  const clarificationYearField = document.getElementById("clarification-year-field");
+  const clarificationYear = document.getElementById("clarification-year");
+  const clarificationMetricField = document.getElementById("clarification-metric-field");
+  const clarificationComplete = document.getElementById("clarification-complete");
+  const clarificationDismiss = document.getElementById("clarification-dismiss");
+  const clarificationError = document.getElementById("clarification-error");
+  const clarificationMetrics = [...document.querySelectorAll('input[name="clarification-metric"]')];
+  const offlinePreview = document.querySelector(".mode")?.textContent.includes("OFFLINE ÖNİZLEME");
+  const MAX_QUESTION_LENGTH = 2000;
+  const suffix = "[a-zçğıöşü]*";
+  const monthNames = ["ocak", "şubat", "mart", "nisan", "mayıs", "haziran", "temmuz", "ağustos", "eylül", "ekim", "kasım", "aralık"];
+  const monthPattern = new RegExp(`(?<![a-zçğıöşü])(?:${monthNames.join("|")})(?![a-zçğıöşü])`, "gi");
+  const quarterPattern = new RegExp(`(?:ilk|birinci|ikinci|üçüncü|dördüncü|son|[1-4]\\s*\\.)\\s+(?:çeyre${suffix}|üç\\s+ay${suffix})`, "i");
+  const halfPattern = new RegExp(`(?:ilk|birinci|son|ikinci)\\s+(?:(?:altı|6)\\s+ay${suffix}|yarı${suffix})`, "i");
+  const amountPattern = `(?:stok|bakiy|tutar|hac|miktar)${suffix}`;
+  const creditPattern = new RegExp(`(?<![a-zçğıöşü])(?:(?:konut\\s+)?kredi${suffix}(?:\\s+${amountPattern})?|${amountPattern})(?![a-zçğıöşü])`, "gi");
+  let clarificationContext = null;
   const number = value => value === null ? "—" : new Intl.NumberFormat("tr-TR", {maximumFractionDigits: 4}).format(value);
   const pct = value => value === null ? "—" : `%${number(value)}`;
   const pp = value => value === null ? "—" : `${value > 0 ? "+" : ""}${number(value)} yüzde puan`;
@@ -148,10 +167,186 @@
     list("Sınırlamalar", e.limitations, notes);
     if (housing || filter) list("Veri kalitesi", e.data_quality_notes, notes);
   }
-  examples.forEach(button => button.addEventListener("click", () => { question.value = button.dataset.example; question.focus(); }));
+  const yearsIn = text => [...text.matchAll(/(?<!\d)((?:19|20)\d{2})(?!\d)/g)].map(match => match[1]);
+  const comparisonRequested = text => /(?:karşılaştır|kıyasla)[a-zçğıöşü]*/i.test(text);
+  const monthMatches = text => [...text.matchAll(monthPattern)];
+  const clearClarificationError = () => { clarificationError.hidden = true; clarificationError.textContent = ""; };
+  const showClarificationError = text => { clarificationError.textContent = text; clarificationError.hidden = false; };
+  const closeClarification = () => {
+    clarification.hidden = true;
+    clarificationContext = null;
+    clarificationYearField.hidden = true;
+    clarificationMetricField.hidden = true;
+    clarificationYear.value = "";
+    clarificationMetrics.forEach(radio => { radio.checked = false; });
+    clarificationComplete.disabled = false;
+    clearClarificationError();
+  };
+  const appendClause = (text, clause) => /[.!?]\s*$/.test(text)
+    ? text.replace(/([.!?]\s*)$/, ` ${clause}$1`)
+    : `${text} ${clause}`;
+  const completePeriod = (text, rawYears) => {
+    const years = yearsIn(rawYears);
+    const comparison = comparisonRequested(text);
+    if (yearsIn(text).length) {
+      return {error: "Soruda zaten bir tarih var. Eksik veya çelişkili dönemi ana soruyu düzenleyerek tamamla."};
+    }
+    if (comparison) {
+      if (years.length !== 2 || new Set(years).size !== 2) {
+        return {error: "Karşılaştırma için iki farklı tam yıl yaz (örneğin 2023 ve 2024)."};
+      }
+      if (monthMatches(text).length || quarterPattern.test(text) || halfPattern.test(text)) {
+        return {error: "Kısmi dönem karşılaştırmasını güvenle tamamlayamıyorum. Lütfen ana soruyu düzenle."};
+      }
+      return {text: appendClause(text, `${years[0]} ve ${years[1]}`)};
+    }
+    if (years.length !== 1) {
+      return {error: "Dört haneli tek bir yıl yaz (örneğin 2023)."};
+    }
+    if (
+      /(?<!\d)(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{4})(?!\d)/.test(text)
+      || new RegExp(`(?<![a-zçğıöşü])\\d{1,2}\\s+(?:${monthNames.join("|")})(?![a-zçğıöşü])`, "i").test(text)
+      || /(?:itibaren|sonraki|sonrasında|başlayarak|bu\s+yana)/i.test(text)
+      || /(?:geçen|bu|gelecek|önceki|sonraki)\s+yıl[a-zçğıöşü]*/i.test(text)
+      || /son\s+(?:\d+|iki|üç)\s+yıl[a-zçğıöşü]*/i.test(text)
+    ) {
+      return {error: "Bu tarih ifadesini güvenle tamamlayamıyorum. Lütfen ana soruyu düzenle."};
+    }
+    const months = monthMatches(text);
+    const quarter = quarterPattern.exec(text);
+    const half = halfPattern.exec(text);
+    if (months.length > 2 || (months.length && (quarter || half))) {
+      return {error: "Birden çok dönem ifadesi var. Lütfen ana soruyu düzenle."};
+    }
+    if (months.length === 2) {
+      const [first, second] = months;
+      const separator = text.slice(first.index + first[0].length, second.index);
+      const separatorPattern = /^\s*(?:[-–—]|['’](?:tan|ten|dan|den)|ay[a-zçğıöşü]*ndan|ay[a-zçğıöşü]*\s+(?:ile|ve)|(?:ile|ve))\s*$/i;
+      if (!separatorPattern.test(separator)) {
+        return {error: "Bu dönem ifadesini güvenle tamamlayamıyorum. Lütfen ana soruyu düzenle."};
+      }
+      const after = text.slice(second.index + second[0].length);
+      if (
+        /(?:^|\s)ve(?:\s|$)/i.test(separator)
+        && !/^\s+(?:ay[a-zçğıöşü]*\s+)?(?:arası[a-zçğıöşü]*|aralı[a-zçğıöşü]*|kadar)(?![a-zçğıöşü])/i.test(after)
+      ) {
+        return {error: "Kesintili ay listesini güvenle tamamlayamıyorum. Lütfen ana soruyu düzenle."};
+      }
+      return {text: `${text.slice(0, first.index)}${years[0]} ${text.slice(first.index)}`};
+    }
+    if (months.length === 1) {
+      return {text: `${text.slice(0, months[0].index)}${years[0]} ${text.slice(months[0].index)}`};
+    }
+    if (quarter) {
+      return {text: `${text.slice(0, quarter.index)}${years[0]} yılının ${text.slice(quarter.index)}`};
+    }
+    if (half) {
+      return {text: `${text.slice(0, half.index)}${years[0]} yılının ${text.slice(half.index)}`};
+    }
+    if (
+      new RegExp(`(?:çeyrek|yarı)${suffix}`, "i").test(text)
+      || new RegExp(`(?:altı|6)\\s+ay${suffix}`, "i").test(text)
+    ) {
+      return {error: "Bu dönem ifadesini güvenle tamamlayamıyorum. Lütfen ana soruyu düzenle."};
+    }
+    return {text: appendClause(text, `${years[0]} yılında`)};
+  };
+  const completeMetric = (text, metric) => {
+    if (!metric) {
+      return {error: "Reel veya Nominal seç."};
+    }
+    const candidates = [];
+    for (const match of text.matchAll(creditPattern)) {
+      const after = text.slice(match.index + match[0].length);
+      if (/^\s*faiz/i.test(after) || /^\s*(?:reel|nominal)/i.test(after)) {
+        continue;
+      }
+      const before = text.slice(Math.max(0, match.index - 40), match.index);
+      if (
+        /(?:reel(?:\s+olarak)?|nominal(?:\s+olarak)?|enflasyondan\s+arındırılmış|tüfe\s+ile\s+arındırılmış|enflasyona\s+göre\s+düzeltilmiş)\s*$/i.test(before)
+        || /(?:reel|nominal)(?:\s+olarak)?\s+(?:olmayan|olmadığı|değil|hariç)\s*$/i.test(before)
+      ) {
+        return {error: "Mevcut veya çelişkili kredi ölçüsünü sessizce değiştirmiyorum. Lütfen ana soruyu düzenle."};
+      }
+      candidates.push(match);
+    }
+    if (candidates.length !== 1) {
+      return {error: "İlgili kredi stoku/bakiyesi ifadesini güvenle bulamadım. Lütfen ana soruyu düzenle."};
+    }
+    const target = candidates[0];
+    return {text: `${text.slice(0, target.index)}${metric} ${text.slice(target.index)}`};
+  };
+  const showClarification = body => {
+    const reason = body.decision?.reason;
+    const messages = {
+      period_required: "Hangi dönemi inceleyelim? Başlangıç ve bitiş yılını/ayını veya karşılaştırılacak iki farklı tam yılı belirt.",
+      metric_ambiguous: "Hangi ölçüyü inceleyelim? Reel/nominal konut kredisi, faiz seviyesi veya faiz değişimini belirt.",
+      question_ambiguous: "Konut filtresi koşullarını mı, TÜFE değişimlerini mi, iki tam yılın TÜFE karşılaştırmasını mı inceleyelim?",
+      outside_coverage: "İstenen dönem veri kapsamının dışında. Aşağıdaki mevcut döneme uygun bir soru yaz."
+    };
+    const ranges = Object.entries(body.available_periods).filter(([, value]) => value)
+      .map(([key, value]) => `${key === "housing" ? "Konut" : "TÜFE"}: ${value.start_period}–${value.end_period}`).join(" · ");
+    say(body.status, `${messages[reason] || messages.question_ambiguous} ${ranges}`);
+    closeClarification();
+    if (offlinePreview || (reason !== "period_required" && reason !== "metric_ambiguous")) {
+      return;
+    }
+    clarificationContext = {question: question.value.trim(), reason};
+    clarification.hidden = false;
+    if (reason === "period_required") {
+      if (yearsIn(clarificationContext.question).length) {
+        clarificationMessage.textContent = "Soruda zaten bir tarih var. Eksik veya çelişkili dönemi ana soruyu düzenleyerek tamamla.";
+        clarificationComplete.disabled = true;
+      } else {
+        clarificationMessage.textContent = comparisonRequested(clarificationContext.question)
+          ? "Karşılaştırma için iki farklı tam yıl yaz. Kısmi dönem varsa ana soruyu düzenle."
+          : "Dört haneli yıl yaz. Ay veya çeyrek gibi dar dönem korunur.";
+        clarificationYearField.hidden = false;
+        clarificationYear.focus();
+      }
+    } else {
+      clarificationMessage.textContent = "Kredi stoku/bakiyesi için Reel veya Nominal seç. Seçim ilgili ifadeye uygulanır.";
+      clarificationMetricField.hidden = false;
+    }
+  };
+  const completeClarification = () => {
+    if (!clarificationContext || submit.disabled) return;
+    if (question.value.trim() !== clarificationContext.question) {
+      closeClarification();
+      return;
+    }
+    const metric = clarificationMetrics.find(radio => radio.checked)?.value;
+    const result = clarificationContext.reason === "period_required"
+      ? completePeriod(question.value, clarificationYear.value)
+      : completeMetric(question.value, metric);
+    if (result.error) {
+      showClarificationError(result.error);
+      return;
+    }
+    if (result.text.length > MAX_QUESTION_LENGTH) {
+      showClarificationError("Tamamlanan soru 2000 karakter sınırını aşıyor. Lütfen ana soruyu kısalt.");
+      return;
+    }
+    question.value = result.text;
+    closeClarification();
+    say("clarified", "Soru tamamlandı. Gerekirse düzenle, sonra Analiz et ile gönder.");
+    question.focus();
+  };
+  clarificationComplete.addEventListener("click", completeClarification);
+  clarificationDismiss.addEventListener("click", () => {
+    closeClarification();
+    say("idle", "Netleştirme kapatıldı. Soruyu düzenleyip yeniden gönderebilirsin.");
+  });
+  question.addEventListener("input", () => {
+    if (clarificationContext && question.value.trim() !== clarificationContext.question) {
+      closeClarification();
+    }
+  });
+  examples.forEach(button => button.addEventListener("click", () => { closeClarification(); question.value = button.dataset.example; question.focus(); }));
   form.addEventListener("submit", async event => {
     event.preventDefault();
     if (submit.disabled) return;
+    closeClarification();
     if (!question.value.trim()) { say("error", "Lütfen dönemini de belirterek bir soru yaz."); return; }
     clear(); busy(true); say("loading", "Veriler doğrulanıyor, soru planlanıyor ve analiz hazırlanıyor…");
     try {
@@ -161,11 +356,7 @@
         const messages = {economic_data_unavailable: "Sunucudaki veri paketi eksik veya doğrulanamadı. Dosya yapılandırmasının kontrol edilmesi gerekiyor.", question_planning_failed: "Model sağlayıcısından plan alınamadı. Sunucu model yapılandırmasını veya sağlayıcı erişimini kontrol edin.", invalid_question_plan: "Modelin planı güvenilir biçimde doğrulanamadı. Sorunu daha açık bir dönemle yeniden yazabilirsin.", invalid_economic_input: "Soru geçerli değil. En fazla 2000 karakterle bir analiz ve dönem belirt."};
         say("error", messages[body.detail?.code] || "İstek tamamlanamadı. Lütfen daha sonra yeniden dene."); return;
       }
-      if (body.status === "clarification_required") {
-        const messages = {period_required: "Hangi dönemi inceleyelim? Başlangıç ve bitiş yılını/ayını veya karşılaştırılacak iki farklı tam yılı belirt.", metric_ambiguous: "Hangi ölçüyü inceleyelim? Reel/nominal konut kredisi, faiz seviyesi veya faiz değişimini belirt.", question_ambiguous: "Konut filtresi koşullarını mı, TÜFE değişimlerini mi, iki tam yılın TÜFE karşılaştırmasını mı inceleyelim?", outside_coverage: "İstenen dönem veri kapsamının dışında. Aşağıdaki mevcut döneme uygun bir soru yaz."};
-        const ranges = Object.entries(body.available_periods).filter(([,v]) => v).map(([k,v]) => `${k === "housing" ? "Konut" : "TÜFE"}: ${v.start_period}–${v.end_period}`).join(" · ");
-        say(body.status, `${messages[body.decision.reason] || messages.question_ambiguous} ${ranges}`); return;
-      }
+      if (body.status === "clarification_required") { showClarification(body); return; }
       if (body.status === "unsupported") { say(body.status, "Bu sürüm parametreli konut koşullarını, TÜFE değişimlerini veya iki tam yılın TÜFE karşılaştırmasını inceleyebilir. OR, sıralama/top-N, ortalama, kısmi dönem, tahmin, nedensellik ve iki analizi birlikte isteyen sorular desteklenmiyor."); return; }
       if (body.status === "data_unavailable") { say("error", "İstenen analiz için kullanılabilir veri bulunmuyor."); return; }
       if (body.status !== "ok") throw new Error("Unknown result");
