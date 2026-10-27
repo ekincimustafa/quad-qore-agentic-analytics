@@ -41,7 +41,7 @@ class LLMSettings:
     base_url: str
     chat_model: str
     timeout_seconds: float = 30.0
-    reasoning_effort: Literal["low", "medium", "high"] | None = None
+    reasoning_effort: Literal["minimal", "low", "medium", "high"] | None = None
 
     def __post_init__(self) -> None:
         for name, value in (
@@ -80,10 +80,10 @@ class LLMSettings:
             )
         if self.reasoning_effort is not None and (
             not isinstance(self.reasoning_effort, str)
-            or self.reasoning_effort not in ("low", "medium", "high")
+            or self.reasoning_effort not in ("minimal", "low", "medium", "high")
         ):
             raise LLMConfigurationError(
-                "LLM_REASONING_EFFORT boş, low, medium veya high olmalıdır."
+                "LLM_REASONING_EFFORT boş, minimal, low, medium veya high olmalıdır."
             )
 
 

@@ -121,7 +121,7 @@ def test_explicit_schema_is_sent_once_without_changing_the_response(monkeypatch)
     assert json.dumps(schema, sort_keys=True) == before
 
 
-@pytest.mark.parametrize("effort", ["low", "medium", "high"])
+@pytest.mark.parametrize("effort", ["minimal", "low", "medium", "high"])
 def test_explicit_reasoning_effort_reaches_provider_once(monkeypatch, effort):
     requests, clients, _ = _mock_provider(monkeypatch, lambda request: _response())
     monkeypatch.setenv("LLM_REASONING_EFFORT", effort)
@@ -131,7 +131,7 @@ def test_explicit_reasoning_effort_reaches_provider_once(monkeypatch, effort):
     assert clients[0].is_closed()
 
 
-@pytest.mark.parametrize("effort", ["minimal", "none", "secret-upstream-value"])
+@pytest.mark.parametrize("effort", ["none", "secret-upstream-value"])
 def test_invalid_reasoning_effort_fails_before_client_creation(monkeypatch, effort):
     requests, clients, _ = _mock_provider(monkeypatch, lambda request: _response())
     monkeypatch.setenv("LLM_REASONING_EFFORT", effort)

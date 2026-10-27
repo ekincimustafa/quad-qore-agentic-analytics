@@ -2,6 +2,7 @@
 
 import copy
 import json
+import os
 
 import httpx
 import pytest
@@ -41,6 +42,8 @@ def test_offline_command_runs_curated_cases_and_counts_only_question_executions(
     assert report["case_set_sha256"] and len(report["fixture_sha256"]) == 5
     assert report["source_commit"] and report["evaluator_sha256"]
     assert report["results"][0]["expected_decision"] == report["results"][0]["actual_decision"]
+    assert all(row["model_call_duration_ms"] is None for row in report["results"])
+    assert all(row["request_duration_ms"] >= 0 for row in report["results"])
 
 
 def test_valid_but_wrong_stub_plan_makes_command_fail(tmp_path, monkeypatch):
@@ -90,6 +93,8 @@ def test_report_cannot_overwrite_case_inputs():
     ["--live", "--case", "EQ-013", "--max-model-calls", "0"],
     ["--live", "--case", "EQ-013", "--max-model-calls", "-1"],
     ["--max-model-calls", "2"],
+    ["--reasoning-effort", "minimal"], ["--timeout-seconds", "60"],
+    ["--live", "--case", "EQ-013", "--max-model-calls", "1", "--reasoning-effort", "none"],
 ])
 def test_cli_requires_explicit_selection_and_positive_live_budget_before_settings(args):
     with pytest.raises(SystemExit) as error:
@@ -135,6 +140,109 @@ def test_live_report_records_effective_options_without_secrets(tmp_path, monkeyp
     assert json.loads(requests[0].content)["reasoning_effort"] == "low"
     assert json.loads(requests[0].content)["response_format"]["type"] == "json_schema"
     assert "private-test-key" not in output.read_text(encoding="utf-8")
+
+
+def test_live_cli_overrides_are_temporary_and_preserve_schema_and_budget(
+    tmp_path, monkeypatch, cases, fake_provider,
+):
+    requests, clients, options = fake_provider(answers_for(cases))
+    monkeypatch.setenv("LLM_REASONING_EFFORT", "low")
+    monkeypatch.setattr(evaluator, "ROOT", tmp_path)
+    before = os.environ.copy()
+    output = tmp_path / "out/minimal.json"
+    assert evaluator.main([
+        "--live", "--case", "EQ-038", "--case", "EQ-040", "--max-model-calls", "1",
+        "--reasoning-effort", "minimal", "--timeout-seconds", "60", "--output", str(output),
+    ]) == 1  # Second case remains skipped after exhausting the one-call budget.
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["llm_request_settings"] == {
+        "timeout_seconds": 60, "reasoning_effort": "minimal", "max_retries": 0,
+        "response_format": "json_schema",
+    }
+    body = json.loads(requests[0].content)
+    assert body["reasoning_effort"] == "minimal"
+    assert body["response_format"]["json_schema"]["strict"] is True
+    assert len(requests) == report["live_model_call_attempts"] == 1
+    assert options[0]["timeout"] == 60 and options[0]["max_retries"] == 0
+    assert clients[0].is_closed()
+    assert report["results"][0]["outcome"] == "passed"
+    assert report["results"][1]["reason"] == "budget_exhausted"
+    assert report["results"][1]["model_call_duration_ms"] is None
+    assert report["results"][1]["request_duration_ms"] is None
+    assert os.environ == before
+
+
+@pytest.mark.parametrize("timeout", ["0", "121", "nan"])
+def test_bad_live_override_spends_no_calls(tmp_path, monkeypatch, fake_provider, timeout):
+    requests, clients, _ = fake_provider(lambda _: _response("OK"))
+    monkeypatch.setattr(evaluator, "ROOT", tmp_path)
+    output = tmp_path / "out/invalid.json"
+    assert evaluator.main([
+        "--live", "--case", "EQ-038", "--max-model-calls", "1",
+        "--timeout-seconds", timeout, "--output", str(output),
+    ]) == 2
+    assert requests == [] and clients == []
+    assert not output.exists()
+
+
+def test_provider_rejecting_minimal_stops_without_fallback_or_second_call(
+    tmp_path, monkeypatch, fake_provider,
+):
+    requests, clients, options = fake_provider(lambda _: httpx.Response(400, json={
+        "error": {"message": "secret-upstream-body private-test-key"},
+    }))
+    monkeypatch.setattr(evaluator, "ROOT", tmp_path)
+    output = tmp_path / "out/rejected.json"
+    assert evaluator.main([
+        "--live", "--case", "EQ-038", "--case", "EQ-040", "--max-model-calls", "2",
+        "--reasoning-effort", "minimal", "--output", str(output),
+    ]) == 1
+    report = json.loads(output.read_text(encoding="utf-8"))
+    row, skipped = report["results"]
+    assert row["provider_error_code"] == "request_rejected"
+    assert row["reason"] == "model_call_failed" and row["http_status"] == 502
+    assert row["actual_model_decision"] is row["actual_decision"] is None
+    assert row["model_call_duration_ms"] >= 0
+    assert all(row[name] == 0 for name in (
+        "housing_calls", "filter_calls", "inflation_calls", "comparison_calls",
+    ))
+    assert skipped["reason"] == "not_run_after_failure"
+    assert len(requests) == report["live_model_call_attempts"] == 1
+    assert json.loads(requests[0].content)["reasoning_effort"] == "minimal"
+    assert options[0]["max_retries"] == 0 and clients[0].is_closed()
+    assert "private-test-key" not in output.read_text(encoding="utf-8")
+    assert "secret-upstream-body" not in output.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("result", ["success", "timeout", "bad_plan", "wrong_decision"])
+def test_live_timings_include_failed_attempt_and_leave_skipped_cases_empty(
+    monkeypatch, cases, fixtures, result,
+):
+    selected = evaluator.select_cases(cases, ["EQ-038", "EQ-040"])
+    ticks = iter([0.0, 1.0, 2.25, 4.0])
+    monkeypatch.setattr(evaluator, "perf_counter", lambda: next(ticks))
+
+    def model(_):
+        if result == "timeout":
+            raise llm_client.LLMRequestError("timeout", "private-test-key")
+        if result == "bad_plan":
+            return "not-json private-test-key"
+        if result == "wrong_decision":
+            return json.dumps({"status": "unsupported", "reason": "unsupported_analysis"})
+        return json.dumps(selected[0].offline_response)
+
+    report = evaluator.evaluate_cases(
+        selected, fixtures, live=True, model_call=model, max_model_calls=1,
+    )
+    first, skipped = report["results"]
+    assert first["model_call_duration_ms"] == 1250.0
+    assert first["request_duration_ms"] == 4000.0
+    assert report["live_model_call_attempts"] == 1
+    assert first["outcome"] == ("passed" if result == "success" else "failed")
+    assert skipped["model_call_duration_ms"] is skipped["request_duration_ms"] is None
+    assert skipped["model_call_attempts"] == 0
+    assert skipped["reason"] == ("budget_exhausted" if result == "success" else "not_run_after_failure")
+    assert "private-test-key" not in json.dumps(report)
 
 
 def answers_for(cases):

@@ -418,6 +418,37 @@ Modele yalnız soru ve veri kapsamı gider, beklenen karar/stub yanıtı gitmez.
   Gerçek koşu `live_model / selected_live_cases` etiketi taşır; seçilmiş birkaç
   vakanın sonucu genel başarı oranı olarak sunulmaz.
 
+### Düşünme düzeyi ve süre karşılaştırması
+
+Mevcut evaluator'a yeni bir koşu için `--reasoning-effort minimal` veya `low`
+ve `--timeout-seconds 60` verilebilir; bu seçenekler yalnız `--live` ile çalışır.
+Seçenekler yerel `.env` veya süreç ortamını değiştirmez. Sağlayıcı/model desteği
+[LLM rehberinde](llm-client.md#yapılandırma) açıklanır; otomatik fallback yoktur.
+Rapor etkin ayarları, vaka başına `model_call_duration_ms` ve
+`request_duration_ms` değerlerini kaydeder. Model alanı yalnız canlı denemede
+dolar; offline stub ve çalıştırılmamış vakalarda `null` kalır. Başarısız deneme
+de süre ve bütçeye dahildir. Bunlar saf model üretim süreleri değildir.
+
+Aşağıdaki **tek koşuluk örnek**, ayrıca onay verilmeden çalıştırılmamalıdır.
+Sentetik girdilerle karşılaştırma, TÜFE özeti ve belirsiz metrik kontrolünü seçer;
+azami 3 toplam deneme, retry 0 ve ilk hatada durma davranışı korunur. Gerçek
+paketle ekran kabulünü tekrarlamaz ve önceki canlı bütçeler bu komuta yetki vermez.
+
+```powershell
+$stamp = Get-Date -Format "yyyyMMdd-HHmmss-fff"
+.\.venv\Scripts\python.exe -m scripts.evaluate_economic_questions --live `
+  --case EQ-029 --case EQ-016 --case EQ-043 --max-model-calls 3 `
+  --reasoning-effort minimal --timeout-seconds 60 `
+  --output "out/economic-question-minimal-$stamp.json"
+```
+
+Karşılaştırmalı ölçüm için aynı commit/model/vaka/fixture/timeout ile ayrı,
+onaylı `low` koşusu ve farklı rapor adı gerekir. Her iki koşuda plan/hesap
+sonuçları da okunur; farklı veriyle alınmış eski UI süreleriyle doğrudan hız
+artışı hesaplanmaz. Üç vakalık sonuç genel doğruluk veya p95 gecikme iddiası değildir.
+
+### İlk canlı alt küme — 20 Ekim 2026
+
 20 Ekim'de ayrıca onaylanan ilk alt küme: **EQ-013, EQ-016, EQ-020, EQ-022, EQ-024, EQ-025,
 EQ-026, EQ-010**. İki farklı analiz ifadesi, eksik yıl, belirsiz metrik, kapsam
 dışı dönem, ters koşul, karşılaştırma ve şema değiştirme talepleri. **Azami 8 toplam

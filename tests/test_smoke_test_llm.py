@@ -57,16 +57,17 @@ def probe_provider(monkeypatch):
     return lambda handler: _mock_provider(monkeypatch, handler)
 
 
-def test_probe_uses_one_short_request_and_temporary_options(probe_provider, capsys):
+@pytest.mark.parametrize("effort", ["low", "minimal"])
+def test_probe_uses_one_short_request_and_temporary_options(probe_provider, capsys, effort):
     requests, clients, options = probe_provider(lambda request: _response("OK"))
     before = os.environ.copy()
-    smoke_test_llm.main(["--probe", "--reasoning-effort", "low", "--timeout-seconds", "60"])
+    smoke_test_llm.main(["--probe", "--reasoning-effort", effort, "--timeout-seconds", "60"])
     output = capsys.readouterr().out
     assert len(requests) == 1 and clients[0].is_closed()
     assert options[0]["timeout"] == 60 and options[0]["max_retries"] == 0
     body = json.loads(requests[0].content)
     assert body == {
-        "model": "test-model", "reasoning_effort": "low",
+        "model": "test-model", "reasoning_effort": effort,
         "messages": [{"role": "user", "content": "Reply with exactly OK."}],
     }
     assert "Kısa üretim isteği doğrulandı" in output

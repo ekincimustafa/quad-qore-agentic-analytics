@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import copy
+from dataclasses import replace
 import hashlib
 import json
 import math
 from pathlib import Path
 import subprocess
+from time import perf_counter
 from typing import Any, Literal
 from unittest.mock import patch
 
@@ -388,6 +390,7 @@ def evaluate_cases(
                 "python_blocked_ready_plan": False,
                 "outcome": "skipped", "reason": stopped,
                 "model_call_attempts": 0, "stub_calls": 0, "housing_calls": 0,
+                "model_call_duration_ms": None, "request_duration_ms": None,
                 "filter_calls": 0, "inflation_calls": 0, "comparison_calls": 0,
                 "provider_error_code": None,
                 "invalid_plan_diagnostics": None,
@@ -404,22 +407,26 @@ def evaluate_cases(
             actual_model_text = None
             limit_error = None
             provider_error_code = None
+            model_call_duration_ms = None
             attempts_before = live_calls
 
             def model(prompt):
-                nonlocal live_calls, actual_model_text, limit_error, provider_error_code
+                nonlocal live_calls, actual_model_text, limit_error, provider_error_code, model_call_duration_ms
                 if live and (live_calls >= max_model_calls or model_calls):
                     limit_error = "model_call_limit_exceeded"
                     raise RuntimeError("Evaluation call limit reached.")
                 model_calls.append(prompt)
                 if live:
                     live_calls += 1  # Failed provider requests consume the budget too.
+                    started = perf_counter()
                     try:
                         actual_model_text = model_call(prompt)
                     except llm_client.LLMRequestError as exc:
                         if isinstance(exc.code, str) and exc.code in _SAFE_PROVIDER_ERROR_CODES:
                             provider_error_code = exc.code
                         raise
+                    finally:
+                        model_call_duration_ms = round((perf_counter() - started) * 1000, 3)
                 else:
                     actual_model_text = json.dumps(case.offline_response, ensure_ascii=False)
                 return actual_model_text
@@ -429,7 +436,11 @@ def evaluate_cases(
             reason = None
             body = {}
             try:
-                response = client.post(ENDPOINT, json=payload)
+                started = perf_counter()
+                try:
+                    response = client.post(ENDPOINT, json=payload)
+                finally:
+                    row["request_duration_ms"] = round((perf_counter() - started) * 1000, 3)
                 body = response.json()
                 row["http_status"] = response.status_code
                 expected = case.expected_decision
@@ -492,6 +503,7 @@ def evaluate_cases(
                 "outcome": "passed" if reason is None else "failed", "reason": reason,
                 "actual_decision": body.get("decision"),
                 "model_call_attempts": live_calls - attempts_before,
+                "model_call_duration_ms": model_call_duration_ms,
                 "stub_calls": 0 if live else len(model_calls),
                 "housing_calls": housing.call_count, "inflation_calls": inflation.call_count,
                 "filter_calls": housing_filter.call_count,
@@ -533,12 +545,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--live", action="store_true", help="Ayrı kullanıcı onayından sonra gerçek planlayıcı")
     parser.add_argument("--case", action="append", dest="case_ids", help="Tekrarlanabilir, sıralı vaka kimliği")
     parser.add_argument("--max-model-calls", type=int, help="Başarısız istekler dahil kesin toplam çağrı sınırı")
+    parser.add_argument("--reasoning-effort", choices=("minimal", "low", "medium", "high"),
+                        help="Yalnız bu canlı koşu için; model desteği ayrıca gereklidir")
+    parser.add_argument("--timeout-seconds", type=float, help="Yalnız bu canlı koşu için SDK timeout'u")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     if args.live and (not args.case_ids or args.max_model_calls is None or args.max_model_calls <= 0):
         parser.error("--live açık --case seçimi ve pozitif --max-model-calls gerektirir.")
     if not args.live and args.max_model_calls is not None:
         parser.error("Çağrı bütçesi yalnız --live ile kullanılır.")
+    if not args.live and (args.reasoning_effort is not None or args.timeout_seconds is not None):
+        parser.error("Geçici model ayarları yalnız --live ile kullanılır.")
     try:
         output = (args.output or ROOT / f"out/economic-question-eval-{'live' if args.live else 'offline'}.json").resolve()
         output.relative_to((ROOT / "out").resolve())
@@ -556,6 +573,12 @@ def main(argv: list[str] | None = None) -> int:
         model_name = None
         if args.live:
             settings = llm_client.read_llm_settings()
+            overrides = {}
+            if args.reasoning_effort is not None:
+                overrides["reasoning_effort"] = args.reasoning_effort
+            if args.timeout_seconds is not None:
+                overrides["timeout_seconds"] = args.timeout_seconds
+            settings = replace(settings, **overrides)
             model_name = settings.chat_model.replace(settings.api_key, "[REDACTED]")
             metadata["llm_request_settings"] = {
                 "timeout_seconds": settings.timeout_seconds,
@@ -578,7 +601,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     print(f"Mod: {report['mode']} / {report['measurement']}")
     for row in report["results"]:
-        print(f"{row['id']}: {row['outcome']} ({row['reason'] or 'ok'})")
+        timing = row["model_call_duration_ms"]
+        duration = f"; plan çağrısı={timing:.3f} ms" if timing is not None else ""
+        print(f"{row['id']}: {row['outcome']} ({row['reason'] or 'ok'}){duration}")
     print(f"Geçen={report['passed_cases']}/{report['selected_cases']}; "
           f"canlı çağrı denemesi={report['live_model_call_attempts']}; rapor={output}")
     return 0 if report["all_selected_cases_passed"] else 1
