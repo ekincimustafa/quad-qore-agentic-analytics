@@ -1,16 +1,30 @@
-# Codex devir notu — 27 Ekim 2026
+# Codex devir notu — 8 Kasım 2026
 
 Bu not, Mustafa'nın yerel VS Code/Codex oturumuna proje bağlamını taşır.
 Kurulum adımları ve hesap arayüzü zamanla değişebilir; bu dosya ürün kurulumu
-için bir sürüm garantisi değildir. Bu dalın main tabanı `8e38593` (PR #119
-sonrası); aşağıdaki ilk bölüm bugünkü değişikliği ve sonraki adımı belirtir.
+için bir sürüm garantisi değildir. Aşağıdaki ilk bölüm güncel çalışmayı ve
+sonraki adımı belirtir.
 Aşağıdaki eski kayıtlar tarihli kaynak kanıtıdır; en üstteki oturum güncellemesi
 güncel durumu belirtir. Tarihli bölümlerdeki dal/CI/onay bekleme ifadeleri yalnız
 o tarihin kanıtıdır ve güncel engel değildir.
 Yeni bir oturum güncel HEAD'i, çalışma ağacını ve ilgili issue'yu yeniden kontrol
 etmelidir. Mustafa Hacettepe Bilgisayar Mühendisliği üçüncü sınıf öğrencisidir;
 ekip Mustafa, Osman ve Afra'dan oluşur. Gerçek verili yerel prototip mevcut;
-şimdiki hedef mevcut soru planlama gecikmesini doğrulukla birlikte ölçmektir.
+şimdiki hedef doğrulanmış serilerle birleştirilebilir analiz planları çalıştırmaktır.
+
+## Birleştirilebilir analiz çekirdeği — 8 Kasım 2026
+
+- Dal `feat/composable-analysis-core`, taban `main` `457d58a`. [Yol haritası](composable-analysis-roadmap.md)
+  teslimleri kısa oturumlara ve kabul ölçütlerine böler.
+- İlk aşama: aylık/yıllık TÜFE ve reel konut kredisi değişimi kataloğu; mevcut
+  TÜFE/Gold hesaplarını kullanan tipli koşul çekirdeği. Ay bazında hizalama,
+  geçmiş yoksa null, kaynak kanıtı ve iki farklı sentetik birleşim doğrulandı.
+- Odaklı 15 test geçti. Tam çevrimdışı doğrulama 4/4: 1443 test geçti, 1
+  tarayıcı testi atlandı; Housing 9/9 ve Economic 45/45, canlı çağrı 0.
+  Mevcut API/UI ve #121 dalı değişmedi. Çekirdek fiziksel paket doğrulaması
+  yaptığını iddia etmez.
+- Sonraki oturum: doğrulanmış yerel paket ve küçük şemalı planlayıcıyı çekirdeğe
+  bağla; önce sahte sağlayıcıyla soru → plan → sonuç doğrula.
 
 ## İsteğe bağlı minimal planlama ve süre kaydı — 27 Ekim 2026
 
